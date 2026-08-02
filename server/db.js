@@ -32,12 +32,24 @@ if (process.env.DATABASE_URL) {
    */
   pg.types.setTypeParser(20, Number);
 
+  /*
+   * ה-SSL נקבע ממחרוזת החיבור (Neon שולח sslmode=require), והתעודה שלהם
+   * נבדקת מול רשויות האישור הרגילות. לא מבטלים כאן את הבדיקה: בלעדיה
+   * אפשר היה להתחזות למסד ולקרוא את כל מה שעובר בחיבור.
+   */
+  /*
+   * Neon נותן sslmode=require. היום הספרייה מתייחסת אליו כאל בדיקה מלאה,
+   * אבל בגרסה הבאה המשמעות תיחלש ובדיקת התעודה תיעלם בשקט. מקבעים כאן
+   * verify-full כדי שהחיבור יישאר מאומת גם אחרי עדכון גרסה.
+   */
+  const url = process.env.DATABASE_URL.replace(/sslmode=(require|prefer|verify-ca)\b/,
+                                               'sslmode=verify-full');
+
   const pool = new pg.Pool({
-    connectionString: process.env.DATABASE_URL,
-    // Neon דורש SSL. אין לנו את שרשרת האישורים שלהם, והחיבור עצמו מוצפן.
-    ssl: { rejectUnauthorized: false },
+    connectionString: url,
     max: 5,                      // התוכנית החינמית מוגבלת בחיבורים
     idleTimeoutMillis: 10_000,
+    connectionTimeoutMillis: 15_000,
   });
 
   query = (text, params) => pool.query(text, params);

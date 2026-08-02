@@ -59,25 +59,35 @@ export const rateLimit = ({ max, windowMs, message }) => (req, res, next) => {
  * תקרת שימוש ב-AI, כדי שחשבון בודד לא יוכל לצבור עלות בלי גבול.
  * ברירת המחדל שמרנית ואפשר לשנות אותה במשתני סביבה.
  */
-const AI_PER_HOUR = Number(process.env.AI_LIMIT_HOUR) || 20;
-const AI_PER_DAY = Number(process.env.AI_LIMIT_DAY) || 100;
+const aiPerHour = () => Number(process.env.AI_LIMIT_HOUR) || 20;
+const aiPerDay = () => Number(process.env.AI_LIMIT_DAY) || 100;
 
 export function aiQuotaExceeded(userId) {
-  const hour = tooMany(`ai:h:${userId}`, { max: AI_PER_HOUR, windowMs: 3_600_000 });
-  const day = tooMany(`ai:d:${userId}`, { max: AI_PER_DAY, windowMs: 86_400_000 });
+  const perHour = aiPerHour();
+  const perDay = aiPerDay();
 
-  if (hour) return `הגעתם למכסת ה-AI לשעה (${AI_PER_HOUR} שאלות).`;
-  if (day) return `הגעתם למכסת ה-AI ליום (${AI_PER_DAY} שאלות).`;
+  const hour = tooMany(`ai:h:${userId}`, { max: perHour, windowMs: 3_600_000 });
+  const day = tooMany(`ai:d:${userId}`, { max: perDay, windowMs: 86_400_000 });
+
+  if (hour) return `הגעתם למכסת ה-AI לשעה (${perHour} שאלות).`;
+  if (day) return `הגעתם למכסת ה-AI ליום (${perDay} שאלות).`;
   return null;
 }
 
 /**
  * קוד הזמנה להרשמה. מוגדר ב-INVITE_CODE; אם לא הוגדר, ההרשמה פתוחה
  * (מצב פיתוח מקומי). ההשוואה מתעלמת מרישיות ומרווחים.
+ *
+ * המשתנה נקרא בכל קריאה ולא נשמר בקבוע בזמן טעינת המודול: ב-ESM שני
+ * ייבואים אחים לא ממתינים זה לזה, אז env.mjs עדיין קורא את הקובץ
+ * כשהמודול הזה נטען. קבוע היה נתפס ריק — וההרשמה הייתה נפתחת לכולם
+ * בלי שאף אחד ישים לב.
  */
-const INVITE = (process.env.INVITE_CODE || '').trim().toLowerCase();
+const invite = () => (process.env.INVITE_CODE || '').trim().toLowerCase();
 
-export const inviteRequired = () => !!INVITE;
+export const inviteRequired = () => !!invite();
 
-export const inviteOk = (code) =>
-  !INVITE || String(code || '').trim().toLowerCase() === INVITE;
+export const inviteOk = (code) => {
+  const expected = invite();
+  return !expected || String(code || '').trim().toLowerCase() === expected;
+};

@@ -1,0 +1,5139 @@
+{
+  "version": 1,
+  "savedAt": "2026-08-01",
+  "note": "קטלוג הטריקים של Skate Lab. baseId מקבץ פרונטסייד ובקסייד לאותו טריק.",
+  "disciplines": [
+    {
+      "id": "basics",
+      "label": "יסודות",
+      "icon": "🛹",
+      "desc": "מה שצריך לדעת לפני הכל — עמידה, דחיפה, בלימה ונפילה נכונה."
+    },
+    {
+      "id": "flat",
+      "label": "פלאט ופליפים",
+      "icon": "🏙",
+      "desc": "אוליי וכל משפחת הפליפים והשאביטים. הבסיס של הסטריט."
+    },
+    {
+      "id": "grind",
+      "label": "גריינדים",
+      "icon": "⚙️",
+      "desc": "החלקה על הטראקים — מאבן שפה נמוכה ועד רייל."
+    },
+    {
+      "id": "slide",
+      "label": "סלײדים",
+      "icon": "🛝",
+      "desc": "החלקה על הלוח עצמו: בורדסלייד, נוזסלייד, בלאנט ומה שביניהם."
+    },
+    {
+      "id": "park",
+      "label": "פארק ואוויר",
+      "icon": "🪂",
+      "desc": "טרנזישן, גראבים וסיבובים באוויר."
+    },
+    {
+      "id": "mini",
+      "label": "מיני ראמפ",
+      "icon": "〽️",
+      "desc": "ליפ טריקס על הקופינג — המקום הכי טוב ללמוד טרנזישן."
+    },
+    {
+      "id": "pool",
+      "label": "פול ואינוורטים",
+      "icon": "🌊",
+      "desc": "דפנות עגולות, קופינג, והטריקים שהופכים אותך על הראש."
+    },
+    {
+      "id": "old",
+      "label": "פריסטייל ואולד סקול",
+      "icon": "📻",
+      "desc": "קספר, פוגו, ווק דה דוג — הטריקים שהתחילו הכל."
+    }
+  ],
+  "sides": [
+    {
+      "id": "fs",
+      "label": "פרונטסייד",
+      "short": "FS",
+      "hint": "החזה לכיוון המכשול"
+    },
+    {
+      "id": "bs",
+      "label": "בקסייד",
+      "short": "BS",
+      "hint": "הגב לכיוון המכשול"
+    }
+  ],
+  "counts": {
+    "entries": 352,
+    "baseTricks": 266,
+    "twoSided": 86,
+    "byDiscipline": {
+      "basics": 11,
+      "flat": 94,
+      "grind": 55,
+      "slide": 31,
+      "park": 48,
+      "mini": 50,
+      "pool": 23,
+      "old": 40
+    }
+  },
+  "tricks": [
+    {
+      "id": "stance",
+      "baseId": "stance",
+      "side": null,
+      "name": "עמידה ודחיפה",
+      "baseName": "עמידה ודחיפה",
+      "alias": "Pushing",
+      "discipline": "basics",
+      "level": "מתחיל",
+      "desc": "רגולר או גופי, דחיפה עם הרגל האחורית ומבט קדימה.",
+      "after": []
+    },
+    {
+      "id": "stop",
+      "baseId": "stop",
+      "side": null,
+      "name": "עצירה מבוקרת",
+      "baseName": "עצירה מבוקרת",
+      "alias": "Foot Brake",
+      "discipline": "basics",
+      "level": "מתחיל",
+      "desc": "לגרור את הסוליה על האספלט עד עצירה מלאה.",
+      "after": [
+        "stance"
+      ]
+    },
+    {
+      "id": "falling",
+      "baseId": "falling",
+      "side": null,
+      "name": "נפילה נכונה",
+      "baseName": "נפילה נכונה",
+      "alias": "Bailing",
+      "discipline": "basics",
+      "level": "מתחיל",
+      "desc": "להתגלגל במקום לבלום עם היד. השיעור שחוסך שברים.",
+      "after": [
+        "stance"
+      ]
+    },
+    {
+      "id": "turn",
+      "baseId": "turn",
+      "side": null,
+      "name": "פנייה וקארב",
+      "baseName": "פנייה וקארב",
+      "alias": "Carving",
+      "discipline": "basics",
+      "level": "מתחיל",
+      "desc": "להטות משקל על העקבים ועל האצבעות בלי להרים גלגלים.",
+      "after": [
+        "stop"
+      ]
+    },
+    {
+      "id": "kickturn",
+      "baseId": "kickturn",
+      "side": null,
+      "name": "קיקטרן",
+      "baseName": "קיקטרן",
+      "alias": "Kickturn",
+      "discipline": "basics",
+      "level": "מתחיל",
+      "desc": "הרמת החרטום ופנייה של 90° במקום.",
+      "after": [
+        "turn"
+      ]
+    },
+    {
+      "id": "tictac",
+      "baseId": "tictac",
+      "side": null,
+      "name": "טיק-טק",
+      "baseName": "טיק-טק",
+      "alias": "Tic-Tac",
+      "discipline": "basics",
+      "level": "יודע קצת",
+      "desc": "הרמות קטנות של החרטום כדי לצבור מהירות ולתמרן.",
+      "after": [
+        "kickturn",
+        "falling"
+      ]
+    },
+    {
+      "id": "fakie",
+      "baseId": "fakie",
+      "side": null,
+      "name": "נסיעה בפייקי",
+      "baseName": "נסיעה בפייקי",
+      "alias": "Fakie",
+      "discipline": "basics",
+      "level": "יודע קצת",
+      "desc": "נסיעה אחורה באותה עמידה. מרגיש הפוך בהתחלה.",
+      "after": [
+        "tictac"
+      ]
+    },
+    {
+      "id": "switch",
+      "baseId": "switch",
+      "side": null,
+      "name": "נסיעה בסוויץ׳",
+      "baseName": "נסיעה בסוויץ׳",
+      "alias": "Switch",
+      "discipline": "basics",
+      "level": "בינוני",
+      "desc": "לרכוב בעמידה ההפוכה שלך. כמו ללמוד לכתוב ביד שנייה.",
+      "after": [
+        "fakie"
+      ]
+    },
+    {
+      "id": "powerslide",
+      "baseId": "powerslide",
+      "side": null,
+      "name": "פאוורסלייד",
+      "baseName": "פאוורסלייד",
+      "alias": "Powerslide",
+      "discipline": "basics",
+      "level": "יודע קצת",
+      "desc": "סיבוב הלוח 90° והחלקה על הגלגלים לעצירה.",
+      "after": [
+        "turn"
+      ]
+    },
+    {
+      "id": "manual",
+      "baseId": "manual",
+      "side": null,
+      "name": "מניואל",
+      "baseName": "מניואל",
+      "alias": "Manual",
+      "discipline": "basics",
+      "level": "יודע קצת",
+      "desc": "נסיעה על שני הגלגלים האחוריים — נקודת איזון.",
+      "after": [
+        "tictac"
+      ]
+    },
+    {
+      "id": "nosemanual",
+      "baseId": "nosemanual",
+      "side": null,
+      "name": "נוז מניואל",
+      "baseName": "נוז מניואל",
+      "alias": "Nose Manual",
+      "discipline": "basics",
+      "level": "בינוני",
+      "desc": "אותו דבר, אבל על הגלגלים הקדמיים.",
+      "after": [
+        "manual"
+      ]
+    },
+    {
+      "id": "ollie",
+      "baseId": "ollie",
+      "side": null,
+      "name": "אוליי",
+      "baseName": "אוליי",
+      "alias": "Ollie",
+      "discipline": "flat",
+      "level": "יודע קצת",
+      "desc": "הפופ הראשון. הבסיס כמעט לכל טריק אחר.",
+      "after": [
+        "tictac"
+      ]
+    },
+    {
+      "id": "ollie_curb",
+      "baseId": "ollie_curb",
+      "side": null,
+      "name": "אוליי מעל מכשול",
+      "baseName": "אוליי מעל מכשול",
+      "alias": "Ollie over",
+      "discipline": "flat",
+      "level": "יודע קצת",
+      "desc": "אותו אוליי, בתנועה ומעל אבן שפה.",
+      "after": [
+        "ollie"
+      ]
+    },
+    {
+      "id": "nollie",
+      "baseId": "nollie",
+      "side": null,
+      "name": "נולי",
+      "baseName": "נולי",
+      "alias": "Nollie",
+      "discipline": "flat",
+      "level": "בינוני",
+      "desc": "פופ מהחרטום במקום מהזנב.",
+      "after": [
+        "ollie_curb",
+        "fakie"
+      ]
+    },
+    {
+      "id": "fakie_ollie",
+      "baseId": "fakie_ollie",
+      "side": null,
+      "name": "פייקי אוליי",
+      "baseName": "פייקי אוליי",
+      "alias": "Fakie Ollie",
+      "discipline": "flat",
+      "level": "יודע קצת",
+      "desc": "אוליי תוך כדי נסיעה אחורה.",
+      "after": [
+        "ollie",
+        "fakie"
+      ]
+    },
+    {
+      "id": "switch_ollie",
+      "baseId": "switch_ollie",
+      "side": null,
+      "name": "סוויץ׳ אוליי",
+      "baseName": "סוויץ׳ אוליי",
+      "alias": "Switch Ollie",
+      "discipline": "flat",
+      "level": "מתקדם",
+      "desc": "אוליי בעמידה ההפוכה.",
+      "after": [
+        "ollie_curb",
+        "switch"
+      ]
+    },
+    {
+      "id": "shifty",
+      "baseId": "shifty",
+      "side": null,
+      "name": "שיפטי",
+      "baseName": "שיפטי",
+      "alias": "Shifty",
+      "discipline": "flat",
+      "level": "יודע קצת",
+      "desc": "סיבוב קל של הכתפיים והלוח וחזרה באוויר.",
+      "after": [
+        "ollie"
+      ]
+    },
+    {
+      "id": "ollie180_fs",
+      "baseId": "ollie180",
+      "side": "fs",
+      "name": "פרונטסייד אוליי 180",
+      "baseName": "אוליי 180",
+      "alias": "FS Ollie 180",
+      "discipline": "flat",
+      "level": "בינוני",
+      "desc": "חצי סיבוב באוויר. בקסייד = הגב לכיוון הנסיעה.",
+      "after": [
+        "ollie_curb"
+      ]
+    },
+    {
+      "id": "ollie180_bs",
+      "baseId": "ollie180",
+      "side": "bs",
+      "name": "בקסייד אוליי 180",
+      "baseName": "אוליי 180",
+      "alias": "BS Ollie 180",
+      "discipline": "flat",
+      "level": "בינוני",
+      "desc": "חצי סיבוב באוויר. בקסייד = הגב לכיוון הנסיעה.",
+      "after": [
+        "ollie_curb"
+      ]
+    },
+    {
+      "id": "halfcab_fs",
+      "baseId": "halfcab",
+      "side": "fs",
+      "name": "פרונטסייד האף קאב",
+      "baseName": "האף קאב",
+      "alias": "FS Half-Cab",
+      "discipline": "flat",
+      "level": "בינוני",
+      "desc": "פייקי 180 חזרה לכיוון הנסיעה.",
+      "after": [
+        "fakie_ollie",
+        "ollie180"
+      ]
+    },
+    {
+      "id": "halfcab_bs",
+      "baseId": "halfcab",
+      "side": "bs",
+      "name": "בקסייד האף קאב",
+      "baseName": "האף קאב",
+      "alias": "BS Half-Cab",
+      "discipline": "flat",
+      "level": "בינוני",
+      "desc": "פייקי 180 חזרה לכיוון הנסיעה.",
+      "after": [
+        "fakie_ollie",
+        "ollie180"
+      ]
+    },
+    {
+      "id": "fullcab_fs",
+      "baseId": "fullcab",
+      "side": "fs",
+      "name": "פרונטסייד פול קאב",
+      "baseName": "פול קאב",
+      "alias": "FS Caballerial",
+      "discipline": "flat",
+      "level": "מתקדם",
+      "desc": "פייקי 360 מלא.",
+      "after": [
+        "halfcab"
+      ]
+    },
+    {
+      "id": "fullcab_bs",
+      "baseId": "fullcab",
+      "side": "bs",
+      "name": "בקסייד פול קאב",
+      "baseName": "פול קאב",
+      "alias": "BS Caballerial",
+      "discipline": "flat",
+      "level": "מתקדם",
+      "desc": "פייקי 360 מלא.",
+      "after": [
+        "halfcab"
+      ]
+    },
+    {
+      "id": "shuvit",
+      "baseId": "shuvit",
+      "side": null,
+      "name": "שאביט",
+      "baseName": "שאביט",
+      "alias": "Shove-it",
+      "discipline": "flat",
+      "level": "יודע קצת",
+      "desc": "הלוח מסתובב 180° מתחת לרגליים בלי פופ.",
+      "after": [
+        "ollie"
+      ]
+    },
+    {
+      "id": "popshuvit_fs",
+      "baseId": "popshuvit",
+      "side": "fs",
+      "name": "פרונטסייד פופ שאביט",
+      "baseName": "פופ שאביט",
+      "alias": "FS Pop Shove-it",
+      "discipline": "flat",
+      "level": "בינוני",
+      "desc": "שאביט עם פופ — הרגל האחורית עושה הכל.",
+      "after": [
+        "shuvit",
+        "ollie_curb"
+      ]
+    },
+    {
+      "id": "popshuvit_bs",
+      "baseId": "popshuvit",
+      "side": "bs",
+      "name": "בקסייד פופ שאביט",
+      "baseName": "פופ שאביט",
+      "alias": "BS Pop Shove-it",
+      "discipline": "flat",
+      "level": "בינוני",
+      "desc": "שאביט עם פופ — הרגל האחורית עושה הכל.",
+      "after": [
+        "shuvit",
+        "ollie_curb"
+      ]
+    },
+    {
+      "id": "shuvit360_fs",
+      "baseId": "shuvit360",
+      "side": "fs",
+      "name": "פרונטסייד 360 שאביט",
+      "baseName": "360 שאביט",
+      "alias": "FS 360 Shove-it",
+      "discipline": "flat",
+      "level": "מתקדם",
+      "desc": "סיבוב מלא של הלוח מתחת לרגליים.",
+      "after": [
+        "popshuvit"
+      ]
+    },
+    {
+      "id": "shuvit360_bs",
+      "baseId": "shuvit360",
+      "side": "bs",
+      "name": "בקסייד 360 שאביט",
+      "baseName": "360 שאביט",
+      "alias": "BS 360 Shove-it",
+      "discipline": "flat",
+      "level": "מתקדם",
+      "desc": "סיבוב מלא של הלוח מתחת לרגליים.",
+      "after": [
+        "popshuvit"
+      ]
+    },
+    {
+      "id": "bigspin_fs",
+      "baseId": "bigspin",
+      "side": "fs",
+      "name": "פרונטסייד ביגספין",
+      "baseName": "ביגספין",
+      "alias": "FS Bigspin",
+      "discipline": "flat",
+      "level": "מתקדם",
+      "desc": "360 שאביט של הלוח יחד עם 180 של הגוף.",
+      "after": [
+        "shuvit360",
+        "ollie180"
+      ]
+    },
+    {
+      "id": "bigspin_bs",
+      "baseId": "bigspin",
+      "side": "bs",
+      "name": "בקסייד ביגספין",
+      "baseName": "ביגספין",
+      "alias": "BS Bigspin",
+      "discipline": "flat",
+      "level": "מתקדם",
+      "desc": "360 שאביט של הלוח יחד עם 180 של הגוף.",
+      "after": [
+        "shuvit360",
+        "ollie180"
+      ]
+    },
+    {
+      "id": "kickflip",
+      "baseId": "kickflip",
+      "side": null,
+      "name": "קיקפליפ",
+      "baseName": "קיקפליפ",
+      "alias": "Kickflip",
+      "discipline": "flat",
+      "level": "בינוני",
+      "desc": "אוליי עם בעיטה שמסובבת את הלוח סביב הציר הארוך.",
+      "after": [
+        "ollie_curb"
+      ]
+    },
+    {
+      "id": "heelflip",
+      "baseId": "heelflip",
+      "side": null,
+      "name": "הילפליפ",
+      "baseName": "הילפליפ",
+      "alias": "Heelflip",
+      "discipline": "flat",
+      "level": "בינוני",
+      "desc": "כמו קיקפליפ, אבל הסיבוב עם העקב לכיוון ההפוך.",
+      "after": [
+        "kickflip"
+      ]
+    },
+    {
+      "id": "varial_kickflip",
+      "baseId": "varial_kickflip",
+      "side": null,
+      "name": "ורייל קיקפליפ",
+      "baseName": "ורייל קיקפליפ",
+      "alias": "Varial Kickflip",
+      "discipline": "flat",
+      "level": "מתקדם",
+      "desc": "בקסייד שאביט משולב עם קיקפליפ.",
+      "after": [
+        "kickflip",
+        "popshuvit"
+      ]
+    },
+    {
+      "id": "varial_heelflip",
+      "baseId": "varial_heelflip",
+      "side": null,
+      "name": "ורייל הילפליפ",
+      "baseName": "ורייל הילפליפ",
+      "alias": "Varial Heelflip",
+      "discipline": "flat",
+      "level": "מתקדם",
+      "desc": "פרונטסייד שאביט משולב עם הילפליפ.",
+      "after": [
+        "heelflip",
+        "popshuvit"
+      ]
+    },
+    {
+      "id": "hardflip",
+      "baseId": "hardflip",
+      "side": null,
+      "name": "הארדפליפ",
+      "baseName": "הארדפליפ",
+      "alias": "Hardflip",
+      "discipline": "flat",
+      "level": "מתקדם",
+      "desc": "פרונטסייד שאביט עם קיקפליפ — הלוח עובר בין הרגליים.",
+      "after": [
+        "varial_kickflip"
+      ]
+    },
+    {
+      "id": "inward_heel",
+      "baseId": "inward_heel",
+      "side": null,
+      "name": "אינוורד הילפליפ",
+      "baseName": "אינוורד הילפליפ",
+      "alias": "Inward Heelflip",
+      "discipline": "flat",
+      "level": "מתקדם",
+      "desc": "בקסייד שאביט עם הילפליפ.",
+      "after": [
+        "varial_heelflip"
+      ]
+    },
+    {
+      "id": "treflip",
+      "baseId": "treflip",
+      "side": null,
+      "name": "טרה פליפ",
+      "baseName": "טרה פליפ",
+      "alias": "360 Flip",
+      "discipline": "flat",
+      "level": "מתקדם",
+      "desc": "360 שאביט וקיקפליפ יחד. הטריק שכולם רוצים.",
+      "after": [
+        "varial_kickflip",
+        "shuvit360"
+      ]
+    },
+    {
+      "id": "laserflip",
+      "baseId": "laserflip",
+      "side": null,
+      "name": "לייזר פליפ",
+      "baseName": "לייזר פליפ",
+      "alias": "Laser Flip",
+      "discipline": "flat",
+      "level": "מקצוען",
+      "desc": "360 שאביט קדימה עם הילפליפ.",
+      "after": [
+        "treflip",
+        "inward_heel"
+      ]
+    },
+    {
+      "id": "bigflip",
+      "baseId": "bigflip",
+      "side": null,
+      "name": "ביגפליפ",
+      "baseName": "ביגפליפ",
+      "alias": "Bigflip",
+      "discipline": "flat",
+      "level": "מקצוען",
+      "desc": "ביגספין עם קיקפליפ.",
+      "after": [
+        "bigspin",
+        "treflip"
+      ]
+    },
+    {
+      "id": "bigheel",
+      "baseId": "bigheel",
+      "side": null,
+      "name": "ביג הילפליפ",
+      "baseName": "ביג הילפליפ",
+      "alias": "Big Heelflip",
+      "discipline": "flat",
+      "level": "מקצוען",
+      "desc": "ביגספין עם הילפליפ.",
+      "after": [
+        "bigflip",
+        "heelflip"
+      ]
+    },
+    {
+      "id": "double_kickflip",
+      "baseId": "double_kickflip",
+      "side": null,
+      "name": "דאבל קיקפליפ",
+      "baseName": "דאבל קיקפליפ",
+      "alias": "Double Kickflip",
+      "discipline": "flat",
+      "level": "מקצוען",
+      "desc": "שתי סיבובים מלאים של הלוח באוליי אחד.",
+      "after": [
+        "treflip"
+      ]
+    },
+    {
+      "id": "double_heelflip",
+      "baseId": "double_heelflip",
+      "side": null,
+      "name": "דאבל הילפליפ",
+      "baseName": "דאבל הילפליפ",
+      "alias": "Double Heelflip",
+      "discipline": "flat",
+      "level": "מקצוען",
+      "desc": "אותו דבר עם העקב.",
+      "after": [
+        "double_kickflip",
+        "inward_heel"
+      ]
+    },
+    {
+      "id": "kickflip180_fs",
+      "baseId": "kickflip180",
+      "side": "fs",
+      "name": "פרונטסייד קיקפליפ 180",
+      "baseName": "קיקפליפ 180",
+      "alias": "FS Kickflip 180",
+      "discipline": "flat",
+      "level": "מקצוען",
+      "desc": "קיקפליפ יחד עם חצי סיבוב של הגוף.",
+      "after": [
+        "kickflip",
+        "ollie180"
+      ]
+    },
+    {
+      "id": "kickflip180_bs",
+      "baseId": "kickflip180",
+      "side": "bs",
+      "name": "בקסייד קיקפליפ 180",
+      "baseName": "קיקפליפ 180",
+      "alias": "BS Kickflip 180",
+      "discipline": "flat",
+      "level": "מקצוען",
+      "desc": "קיקפליפ יחד עם חצי סיבוב של הגוף.",
+      "after": [
+        "kickflip",
+        "ollie180"
+      ]
+    },
+    {
+      "id": "heelflip180_fs",
+      "baseId": "heelflip180",
+      "side": "fs",
+      "name": "פרונטסייד הילפליפ 180",
+      "baseName": "הילפליפ 180",
+      "alias": "FS Heelflip 180",
+      "discipline": "flat",
+      "level": "מקצוען",
+      "desc": "הילפליפ יחד עם חצי סיבוב.",
+      "after": [
+        "heelflip",
+        "ollie180"
+      ]
+    },
+    {
+      "id": "heelflip180_bs",
+      "baseId": "heelflip180",
+      "side": "bs",
+      "name": "בקסייד הילפליפ 180",
+      "baseName": "הילפליפ 180",
+      "alias": "BS Heelflip 180",
+      "discipline": "flat",
+      "level": "מקצוען",
+      "desc": "הילפליפ יחד עם חצי סיבוב.",
+      "after": [
+        "heelflip",
+        "ollie180"
+      ]
+    },
+    {
+      "id": "impossible",
+      "baseId": "impossible",
+      "side": null,
+      "name": "אימפוסיבל",
+      "baseName": "אימפוסיבל",
+      "alias": "Impossible",
+      "discipline": "flat",
+      "level": "מקצוען",
+      "desc": "הלוח מתגלגל סביב הרגל האחורית.",
+      "after": [
+        "popshuvit",
+        "manual"
+      ]
+    },
+    {
+      "id": "casperflip",
+      "baseId": "casperflip",
+      "side": null,
+      "name": "קספר פליפ",
+      "baseName": "קספר פליפ",
+      "alias": "Casper Flip",
+      "discipline": "flat",
+      "level": "מקצוען",
+      "desc": "הלוח מתהפך, נתפס עם הרגל ומוחזר.",
+      "after": [
+        "impossible",
+        "kickflip"
+      ]
+    },
+    {
+      "id": "pressure_flip",
+      "baseId": "pressure_flip",
+      "side": null,
+      "name": "פרשר פליפ",
+      "baseName": "פרשר פליפ",
+      "alias": "Pressure Flip",
+      "discipline": "flat",
+      "level": "מקצוען",
+      "desc": "סיבוב שנוצר מלחץ של הרגל האחורית בלבד.",
+      "after": [
+        "impossible"
+      ]
+    },
+    {
+      "id": "underflip",
+      "baseId": "underflip",
+      "side": null,
+      "name": "אנדרפליפ",
+      "baseName": "אנדרפליפ",
+      "alias": "Underflip",
+      "discipline": "flat",
+      "level": "מקצוען",
+      "desc": "הפליפ מתחיל מהצד התחתון של הלוח.",
+      "after": [
+        "varial_heelflip"
+      ]
+    },
+    {
+      "id": "gazelle",
+      "baseId": "gazelle",
+      "side": null,
+      "name": "גאזל פליפ",
+      "baseName": "גאזל פליפ",
+      "alias": "Gazelle Flip",
+      "discipline": "flat",
+      "level": "מקצוען",
+      "desc": "ביגפליפ עם 540 של הגוף. מפלצת.",
+      "after": [
+        "bigflip",
+        "fullcab"
+      ]
+    },
+    {
+      "id": "hospital",
+      "baseId": "hospital",
+      "side": null,
+      "name": "הוספיטל פליפ",
+      "baseName": "הוספיטל פליפ",
+      "alias": "Hospital Flip",
+      "discipline": "flat",
+      "level": "מתקדם",
+      "desc": "חצי פליפ שנתפס עם הרגל ומתהפך חזרה.",
+      "after": [
+        "kickflip"
+      ]
+    },
+    {
+      "id": "nocomply",
+      "baseId": "nocomply",
+      "side": null,
+      "name": "נו קומפליי",
+      "baseName": "נו קומפליי",
+      "alias": "No Comply",
+      "discipline": "flat",
+      "level": "בינוני",
+      "desc": "הרגל הקדמית יורדת לקרקע והלוח מסתובב.",
+      "after": [
+        "ollie"
+      ]
+    },
+    {
+      "id": "boneless",
+      "baseId": "boneless",
+      "side": null,
+      "name": "בונלס",
+      "baseName": "בונלס",
+      "alias": "Boneless",
+      "discipline": "flat",
+      "level": "בינוני",
+      "desc": "תופסים את הלוח ביד וקופצים עם רגל על הקרקע.",
+      "after": [
+        "nocomply"
+      ]
+    },
+    {
+      "id": "nollie_flip",
+      "baseId": "nollie_flip",
+      "side": null,
+      "name": "נולי קיקפליפ",
+      "baseName": "נולי קיקפליפ",
+      "alias": "Nollie Flip",
+      "discipline": "flat",
+      "level": "מקצוען",
+      "desc": "קיקפליפ מהחרטום.",
+      "after": [
+        "nollie",
+        "kickflip"
+      ]
+    },
+    {
+      "id": "switch_flip",
+      "baseId": "switch_flip",
+      "side": null,
+      "name": "סוויץ׳ קיקפליפ",
+      "baseName": "סוויץ׳ קיקפליפ",
+      "alias": "Switch Flip",
+      "discipline": "flat",
+      "level": "מקצוען",
+      "desc": "קיקפליפ בעמידה ההפוכה.",
+      "after": [
+        "switch_ollie",
+        "kickflip"
+      ]
+    },
+    {
+      "id": "fingerflip",
+      "baseId": "fingerflip",
+      "side": null,
+      "name": "פינגר פליפ",
+      "baseName": "פינגר פליפ",
+      "alias": "Fingerflip",
+      "discipline": "flat",
+      "level": "מתקדם",
+      "desc": "היד מסובבת את הלוח באוויר.",
+      "after": [
+        "boneless"
+      ]
+    },
+    {
+      "id": "grind5050_fs",
+      "baseId": "grind5050",
+      "side": "fs",
+      "name": "פרונטסייד 50-50 גריינד",
+      "baseName": "50-50 גריינד",
+      "alias": "FS 50-50",
+      "discipline": "grind",
+      "level": "בינוני",
+      "desc": "שני הטראקים על המכשול. מתחילים על אבן שפה.",
+      "after": [
+        "ollie_curb"
+      ]
+    },
+    {
+      "id": "grind5050_bs",
+      "baseId": "grind5050",
+      "side": "bs",
+      "name": "בקסייד 50-50 גריינד",
+      "baseName": "50-50 גריינד",
+      "alias": "BS 50-50",
+      "discipline": "grind",
+      "level": "בינוני",
+      "desc": "שני הטראקים על המכשול. מתחילים על אבן שפה.",
+      "after": [
+        "ollie_curb"
+      ]
+    },
+    {
+      "id": "grind5o_fs",
+      "baseId": "grind5o",
+      "side": "fs",
+      "name": "פרונטסייד 5-0 גריינד",
+      "baseName": "5-0 גריינד",
+      "alias": "FS 5-0",
+      "discipline": "grind",
+      "level": "מתקדם",
+      "desc": "רק הטראק האחורי על הקצה, החרטום באוויר.",
+      "after": [
+        "grind5050",
+        "manual"
+      ]
+    },
+    {
+      "id": "grind5o_bs",
+      "baseId": "grind5o",
+      "side": "bs",
+      "name": "בקסייד 5-0 גריינד",
+      "baseName": "5-0 גריינד",
+      "alias": "BS 5-0",
+      "discipline": "grind",
+      "level": "מתקדם",
+      "desc": "רק הטראק האחורי על הקצה, החרטום באוויר.",
+      "after": [
+        "grind5050",
+        "manual"
+      ]
+    },
+    {
+      "id": "nosegrind_fs",
+      "baseId": "nosegrind",
+      "side": "fs",
+      "name": "פרונטסייד נוזגריינד",
+      "baseName": "נוזגריינד",
+      "alias": "FS Nosegrind",
+      "discipline": "grind",
+      "level": "מתקדם",
+      "desc": "רק הטראק הקדמי, הזנב באוויר.",
+      "after": [
+        "grind5o",
+        "nosemanual"
+      ]
+    },
+    {
+      "id": "nosegrind_bs",
+      "baseId": "nosegrind",
+      "side": "bs",
+      "name": "בקסייד נוזגריינד",
+      "baseName": "נוזגריינד",
+      "alias": "BS Nosegrind",
+      "discipline": "grind",
+      "level": "מתקדם",
+      "desc": "רק הטראק הקדמי, הזנב באוויר.",
+      "after": [
+        "grind5o",
+        "nosemanual"
+      ]
+    },
+    {
+      "id": "crooked_fs",
+      "baseId": "crooked",
+      "side": "fs",
+      "name": "פרונטסייד קרוקד גריינד",
+      "baseName": "קרוקד גריינד",
+      "alias": "FS Crooked Grind",
+      "discipline": "grind",
+      "level": "מתקדם",
+      "desc": "נוזגריינד בזווית, החרטום נוגע.",
+      "after": [
+        "nosegrind"
+      ]
+    },
+    {
+      "id": "crooked_bs",
+      "baseId": "crooked",
+      "side": "bs",
+      "name": "בקסייד קרוקד גריינד",
+      "baseName": "קרוקד גריינד",
+      "alias": "BS Crooked Grind",
+      "discipline": "grind",
+      "level": "מתקדם",
+      "desc": "נוזגריינד בזווית, החרטום נוגע.",
+      "after": [
+        "nosegrind"
+      ]
+    },
+    {
+      "id": "overcrook_fs",
+      "baseId": "overcrook",
+      "side": "fs",
+      "name": "פרונטסייד אוברקרוק",
+      "baseName": "אוברקרוק",
+      "alias": "FS Overcrook",
+      "discipline": "grind",
+      "level": "מקצוען",
+      "desc": "קרוקד עם הלוח נוטה לצד השני.",
+      "after": [
+        "crooked"
+      ]
+    },
+    {
+      "id": "overcrook_bs",
+      "baseId": "overcrook",
+      "side": "bs",
+      "name": "בקסייד אוברקרוק",
+      "baseName": "אוברקרוק",
+      "alias": "BS Overcrook",
+      "discipline": "grind",
+      "level": "מקצוען",
+      "desc": "קרוקד עם הלוח נוטה לצד השני.",
+      "after": [
+        "crooked"
+      ]
+    },
+    {
+      "id": "feeble_fs",
+      "baseId": "feeble",
+      "side": "fs",
+      "name": "פרונטסייד פיבל גריינד",
+      "baseName": "פיבל גריינד",
+      "alias": "FS Feeble Grind",
+      "discipline": "grind",
+      "level": "מתקדם",
+      "desc": "הטראק האחורי גורד והחרטום מעבר לרייל.",
+      "after": [
+        "grind5o"
+      ]
+    },
+    {
+      "id": "feeble_bs",
+      "baseId": "feeble",
+      "side": "bs",
+      "name": "בקסייד פיבל גריינד",
+      "baseName": "פיבל גריינד",
+      "alias": "BS Feeble Grind",
+      "discipline": "grind",
+      "level": "מתקדם",
+      "desc": "הטראק האחורי גורד והחרטום מעבר לרייל.",
+      "after": [
+        "grind5o"
+      ]
+    },
+    {
+      "id": "smith_fs",
+      "baseId": "smith",
+      "side": "fs",
+      "name": "פרונטסייד סמית׳ גריינד",
+      "baseName": "סמית׳ גריינד",
+      "alias": "FS Smith Grind",
+      "discipline": "grind",
+      "level": "מתקדם",
+      "desc": "כמו פיבל, אבל החרטום נוטה למטה בצד הקרוב.",
+      "after": [
+        "feeble"
+      ]
+    },
+    {
+      "id": "smith_bs",
+      "baseId": "smith",
+      "side": "bs",
+      "name": "בקסייד סמית׳ גריינד",
+      "baseName": "סמית׳ גריינד",
+      "alias": "BS Smith Grind",
+      "discipline": "grind",
+      "level": "מתקדם",
+      "desc": "כמו פיבל, אבל החרטום נוטה למטה בצד הקרוב.",
+      "after": [
+        "feeble"
+      ]
+    },
+    {
+      "id": "salad_fs",
+      "baseId": "salad",
+      "side": "fs",
+      "name": "פרונטסייד סלאד גריינד",
+      "baseName": "סלאד גריינד",
+      "alias": "FS Salad Grind",
+      "discipline": "grind",
+      "level": "מקצוען",
+      "desc": "5-0 עם החרטום מופנה החוצה.",
+      "after": [
+        "feeble"
+      ]
+    },
+    {
+      "id": "salad_bs",
+      "baseId": "salad",
+      "side": "bs",
+      "name": "בקסייד סלאד גריינד",
+      "baseName": "סלאד גריינד",
+      "alias": "BS Salad Grind",
+      "discipline": "grind",
+      "level": "מקצוען",
+      "desc": "5-0 עם החרטום מופנה החוצה.",
+      "after": [
+        "feeble"
+      ]
+    },
+    {
+      "id": "suski",
+      "baseId": "suski",
+      "side": null,
+      "name": "סוסקי גריינד",
+      "baseName": "סוסקי גריינד",
+      "alias": "Suski Grind",
+      "discipline": "grind",
+      "level": "מקצוען",
+      "desc": "הגרסה הפרונטסיידית של הסלאד.",
+      "after": [
+        "salad"
+      ]
+    },
+    {
+      "id": "willy_fs",
+      "baseId": "willy",
+      "side": "fs",
+      "name": "פרונטסייד ווילי גריינד",
+      "baseName": "ווילי גריינד",
+      "alias": "FS Willy Grind",
+      "discipline": "grind",
+      "level": "מקצוען",
+      "desc": "פרונטסייד פיבל.",
+      "after": [
+        "feeble"
+      ]
+    },
+    {
+      "id": "willy_bs",
+      "baseId": "willy",
+      "side": "bs",
+      "name": "בקסייד ווילי גריינד",
+      "baseName": "ווילי גריינד",
+      "alias": "BS Willy Grind",
+      "discipline": "grind",
+      "level": "מקצוען",
+      "desc": "פרונטסייד פיבל.",
+      "after": [
+        "feeble"
+      ]
+    },
+    {
+      "id": "losi_fs",
+      "baseId": "losi",
+      "side": "fs",
+      "name": "פרונטסייד לוסי גריינד",
+      "baseName": "לוסי גריינד",
+      "alias": "FS Losi Grind",
+      "discipline": "grind",
+      "level": "מקצוען",
+      "desc": "פרונטסייד סמית׳.",
+      "after": [
+        "smith"
+      ]
+    },
+    {
+      "id": "losi_bs",
+      "baseId": "losi",
+      "side": "bs",
+      "name": "בקסייד לוסי גריינד",
+      "baseName": "לוסי גריינד",
+      "alias": "BS Losi Grind",
+      "discipline": "grind",
+      "level": "מקצוען",
+      "desc": "פרונטסייד סמית׳.",
+      "after": [
+        "smith"
+      ]
+    },
+    {
+      "id": "hurricane_fs",
+      "baseId": "hurricane",
+      "side": "fs",
+      "name": "פרונטסייד הוריקן",
+      "baseName": "הוריקן",
+      "alias": "FS Hurricane",
+      "discipline": "grind",
+      "level": "מקצוען",
+      "desc": "פייקי 5-0 אחרי 180 לתוך הרייל.",
+      "after": [
+        "grind5o",
+        "ollie180"
+      ]
+    },
+    {
+      "id": "hurricane_bs",
+      "baseId": "hurricane",
+      "side": "bs",
+      "name": "בקסייד הוריקן",
+      "baseName": "הוריקן",
+      "alias": "BS Hurricane",
+      "discipline": "grind",
+      "level": "מקצוען",
+      "desc": "פייקי 5-0 אחרי 180 לתוך הרייל.",
+      "after": [
+        "grind5o",
+        "ollie180"
+      ]
+    },
+    {
+      "id": "sugarcane_fs",
+      "baseId": "sugarcane",
+      "side": "fs",
+      "name": "פרונטסייד שוגרקיין",
+      "baseName": "שוגרקיין",
+      "alias": "FS Sugarcane",
+      "discipline": "grind",
+      "level": "מקצוען",
+      "desc": "ההפך מהוריקן — נוז בזווית אחורית.",
+      "after": [
+        "hurricane",
+        "nosegrind"
+      ]
+    },
+    {
+      "id": "sugarcane_bs",
+      "baseId": "sugarcane",
+      "side": "bs",
+      "name": "בקסייד שוגרקיין",
+      "baseName": "שוגרקיין",
+      "alias": "BS Sugarcane",
+      "discipline": "grind",
+      "level": "מקצוען",
+      "desc": "ההפך מהוריקן — נוז בזווית אחורית.",
+      "after": [
+        "hurricane",
+        "nosegrind"
+      ]
+    },
+    {
+      "id": "crail_grind_fs",
+      "baseId": "crail_grind",
+      "side": "fs",
+      "name": "פרונטסייד קרייל גריינד",
+      "baseName": "קרייל גריינד",
+      "alias": "FS Crail Grind",
+      "discipline": "grind",
+      "level": "מקצוען",
+      "desc": "גריינד עם תפיסת החרטום ביד הקדמית.",
+      "after": [
+        "nosegrind"
+      ]
+    },
+    {
+      "id": "crail_grind_bs",
+      "baseId": "crail_grind",
+      "side": "bs",
+      "name": "בקסייד קרייל גריינד",
+      "baseName": "קרייל גריינד",
+      "alias": "BS Crail Grind",
+      "discipline": "grind",
+      "level": "מקצוען",
+      "desc": "גריינד עם תפיסת החרטום ביד הקדמית.",
+      "after": [
+        "nosegrind"
+      ]
+    },
+    {
+      "id": "pogo_grind_fs",
+      "baseId": "pogo_grind",
+      "side": "fs",
+      "name": "פרונטסייד פוגו גריינד",
+      "baseName": "פוגו גריינד",
+      "alias": "FS Pogo Grind",
+      "discipline": "grind",
+      "level": "מקצוען",
+      "desc": "גריינד על הזנב בעמידה אנכית.",
+      "after": [
+        "grind5o"
+      ]
+    },
+    {
+      "id": "pogo_grind_bs",
+      "baseId": "pogo_grind",
+      "side": "bs",
+      "name": "בקסייד פוגו גריינד",
+      "baseName": "פוגו גריינד",
+      "alias": "BS Pogo Grind",
+      "discipline": "grind",
+      "level": "מקצוען",
+      "desc": "גריינד על הזנב בעמידה אנכית.",
+      "after": [
+        "grind5o"
+      ]
+    },
+    {
+      "id": "grind_onefoot",
+      "baseId": "grind_onefoot",
+      "side": null,
+      "name": "גריינד ברגל אחת",
+      "baseName": "גריינד ברגל אחת",
+      "alias": "One-Footed Grind",
+      "discipline": "grind",
+      "level": "מקצוען",
+      "desc": "50-50 עם רגל אחת מורמת.",
+      "after": [
+        "grind5050"
+      ]
+    },
+    {
+      "id": "boardslide_fs",
+      "baseId": "boardslide",
+      "side": "fs",
+      "name": "פרונטסייד בורדסלייד",
+      "baseName": "בורדסלייד",
+      "alias": "FS Boardslide",
+      "discipline": "slide",
+      "level": "מתקדם",
+      "desc": "הלוח מאונך לרייל ומחליק על מרכזו.",
+      "after": [
+        "grind5050"
+      ]
+    },
+    {
+      "id": "boardslide_bs",
+      "baseId": "boardslide",
+      "side": "bs",
+      "name": "בקסייד בורדסלייד",
+      "baseName": "בורדסלייד",
+      "alias": "BS Boardslide",
+      "discipline": "slide",
+      "level": "מתקדם",
+      "desc": "הלוח מאונך לרייל ומחליק על מרכזו.",
+      "after": [
+        "grind5050"
+      ]
+    },
+    {
+      "id": "lipslide_fs",
+      "baseId": "lipslide",
+      "side": "fs",
+      "name": "פרונטסייד ליפסלייד",
+      "baseName": "ליפסלייד",
+      "alias": "FS Lipslide",
+      "discipline": "slide",
+      "level": "מתקדם",
+      "desc": "כמו בורדסלייד, אבל הזנב עובר את הרייל ראשון.",
+      "after": [
+        "boardslide"
+      ]
+    },
+    {
+      "id": "lipslide_bs",
+      "baseId": "lipslide",
+      "side": "bs",
+      "name": "בקסייד ליפסלייד",
+      "baseName": "ליפסלייד",
+      "alias": "BS Lipslide",
+      "discipline": "slide",
+      "level": "מתקדם",
+      "desc": "כמו בורדסלייד, אבל הזנב עובר את הרייל ראשון.",
+      "after": [
+        "boardslide"
+      ]
+    },
+    {
+      "id": "noseslide_fs",
+      "baseId": "noseslide",
+      "side": "fs",
+      "name": "פרונטסייד נוזסלייד",
+      "baseName": "נוזסלייד",
+      "alias": "FS Noseslide",
+      "discipline": "slide",
+      "level": "מתקדם",
+      "desc": "החלקה על החרטום בלבד.",
+      "after": [
+        "boardslide"
+      ]
+    },
+    {
+      "id": "noseslide_bs",
+      "baseId": "noseslide",
+      "side": "bs",
+      "name": "בקסייד נוזסלייד",
+      "baseName": "נוזסלייד",
+      "alias": "BS Noseslide",
+      "discipline": "slide",
+      "level": "מתקדם",
+      "desc": "החלקה על החרטום בלבד.",
+      "after": [
+        "boardslide"
+      ]
+    },
+    {
+      "id": "tailslide_fs",
+      "baseId": "tailslide",
+      "side": "fs",
+      "name": "פרונטסייד טיילסלייד",
+      "baseName": "טיילסלייד",
+      "alias": "FS Tailslide",
+      "discipline": "slide",
+      "level": "מתקדם",
+      "desc": "החלקה על הזנב בלבד.",
+      "after": [
+        "noseslide"
+      ]
+    },
+    {
+      "id": "tailslide_bs",
+      "baseId": "tailslide",
+      "side": "bs",
+      "name": "בקסייד טיילסלייד",
+      "baseName": "טיילסלייד",
+      "alias": "BS Tailslide",
+      "discipline": "slide",
+      "level": "מתקדם",
+      "desc": "החלקה על הזנב בלבד.",
+      "after": [
+        "noseslide"
+      ]
+    },
+    {
+      "id": "bluntslide_fs",
+      "baseId": "bluntslide",
+      "side": "fs",
+      "name": "פרונטסייד בלאנטסלייד",
+      "baseName": "בלאנטסלייד",
+      "alias": "FS Bluntslide",
+      "discipline": "slide",
+      "level": "מקצוען",
+      "desc": "החלקה על הזנב כשהגלגלים מעל הקצה.",
+      "after": [
+        "tailslide"
+      ]
+    },
+    {
+      "id": "bluntslide_bs",
+      "baseId": "bluntslide",
+      "side": "bs",
+      "name": "בקסייד בלאנטסלייד",
+      "baseName": "בלאנטסלייד",
+      "alias": "BS Bluntslide",
+      "discipline": "slide",
+      "level": "מקצוען",
+      "desc": "החלקה על הזנב כשהגלגלים מעל הקצה.",
+      "after": [
+        "tailslide"
+      ]
+    },
+    {
+      "id": "nosebluntslide_fs",
+      "baseId": "nosebluntslide",
+      "side": "fs",
+      "name": "פרונטסייד נוזבלאנט סלייד",
+      "baseName": "נוזבלאנט סלייד",
+      "alias": "FS Noseblunt Slide",
+      "discipline": "slide",
+      "level": "מקצוען",
+      "desc": "אותו רעיון מצד החרטום.",
+      "after": [
+        "bluntslide",
+        "noseslide"
+      ]
+    },
+    {
+      "id": "nosebluntslide_bs",
+      "baseId": "nosebluntslide",
+      "side": "bs",
+      "name": "בקסייד נוזבלאנט סלייד",
+      "baseName": "נוזבלאנט סלייד",
+      "alias": "BS Noseblunt Slide",
+      "discipline": "slide",
+      "level": "מקצוען",
+      "desc": "אותו רעיון מצד החרטום.",
+      "after": [
+        "bluntslide",
+        "noseslide"
+      ]
+    },
+    {
+      "id": "darkslide",
+      "baseId": "darkslide",
+      "side": null,
+      "name": "דארקסלייד",
+      "baseName": "דארקסלייד",
+      "alias": "Darkslide",
+      "discipline": "slide",
+      "level": "מקצוען",
+      "desc": "החלקה על הלוח כשהוא הפוך.",
+      "after": [
+        "bluntslide",
+        "casperflip"
+      ]
+    },
+    {
+      "id": "casperslide",
+      "baseId": "casperslide",
+      "side": null,
+      "name": "קספרסלייד",
+      "baseName": "קספרסלייד",
+      "alias": "Casper Slide",
+      "discipline": "slide",
+      "level": "מקצוען",
+      "desc": "החלקה על הלוח ההפוך עם רגל על הזנב.",
+      "after": [
+        "darkslide"
+      ]
+    },
+    {
+      "id": "bertslide",
+      "baseId": "bertslide",
+      "side": null,
+      "name": "ברט סלייד",
+      "baseName": "ברט סלייד",
+      "alias": "Bert Slide",
+      "discipline": "slide",
+      "level": "בינוני",
+      "desc": "סליד עם יד על הרצפה, אולד סקול.",
+      "after": [
+        "powerslide"
+      ]
+    },
+    {
+      "id": "colemanslide",
+      "baseId": "colemanslide",
+      "side": null,
+      "name": "קולמן סלייד",
+      "baseName": "קולמן סלייד",
+      "alias": "Coleman Slide",
+      "discipline": "slide",
+      "level": "בינוני",
+      "desc": "סליד עם יד, מסורת הדאונהיל.",
+      "after": [
+        "bertslide"
+      ]
+    },
+    {
+      "id": "crailslide",
+      "baseId": "crailslide",
+      "side": null,
+      "name": "קרייל סלייד",
+      "baseName": "קרייל סלייד",
+      "alias": "Crail Slide",
+      "discipline": "slide",
+      "level": "מקצוען",
+      "desc": "סלייד עם תפיסת חרטום.",
+      "after": [
+        "tailslide",
+        "crail_grind"
+      ]
+    },
+    {
+      "id": "primo",
+      "baseId": "primo",
+      "side": null,
+      "name": "פרימו סלייד",
+      "baseName": "פרימו סלייד",
+      "alias": "Primo Slide",
+      "discipline": "slide",
+      "level": "מקצוען",
+      "desc": "החלקה על צד הלוח.",
+      "after": [
+        "darkslide"
+      ]
+    },
+    {
+      "id": "dropin",
+      "baseId": "dropin",
+      "side": null,
+      "name": "דרופ-אין",
+      "baseName": "דרופ-אין",
+      "alias": "Drop-in",
+      "discipline": "park",
+      "level": "יודע קצת",
+      "desc": "הכניסה מהקצה. עניין של משקל גוף ואומץ.",
+      "after": [
+        "kickturn",
+        "falling"
+      ]
+    },
+    {
+      "id": "pumping",
+      "baseId": "pumping",
+      "side": null,
+      "name": "פאמפינג",
+      "baseName": "פאמפינג",
+      "alias": "Pumping",
+      "discipline": "park",
+      "level": "יודע קצת",
+      "desc": "לצבור מהירות בטרנזישן בלי לדחוף אף פעם.",
+      "after": [
+        "dropin"
+      ]
+    },
+    {
+      "id": "kickturn_quarter_fs",
+      "baseId": "kickturn_quarter",
+      "side": "fs",
+      "name": "פרונטסייד קיקטרן על קוורטר",
+      "baseName": "קיקטרן על קוורטר",
+      "alias": "FS Quarter Kickturn",
+      "discipline": "park",
+      "level": "בינוני",
+      "desc": "פנייה של 180° בדופן בלי לרדת מהלוח.",
+      "after": [
+        "pumping"
+      ]
+    },
+    {
+      "id": "kickturn_quarter_bs",
+      "baseId": "kickturn_quarter",
+      "side": "bs",
+      "name": "בקסייד קיקטרן על קוורטר",
+      "baseName": "קיקטרן על קוורטר",
+      "alias": "BS Quarter Kickturn",
+      "discipline": "park",
+      "level": "בינוני",
+      "desc": "פנייה של 180° בדופן בלי לרדת מהלוח.",
+      "after": [
+        "pumping"
+      ]
+    },
+    {
+      "id": "ollie_transition",
+      "baseId": "ollie_transition",
+      "side": null,
+      "name": "אוליי בטרנזישן",
+      "baseName": "אוליי בטרנזישן",
+      "alias": "Transition Ollie",
+      "discipline": "park",
+      "level": "בינוני",
+      "desc": "פופ תוך כדי עלייה בדופן.",
+      "after": [
+        "kickturn_quarter",
+        "ollie"
+      ]
+    },
+    {
+      "id": "air_bs_fs",
+      "baseId": "air_bs",
+      "side": "fs",
+      "name": "פרונטסייד בקסייד אייר",
+      "baseName": "בקסייד אייר",
+      "alias": "FS Backside Air",
+      "discipline": "park",
+      "level": "מתקדם",
+      "desc": "יציאה מהקצה עם הגב לדופן.",
+      "after": [
+        "ollie_transition"
+      ]
+    },
+    {
+      "id": "air_bs_bs",
+      "baseId": "air_bs",
+      "side": "bs",
+      "name": "בקסייד בקסייד אייר",
+      "baseName": "בקסייד אייר",
+      "alias": "BS Backside Air",
+      "discipline": "park",
+      "level": "מתקדם",
+      "desc": "יציאה מהקצה עם הגב לדופן.",
+      "after": [
+        "ollie_transition"
+      ]
+    },
+    {
+      "id": "air_fs_fs",
+      "baseId": "air_fs",
+      "side": "fs",
+      "name": "פרונטסייד פרונטסייד אייר",
+      "baseName": "פרונטסייד אייר",
+      "alias": "FS Frontside Air",
+      "discipline": "park",
+      "level": "מתקדם",
+      "desc": "יציאה מהקצה עם החזה לדופן.",
+      "after": [
+        "air_bs"
+      ]
+    },
+    {
+      "id": "air_fs_bs",
+      "baseId": "air_fs",
+      "side": "bs",
+      "name": "בקסייד פרונטסייד אייר",
+      "baseName": "פרונטסייד אייר",
+      "alias": "BS Frontside Air",
+      "discipline": "park",
+      "level": "מתקדם",
+      "desc": "יציאה מהקצה עם החזה לדופן.",
+      "after": [
+        "air_bs"
+      ]
+    },
+    {
+      "id": "grab_indy",
+      "baseId": "grab_indy",
+      "side": null,
+      "name": "אינדי גראב",
+      "baseName": "אינדי גראב",
+      "alias": "Indy Grab",
+      "discipline": "park",
+      "level": "מתקדם",
+      "desc": "תפיסת אמצע הלוח ביד האחורית.",
+      "after": [
+        "air_bs"
+      ]
+    },
+    {
+      "id": "grab_mute",
+      "baseId": "grab_mute",
+      "side": null,
+      "name": "מיוט גראב",
+      "baseName": "מיוט גראב",
+      "alias": "Mute Grab",
+      "discipline": "park",
+      "level": "מתקדם",
+      "desc": "היד הקדמית תופסת בצד האצבעות.",
+      "after": [
+        "grab_indy"
+      ]
+    },
+    {
+      "id": "grab_melon",
+      "baseId": "grab_melon",
+      "side": null,
+      "name": "מלון גראב",
+      "baseName": "מלון גראב",
+      "alias": "Melon",
+      "discipline": "park",
+      "level": "מתקדם",
+      "desc": "היד הקדמית תופסת בצד העקבים.",
+      "after": [
+        "grab_indy"
+      ]
+    },
+    {
+      "id": "grab_stalefish",
+      "baseId": "grab_stalefish",
+      "side": null,
+      "name": "סטיילפיש",
+      "baseName": "סטיילפיש",
+      "alias": "Stalefish",
+      "discipline": "park",
+      "level": "מקצוען",
+      "desc": "היד האחורית מאחורי הרגליים בצד העקבים.",
+      "after": [
+        "grab_melon"
+      ]
+    },
+    {
+      "id": "grab_nose",
+      "baseId": "grab_nose",
+      "side": null,
+      "name": "נוזגראב",
+      "baseName": "נוזגראב",
+      "alias": "Nose Grab",
+      "discipline": "park",
+      "level": "מתקדם",
+      "desc": "תפיסת החרטום באוויר.",
+      "after": [
+        "grab_indy"
+      ]
+    },
+    {
+      "id": "grab_tail",
+      "baseId": "grab_tail",
+      "side": null,
+      "name": "טייל גראב",
+      "baseName": "טייל גראב",
+      "alias": "Tail Grab",
+      "discipline": "park",
+      "level": "מתקדם",
+      "desc": "תפיסת הזנב באוויר.",
+      "after": [
+        "grab_nose"
+      ]
+    },
+    {
+      "id": "method",
+      "baseId": "method",
+      "side": null,
+      "name": "מת׳וד אייר",
+      "baseName": "מת׳וד אייר",
+      "alias": "Method Air",
+      "discipline": "park",
+      "level": "מקצוען",
+      "desc": "הברכיים מתקפלות והלוח נמשך לגב. הקלאסיקה.",
+      "after": [
+        "grab_melon"
+      ]
+    },
+    {
+      "id": "japan",
+      "baseId": "japan",
+      "side": null,
+      "name": "ג׳פן אייר",
+      "baseName": "ג׳פן אייר",
+      "alias": "Japan Air",
+      "discipline": "park",
+      "level": "מקצוען",
+      "desc": "הרגל הקדמית מתקפלת מתחת ללוח.",
+      "after": [
+        "method"
+      ]
+    },
+    {
+      "id": "airwalk",
+      "baseId": "airwalk",
+      "side": null,
+      "name": "איירווק",
+      "baseName": "איירווק",
+      "alias": "Airwalk",
+      "discipline": "park",
+      "level": "מקצוען",
+      "desc": "שתי הרגליים יוצאות מהלוח לצדדים.",
+      "after": [
+        "grab_nose"
+      ]
+    },
+    {
+      "id": "benihana",
+      "baseId": "benihana",
+      "side": null,
+      "name": "בניהאנה",
+      "baseName": "בניהאנה",
+      "alias": "Benihana",
+      "discipline": "park",
+      "level": "מקצוען",
+      "desc": "הרגל האחורית יוצאת והיד תופסת זנב.",
+      "after": [
+        "grab_tail"
+      ]
+    },
+    {
+      "id": "rocket",
+      "baseId": "rocket",
+      "side": null,
+      "name": "רוקט אייר",
+      "baseName": "רוקט אייר",
+      "alias": "Rocket Air",
+      "discipline": "park",
+      "level": "מקצוען",
+      "desc": "שתי הרגליים על הזנב והלוח אנכי.",
+      "after": [
+        "grab_tail"
+      ]
+    },
+    {
+      "id": "air360_fs",
+      "baseId": "air360",
+      "side": "fs",
+      "name": "פרונטסייד 360 אייר",
+      "baseName": "360 אייר",
+      "alias": "FS 360 Air",
+      "discipline": "park",
+      "level": "מקצוען",
+      "desc": "סיבוב מלא באוויר מעל הקצה.",
+      "after": [
+        "air_fs",
+        "grab_indy"
+      ]
+    },
+    {
+      "id": "air360_bs",
+      "baseId": "air360",
+      "side": "bs",
+      "name": "בקסייד 360 אייר",
+      "baseName": "360 אייר",
+      "alias": "BS 360 Air",
+      "discipline": "park",
+      "level": "מקצוען",
+      "desc": "סיבוב מלא באוויר מעל הקצה.",
+      "after": [
+        "air_fs",
+        "grab_indy"
+      ]
+    },
+    {
+      "id": "air540",
+      "baseId": "air540",
+      "side": null,
+      "name": "540",
+      "baseName": "540",
+      "alias": "540",
+      "discipline": "park",
+      "level": "מקצוען",
+      "desc": "סיבוב וחצי. מקטרנס מלא.",
+      "after": [
+        "air360",
+        "method"
+      ]
+    },
+    {
+      "id": "mctwist",
+      "baseId": "mctwist",
+      "side": null,
+      "name": "מקטוויסט",
+      "baseName": "מקטוויסט",
+      "alias": "McTwist",
+      "discipline": "park",
+      "level": "מקצוען",
+      "desc": "540 עם סלטה קדימה.",
+      "after": [
+        "air540"
+      ]
+    },
+    {
+      "id": "air720",
+      "baseId": "air720",
+      "side": null,
+      "name": "720",
+      "baseName": "720",
+      "alias": "720",
+      "discipline": "park",
+      "level": "מקצוען",
+      "desc": "שני סיבובים מלאים.",
+      "after": [
+        "air540"
+      ]
+    },
+    {
+      "id": "air900",
+      "baseId": "air900",
+      "side": null,
+      "name": "900",
+      "baseName": "900",
+      "alias": "900",
+      "discipline": "park",
+      "level": "מקצוען",
+      "desc": "שניים וחצי סיבובים. טוני הוק, 1999.",
+      "after": [
+        "air720",
+        "mctwist"
+      ]
+    },
+    {
+      "id": "mini_dropin",
+      "baseId": "mini_dropin",
+      "side": null,
+      "name": "דרופ-אין במיני",
+      "baseName": "דרופ-אין במיני",
+      "alias": "Mini Drop-in",
+      "discipline": "mini",
+      "level": "יודע קצת",
+      "desc": "הראמפה הנמוכה — הכי פחות מפחיד ללמוד עליה.",
+      "after": [
+        "dropin"
+      ]
+    },
+    {
+      "id": "rocktofakie_fs",
+      "baseId": "rocktofakie",
+      "side": "fs",
+      "name": "פרונטסייד רוק טו פייקי",
+      "baseName": "רוק טו פייקי",
+      "alias": "FS Rock to Fakie",
+      "discipline": "mini",
+      "level": "בינוני",
+      "desc": "לנוח רגע על הקופינג ולחזור אחורה.",
+      "after": [
+        "mini_dropin",
+        "pumping"
+      ]
+    },
+    {
+      "id": "rocktofakie_bs",
+      "baseId": "rocktofakie",
+      "side": "bs",
+      "name": "בקסייד רוק טו פייקי",
+      "baseName": "רוק טו פייקי",
+      "alias": "BS Rock to Fakie",
+      "discipline": "mini",
+      "level": "בינוני",
+      "desc": "לנוח רגע על הקופינג ולחזור אחורה.",
+      "after": [
+        "mini_dropin",
+        "pumping"
+      ]
+    },
+    {
+      "id": "rocknroll_fs",
+      "baseId": "rocknroll",
+      "side": "fs",
+      "name": "פרונטסייד רוק אנד רול",
+      "baseName": "רוק אנד רול",
+      "alias": "FS Rock and Roll",
+      "discipline": "mini",
+      "level": "בינוני",
+      "desc": "רוק עם סיבוב 180 בחזרה.",
+      "after": [
+        "rocktofakie"
+      ]
+    },
+    {
+      "id": "rocknroll_bs",
+      "baseId": "rocknroll",
+      "side": "bs",
+      "name": "בקסייד רוק אנד רול",
+      "baseName": "רוק אנד רול",
+      "alias": "BS Rock and Roll",
+      "discipline": "mini",
+      "level": "בינוני",
+      "desc": "רוק עם סיבוב 180 בחזרה.",
+      "after": [
+        "rocktofakie"
+      ]
+    },
+    {
+      "id": "axlestall_fs",
+      "baseId": "axlestall",
+      "side": "fs",
+      "name": "פרונטסייד אקסל סטול",
+      "baseName": "אקסל סטול",
+      "alias": "FS Axle Stall",
+      "discipline": "mini",
+      "level": "מתקדם",
+      "desc": "עצירה על שני הטראקים בקופינג.",
+      "after": [
+        "rocknroll"
+      ]
+    },
+    {
+      "id": "axlestall_bs",
+      "baseId": "axlestall",
+      "side": "bs",
+      "name": "בקסייד אקסל סטול",
+      "baseName": "אקסל סטול",
+      "alias": "BS Axle Stall",
+      "discipline": "mini",
+      "level": "מתקדם",
+      "desc": "עצירה על שני הטראקים בקופינג.",
+      "after": [
+        "rocknroll"
+      ]
+    },
+    {
+      "id": "tailstall_fs",
+      "baseId": "tailstall",
+      "side": "fs",
+      "name": "פרונטסייד טייל סטול",
+      "baseName": "טייל סטול",
+      "alias": "FS Tail Stall",
+      "discipline": "mini",
+      "level": "מתקדם",
+      "desc": "עצירה על הזנב בלבד.",
+      "after": [
+        "axlestall"
+      ]
+    },
+    {
+      "id": "tailstall_bs",
+      "baseId": "tailstall",
+      "side": "bs",
+      "name": "בקסייד טייל סטול",
+      "baseName": "טייל סטול",
+      "alias": "BS Tail Stall",
+      "discipline": "mini",
+      "level": "מתקדם",
+      "desc": "עצירה על הזנב בלבד.",
+      "after": [
+        "axlestall"
+      ]
+    },
+    {
+      "id": "nosestall_fs",
+      "baseId": "nosestall",
+      "side": "fs",
+      "name": "פרונטסייד נוז סטול",
+      "baseName": "נוז סטול",
+      "alias": "FS Nose Stall",
+      "discipline": "mini",
+      "level": "מתקדם",
+      "desc": "עצירה על החרטום.",
+      "after": [
+        "tailstall"
+      ]
+    },
+    {
+      "id": "nosestall_bs",
+      "baseId": "nosestall",
+      "side": "bs",
+      "name": "בקסייד נוז סטול",
+      "baseName": "נוז סטול",
+      "alias": "BS Nose Stall",
+      "discipline": "mini",
+      "level": "מתקדם",
+      "desc": "עצירה על החרטום.",
+      "after": [
+        "tailstall"
+      ]
+    },
+    {
+      "id": "boardstall_fs",
+      "baseId": "boardstall",
+      "side": "fs",
+      "name": "פרונטסייד בורדסטול",
+      "baseName": "בורדסטול",
+      "alias": "FS Board Stall",
+      "discipline": "mini",
+      "level": "מתקדם",
+      "desc": "עצירה עם מרכז הלוח על הקופינג.",
+      "after": [
+        "axlestall"
+      ]
+    },
+    {
+      "id": "boardstall_bs",
+      "baseId": "boardstall",
+      "side": "bs",
+      "name": "בקסייד בורדסטול",
+      "baseName": "בורדסטול",
+      "alias": "BS Board Stall",
+      "discipline": "mini",
+      "level": "מתקדם",
+      "desc": "עצירה עם מרכז הלוח על הקופינג.",
+      "after": [
+        "axlestall"
+      ]
+    },
+    {
+      "id": "blunt_fakie",
+      "baseId": "blunt_fakie",
+      "side": null,
+      "name": "בלאנט טו פייקי",
+      "baseName": "בלאנט טו פייקי",
+      "alias": "Blunt to Fakie",
+      "discipline": "mini",
+      "level": "מקצוען",
+      "desc": "עצירה על הזנב עם הגלגלים מעל, וחזרה.",
+      "after": [
+        "tailstall"
+      ]
+    },
+    {
+      "id": "nosepick_fs",
+      "baseId": "nosepick",
+      "side": "fs",
+      "name": "פרונטסייד נוז פיק",
+      "baseName": "נוז פיק",
+      "alias": "FS Nose Pick",
+      "discipline": "mini",
+      "level": "מקצוען",
+      "desc": "עצירה קצרה על הטראק הקדמי בקופינג.",
+      "after": [
+        "nosestall"
+      ]
+    },
+    {
+      "id": "nosepick_bs",
+      "baseId": "nosepick",
+      "side": "bs",
+      "name": "בקסייד נוז פיק",
+      "baseName": "נוז פיק",
+      "alias": "BS Nose Pick",
+      "discipline": "mini",
+      "level": "מקצוען",
+      "desc": "עצירה קצרה על הטראק הקדמי בקופינג.",
+      "after": [
+        "nosestall"
+      ]
+    },
+    {
+      "id": "disaster_fs",
+      "baseId": "disaster",
+      "side": "fs",
+      "name": "פרונטסייד דיזסטר",
+      "baseName": "דיזסטר",
+      "alias": "FS Disaster",
+      "discipline": "mini",
+      "level": "מתקדם",
+      "desc": "180 שנוחת עם מרכז הלוח על הקצה.",
+      "after": [
+        "boardstall",
+        "ollie180"
+      ]
+    },
+    {
+      "id": "disaster_bs",
+      "baseId": "disaster",
+      "side": "bs",
+      "name": "בקסייד דיזסטר",
+      "baseName": "דיזסטר",
+      "alias": "BS Disaster",
+      "discipline": "mini",
+      "level": "מתקדם",
+      "desc": "180 שנוחת עם מרכז הלוח על הקצה.",
+      "after": [
+        "boardstall",
+        "ollie180"
+      ]
+    },
+    {
+      "id": "smith_stall_fs",
+      "baseId": "smith_stall",
+      "side": "fs",
+      "name": "פרונטסייד סמית׳ סטול",
+      "baseName": "סמית׳ סטול",
+      "alias": "FS Smith Stall",
+      "discipline": "mini",
+      "level": "מקצוען",
+      "desc": "סמית׳ שנעצר על הקופינג.",
+      "after": [
+        "axlestall",
+        "smith"
+      ]
+    },
+    {
+      "id": "smith_stall_bs",
+      "baseId": "smith_stall",
+      "side": "bs",
+      "name": "בקסייד סמית׳ סטול",
+      "baseName": "סמית׳ סטול",
+      "alias": "BS Smith Stall",
+      "discipline": "mini",
+      "level": "מקצוען",
+      "desc": "סמית׳ שנעצר על הקופינג.",
+      "after": [
+        "axlestall",
+        "smith"
+      ]
+    },
+    {
+      "id": "feeble_stall_fs",
+      "baseId": "feeble_stall",
+      "side": "fs",
+      "name": "פרונטסייד פיבל סטול",
+      "baseName": "פיבל סטול",
+      "alias": "FS Feeble Stall",
+      "discipline": "mini",
+      "level": "מקצוען",
+      "desc": "פיבל שנעצר על הקופינג.",
+      "after": [
+        "smith_stall"
+      ]
+    },
+    {
+      "id": "feeble_stall_bs",
+      "baseId": "feeble_stall",
+      "side": "bs",
+      "name": "בקסייד פיבל סטול",
+      "baseName": "פיבל סטול",
+      "alias": "BS Feeble Stall",
+      "discipline": "mini",
+      "level": "מקצוען",
+      "desc": "פיבל שנעצר על הקופינג.",
+      "after": [
+        "smith_stall"
+      ]
+    },
+    {
+      "id": "sweeper",
+      "baseId": "sweeper",
+      "side": null,
+      "name": "סוויפר",
+      "baseName": "סוויפר",
+      "alias": "Sweeper",
+      "discipline": "mini",
+      "level": "מקצוען",
+      "desc": "היד על הקופינג והלוח נסחף מתחת.",
+      "after": [
+        "boardstall"
+      ]
+    },
+    {
+      "id": "pivot_fakie",
+      "baseId": "pivot_fakie",
+      "side": null,
+      "name": "פיבוט טו פייקי",
+      "baseName": "פיבוט טו פייקי",
+      "alias": "Pivot to Fakie",
+      "discipline": "mini",
+      "level": "מקצוען",
+      "desc": "סיבוב על הטראק האחורי בקופינג.",
+      "after": [
+        "nosepick"
+      ]
+    },
+    {
+      "id": "pool_carve",
+      "baseId": "pool_carve",
+      "side": null,
+      "name": "קארב בדופן",
+      "baseName": "קארב בדופן",
+      "alias": "Pool Carve",
+      "discipline": "pool",
+      "level": "בינוני",
+      "desc": "בפול אין קצה ישר — צריך לקרוא את הצורה.",
+      "after": [
+        "pumping"
+      ]
+    },
+    {
+      "id": "pool_grind_fs",
+      "baseId": "pool_grind",
+      "side": "fs",
+      "name": "פרונטסייד גריינד בפול",
+      "baseName": "גריינד בפול",
+      "alias": "FS Pool Grind",
+      "discipline": "pool",
+      "level": "מתקדם",
+      "desc": "החלקה על הקופינג בזווית שמשתנה.",
+      "after": [
+        "pool_carve",
+        "axlestall"
+      ]
+    },
+    {
+      "id": "pool_grind_bs",
+      "baseId": "pool_grind",
+      "side": "bs",
+      "name": "בקסייד גריינד בפול",
+      "baseName": "גריינד בפול",
+      "alias": "BS Pool Grind",
+      "discipline": "pool",
+      "level": "מתקדם",
+      "desc": "החלקה על הקופינג בזווית שמשתנה.",
+      "after": [
+        "pool_carve",
+        "axlestall"
+      ]
+    },
+    {
+      "id": "pool_air_fs",
+      "baseId": "pool_air",
+      "side": "fs",
+      "name": "פרונטסייד אייר מעל הבריכה",
+      "baseName": "אייר מעל הבריכה",
+      "alias": "FS Pool Air",
+      "discipline": "pool",
+      "level": "מקצוען",
+      "desc": "יציאה מלאה מהקצה. הטריק שכולם מצלמים.",
+      "after": [
+        "pool_grind",
+        "air_fs"
+      ]
+    },
+    {
+      "id": "pool_air_bs",
+      "baseId": "pool_air",
+      "side": "bs",
+      "name": "בקסייד אייר מעל הבריכה",
+      "baseName": "אייר מעל הבריכה",
+      "alias": "BS Pool Air",
+      "discipline": "pool",
+      "level": "מקצוען",
+      "desc": "יציאה מלאה מהקצה. הטריק שכולם מצלמים.",
+      "after": [
+        "pool_grind",
+        "air_fs"
+      ]
+    },
+    {
+      "id": "invert_fs",
+      "baseId": "invert",
+      "side": "fs",
+      "name": "פרונטסייד אינוורט",
+      "baseName": "אינוורט",
+      "alias": "FS Invert",
+      "discipline": "pool",
+      "level": "מקצוען",
+      "desc": "עמידת יד על הקופינג עם תפיסת לוח.",
+      "after": [
+        "pool_air"
+      ]
+    },
+    {
+      "id": "invert_bs",
+      "baseId": "invert",
+      "side": "bs",
+      "name": "בקסייד אינוורט",
+      "baseName": "אינוורט",
+      "alias": "BS Invert",
+      "discipline": "pool",
+      "level": "מקצוען",
+      "desc": "עמידת יד על הקופינג עם תפיסת לוח.",
+      "after": [
+        "pool_air"
+      ]
+    },
+    {
+      "id": "eggplant",
+      "baseId": "eggplant",
+      "side": null,
+      "name": "אג׳פלנט",
+      "baseName": "אג׳פלנט",
+      "alias": "Egg Plant",
+      "discipline": "pool",
+      "level": "מקצוען",
+      "desc": "אינוורט על היד הקדמית.",
+      "after": [
+        "invert"
+      ]
+    },
+    {
+      "id": "hoho",
+      "baseId": "hoho",
+      "side": null,
+      "name": "הו-הו",
+      "baseName": "הו-הו",
+      "alias": "Ho-Ho",
+      "discipline": "pool",
+      "level": "מקצוען",
+      "desc": "אינוורט על שתי הידיים.",
+      "after": [
+        "eggplant"
+      ]
+    },
+    {
+      "id": "millerflip",
+      "baseId": "millerflip",
+      "side": null,
+      "name": "מילר פליפ",
+      "baseName": "מילר פליפ",
+      "alias": "Miller Flip",
+      "discipline": "pool",
+      "level": "מקצוען",
+      "desc": "אינוורט עם 360 חזרה לתוך הדופן.",
+      "after": [
+        "invert"
+      ]
+    },
+    {
+      "id": "sadplant",
+      "baseId": "sadplant",
+      "side": null,
+      "name": "סאד פלאנט",
+      "baseName": "סאד פלאנט",
+      "alias": "Sad Plant",
+      "discipline": "pool",
+      "level": "מקצוען",
+      "desc": "אינוורט עם רגל קדמית ישרה.",
+      "after": [
+        "eggplant"
+      ]
+    },
+    {
+      "id": "andrecht",
+      "baseId": "andrecht",
+      "side": null,
+      "name": "אנדרכט",
+      "baseName": "אנדרכט",
+      "alias": "Andrecht",
+      "discipline": "pool",
+      "level": "מקצוען",
+      "desc": "אינוורט בקסייד עם תפיסת עקבים.",
+      "after": [
+        "invert"
+      ]
+    },
+    {
+      "id": "layback_fs",
+      "baseId": "layback",
+      "side": "fs",
+      "name": "פרונטסייד לייבק",
+      "baseName": "לייבק",
+      "alias": "FS Layback",
+      "discipline": "pool",
+      "level": "מתקדם",
+      "desc": "היד נשענת אחורה בדופן תוך כדי סיבוב.",
+      "after": [
+        "pool_carve"
+      ]
+    },
+    {
+      "id": "layback_bs",
+      "baseId": "layback",
+      "side": "bs",
+      "name": "בקסייד לייבק",
+      "baseName": "לייבק",
+      "alias": "BS Layback",
+      "discipline": "pool",
+      "level": "מתקדם",
+      "desc": "היד נשענת אחורה בדופן תוך כדי סיבוב.",
+      "after": [
+        "pool_carve"
+      ]
+    },
+    {
+      "id": "stiffy",
+      "baseId": "stiffy",
+      "side": null,
+      "name": "סטיפי",
+      "baseName": "סטיפי",
+      "alias": "Stiffy",
+      "discipline": "pool",
+      "level": "מקצוען",
+      "desc": "אייר עם שתי רגליים ישרות.",
+      "after": [
+        "pool_air"
+      ]
+    },
+    {
+      "id": "walkdog",
+      "baseId": "walkdog",
+      "side": null,
+      "name": "ווק דה דוג",
+      "baseName": "ווק דה דוג",
+      "alias": "Walk the Dog",
+      "discipline": "old",
+      "level": "בינוני",
+      "desc": "סיבוב הלוח מתחת לרגליים בצעדים.",
+      "after": [
+        "manual"
+      ]
+    },
+    {
+      "id": "endover",
+      "baseId": "endover",
+      "side": null,
+      "name": "אנד-אובר",
+      "baseName": "אנד-אובר",
+      "alias": "End-Over",
+      "discipline": "old",
+      "level": "בינוני",
+      "desc": "סיבובי 180 חוזרים על החרטום והזנב.",
+      "after": [
+        "walkdog"
+      ]
+    },
+    {
+      "id": "casper",
+      "baseId": "casper",
+      "side": null,
+      "name": "קספר",
+      "baseName": "קספר",
+      "alias": "Casper",
+      "discipline": "old",
+      "level": "מתקדם",
+      "desc": "עמידה על הלוח ההפוך עם רגל תחת הזנב.",
+      "after": [
+        "walkdog"
+      ]
+    },
+    {
+      "id": "railstand",
+      "baseId": "railstand",
+      "side": null,
+      "name": "רייל סטנד",
+      "baseName": "רייל סטנד",
+      "alias": "Railstand",
+      "discipline": "old",
+      "level": "מתקדם",
+      "desc": "עמידה על צד הלוח.",
+      "after": [
+        "casper"
+      ]
+    },
+    {
+      "id": "primo_stand",
+      "baseId": "primo_stand",
+      "side": null,
+      "name": "פרימו",
+      "baseName": "פרימו",
+      "alias": "Primo Stand",
+      "discipline": "old",
+      "level": "מקצוען",
+      "desc": "הלוח על הצד והרגליים עליו.",
+      "after": [
+        "railstand"
+      ]
+    },
+    {
+      "id": "pogo",
+      "baseId": "pogo",
+      "side": null,
+      "name": "פוגו",
+      "baseName": "פוגו",
+      "alias": "Pogo",
+      "discipline": "old",
+      "level": "מתקדם",
+      "desc": "קפיצות על הזנב כשהלוח אנכי.",
+      "after": [
+        "casper"
+      ]
+    },
+    {
+      "id": "handstand",
+      "baseId": "handstand",
+      "side": null,
+      "name": "עמידת ידיים",
+      "baseName": "עמידת ידיים",
+      "alias": "Handstand",
+      "discipline": "old",
+      "level": "מקצוען",
+      "desc": "עמידת ידיים על הלוח בנסיעה.",
+      "after": [
+        "railstand"
+      ]
+    },
+    {
+      "id": "spacewalk",
+      "baseId": "spacewalk",
+      "side": null,
+      "name": "ספייסווק",
+      "baseName": "ספייסווק",
+      "alias": "Spacewalk",
+      "discipline": "old",
+      "level": "מתקדם",
+      "desc": "מניואל ארוך עם נדנוד החרטום.",
+      "after": [
+        "manual",
+        "endover"
+      ]
+    },
+    {
+      "id": "oldschool_kickflip",
+      "baseId": "oldschool_kickflip",
+      "side": null,
+      "name": "קיקפליפ אולד סקול",
+      "baseName": "קיקפליפ אולד סקול",
+      "alias": "Old School Kickflip",
+      "discipline": "old",
+      "level": "בינוני",
+      "desc": "הלוח מתהפך עם הרגל מהצד, בלי אוליי.",
+      "after": [
+        "manual"
+      ]
+    },
+    {
+      "id": "fingerflip_old",
+      "baseId": "fingerflip_old",
+      "side": null,
+      "name": "פינגר פליפ אולד סקול",
+      "baseName": "פינגר פליפ אולד סקול",
+      "alias": "Finger Flip",
+      "discipline": "old",
+      "level": "מתקדם",
+      "desc": "היד מהפכת את הלוח בקפיצה.",
+      "after": [
+        "oldschool_kickflip"
+      ]
+    },
+    {
+      "id": "boneless_old",
+      "baseId": "boneless_old",
+      "side": null,
+      "name": "בונלס אולד סקול",
+      "baseName": "בונלס אולד סקול",
+      "alias": "Boneless One",
+      "discipline": "old",
+      "level": "בינוני",
+      "desc": "רגל לקרקע, יד תופסת, קפיצה חזרה.",
+      "after": [
+        "oldschool_kickflip"
+      ]
+    },
+    {
+      "id": "daffy",
+      "baseId": "daffy",
+      "side": null,
+      "name": "דאפי",
+      "baseName": "דאפי",
+      "alias": "Daffy",
+      "discipline": "old",
+      "level": "מקצוען",
+      "desc": "מניואל על שני לוחות בו זמנית.",
+      "after": [
+        "spacewalk"
+      ]
+    },
+    {
+      "id": "coco",
+      "baseId": "coco",
+      "side": null,
+      "name": "קוקו ווילי",
+      "baseName": "קוקו ווילי",
+      "alias": "Coco Wheelie",
+      "discipline": "old",
+      "level": "מתקדם",
+      "desc": "מניואל עם רגל אחת על החרטום.",
+      "after": [
+        "nosemanual"
+      ]
+    },
+    {
+      "id": "tvstand",
+      "baseId": "tvstand",
+      "side": null,
+      "name": "טי-וי סטנד",
+      "baseName": "טי-וי סטנד",
+      "alias": "TV Stand",
+      "discipline": "old",
+      "level": "מקצוען",
+      "desc": "עמידה על הלוח בזווית עם שתי רגליים בקצוות.",
+      "after": [
+        "railstand"
+      ]
+    },
+    {
+      "id": "m80",
+      "baseId": "m80",
+      "side": null,
+      "name": "אם-80",
+      "baseName": "אם-80",
+      "alias": "M-80",
+      "discipline": "old",
+      "level": "מקצוען",
+      "desc": "קפיצה עם סיבוב מהזנב, אולד סקול.",
+      "after": [
+        "pogo"
+      ]
+    },
+    {
+      "id": "fakie_rocknroll_fs",
+      "baseId": "fakie_rocknroll",
+      "side": "fs",
+      "name": "פרונטסייד פייקי רוק אנד רול",
+      "baseName": "פייקי רוק אנד רול",
+      "alias": "FS Fakie Rock and Roll",
+      "discipline": "mini",
+      "level": "מתקדם",
+      "desc": "רוק אנד רול בכניסה אחורית.",
+      "after": [
+        "rocknroll"
+      ]
+    },
+    {
+      "id": "fakie_rocknroll_bs",
+      "baseId": "fakie_rocknroll",
+      "side": "bs",
+      "name": "בקסייד פייקי רוק אנד רול",
+      "baseName": "פייקי רוק אנד רול",
+      "alias": "BS Fakie Rock and Roll",
+      "discipline": "mini",
+      "level": "מתקדם",
+      "desc": "רוק אנד רול בכניסה אחורית.",
+      "after": [
+        "rocknroll"
+      ]
+    },
+    {
+      "id": "halfcab_rocknroll_fs",
+      "baseId": "halfcab_rocknroll",
+      "side": "fs",
+      "name": "פרונטסייד האף קאב רוק אנד רול",
+      "baseName": "האף קאב רוק אנד רול",
+      "alias": "FS Half-Cab Rock and Roll",
+      "discipline": "mini",
+      "level": "מקצוען",
+      "desc": "רוק, ואז האף קאב במקום סיבוב רגיל.",
+      "after": [
+        "fakie_rocknroll",
+        "halfcab"
+      ]
+    },
+    {
+      "id": "halfcab_rocknroll_bs",
+      "baseId": "halfcab_rocknroll",
+      "side": "bs",
+      "name": "בקסייד האף קאב רוק אנד רול",
+      "baseName": "האף קאב רוק אנד רול",
+      "alias": "BS Half-Cab Rock and Roll",
+      "discipline": "mini",
+      "level": "מקצוען",
+      "desc": "רוק, ואז האף קאב במקום סיבוב רגיל.",
+      "after": [
+        "fakie_rocknroll",
+        "halfcab"
+      ]
+    },
+    {
+      "id": "rock_fakie_180",
+      "baseId": "rock_fakie_180",
+      "side": null,
+      "name": "רוק טו פייקי 180",
+      "baseName": "רוק טו פייקי 180",
+      "alias": "Rock to Fakie 180",
+      "discipline": "mini",
+      "level": "מקצוען",
+      "desc": "רוק, וסיבוב מלא ביציאה.",
+      "after": [
+        "rocktofakie",
+        "ollie180"
+      ]
+    },
+    {
+      "id": "blunt_stall_fs",
+      "baseId": "blunt_stall",
+      "side": "fs",
+      "name": "פרונטסייד בלאנט סטול",
+      "baseName": "בלאנט סטול",
+      "alias": "FS Blunt Stall",
+      "discipline": "mini",
+      "level": "מקצוען",
+      "desc": "עצירה על הזנב עם הגלגלים מעל הקופינג.",
+      "after": [
+        "blunt_fakie"
+      ]
+    },
+    {
+      "id": "blunt_stall_bs",
+      "baseId": "blunt_stall",
+      "side": "bs",
+      "name": "בקסייד בלאנט סטול",
+      "baseName": "בלאנט סטול",
+      "alias": "BS Blunt Stall",
+      "discipline": "mini",
+      "level": "מקצוען",
+      "desc": "עצירה על הזנב עם הגלגלים מעל הקופינג.",
+      "after": [
+        "blunt_fakie"
+      ]
+    },
+    {
+      "id": "nosebluntstall_fs",
+      "baseId": "nosebluntstall",
+      "side": "fs",
+      "name": "פרונטסייד נוזבלאנט סטול",
+      "baseName": "נוזבלאנט סטול",
+      "alias": "FS Noseblunt Stall",
+      "discipline": "mini",
+      "level": "מקצוען",
+      "desc": "אותו דבר מצד החרטום.",
+      "after": [
+        "blunt_stall",
+        "nosepick"
+      ]
+    },
+    {
+      "id": "nosebluntstall_bs",
+      "baseId": "nosebluntstall",
+      "side": "bs",
+      "name": "בקסייד נוזבלאנט סטול",
+      "baseName": "נוזבלאנט סטול",
+      "alias": "BS Noseblunt Stall",
+      "discipline": "mini",
+      "level": "מקצוען",
+      "desc": "אותו דבר מצד החרטום.",
+      "after": [
+        "blunt_stall",
+        "nosepick"
+      ]
+    },
+    {
+      "id": "tailslide_coping_fs",
+      "baseId": "tailslide_coping",
+      "side": "fs",
+      "name": "פרונטסייד טיילסלייד על הקופינג",
+      "baseName": "טיילסלייד על הקופינג",
+      "alias": "FS Coping Tailslide",
+      "discipline": "mini",
+      "level": "מקצוען",
+      "desc": "החלקה על הזנב לאורך שפת הראמפ.",
+      "after": [
+        "tailstall",
+        "tailslide"
+      ]
+    },
+    {
+      "id": "tailslide_coping_bs",
+      "baseId": "tailslide_coping",
+      "side": "bs",
+      "name": "בקסייד טיילסלייד על הקופינג",
+      "baseName": "טיילסלייד על הקופינג",
+      "alias": "BS Coping Tailslide",
+      "discipline": "mini",
+      "level": "מקצוען",
+      "desc": "החלקה על הזנב לאורך שפת הראמפ.",
+      "after": [
+        "tailstall",
+        "tailslide"
+      ]
+    },
+    {
+      "id": "stalefish_stall",
+      "baseId": "stalefish_stall",
+      "side": null,
+      "name": "סטיילפיש סטול",
+      "baseName": "סטיילפיש סטול",
+      "alias": "Stalefish Stall",
+      "discipline": "mini",
+      "level": "מקצוען",
+      "desc": "סטול עם תפיסת סטיילפיש.",
+      "after": [
+        "boardstall",
+        "grab_stalefish"
+      ]
+    },
+    {
+      "id": "bs_boardslide_coping_fs",
+      "baseId": "bs_boardslide_coping",
+      "side": "fs",
+      "name": "פרונטסייד בורדסלייד על הקופינג",
+      "baseName": "בורדסלייד על הקופינג",
+      "alias": "FS Coping Boardslide",
+      "discipline": "mini",
+      "level": "מקצוען",
+      "desc": "בורדסלייד לרוחב שפת המיני ראמפ.",
+      "after": [
+        "boardstall",
+        "boardslide"
+      ]
+    },
+    {
+      "id": "bs_boardslide_coping_bs",
+      "baseId": "bs_boardslide_coping",
+      "side": "bs",
+      "name": "בקסייד בורדסלייד על הקופינג",
+      "baseName": "בורדסלייד על הקופינג",
+      "alias": "BS Coping Boardslide",
+      "discipline": "mini",
+      "level": "מקצוען",
+      "desc": "בורדסלייד לרוחב שפת המיני ראמפ.",
+      "after": [
+        "boardstall",
+        "boardslide"
+      ]
+    },
+    {
+      "id": "tailtap",
+      "baseId": "tailtap",
+      "side": null,
+      "name": "טייל טאפ",
+      "baseName": "טייל טאפ",
+      "alias": "Tail Tap",
+      "discipline": "mini",
+      "level": "בינוני",
+      "desc": "נגיעה קצרה של הזנב בקופינג וחזרה.",
+      "after": [
+        "rocktofakie"
+      ]
+    },
+    {
+      "id": "fs_air_180",
+      "baseId": "fs_air_180",
+      "side": null,
+      "name": "פרונטסייד 180 אייר",
+      "baseName": "פרונטסייד 180 אייר",
+      "alias": "FS 180 Air",
+      "discipline": "park",
+      "level": "מתקדם",
+      "desc": "חצי סיבוב מעל הקצה.",
+      "after": [
+        "air_fs"
+      ]
+    },
+    {
+      "id": "alleyoop_fs",
+      "baseId": "alleyoop",
+      "side": "fs",
+      "name": "פרונטסייד אלי-אופ",
+      "baseName": "אלי-אופ",
+      "alias": "FS Alley-oop",
+      "discipline": "park",
+      "level": "מקצוען",
+      "desc": "סיבוב לכיוון ההפוך מכיוון הנסיעה בדופן.",
+      "after": [
+        "air_fs"
+      ]
+    },
+    {
+      "id": "alleyoop_bs",
+      "baseId": "alleyoop",
+      "side": "bs",
+      "name": "בקסייד אלי-אופ",
+      "baseName": "אלי-אופ",
+      "alias": "BS Alley-oop",
+      "discipline": "park",
+      "level": "מקצוען",
+      "desc": "סיבוב לכיוון ההפוך מכיוון הנסיעה בדופן.",
+      "after": [
+        "air_fs"
+      ]
+    },
+    {
+      "id": "judo",
+      "baseId": "judo",
+      "side": null,
+      "name": "ג׳ודו אייר",
+      "baseName": "ג׳ודו אייר",
+      "alias": "Judo Air",
+      "discipline": "park",
+      "level": "מקצוען",
+      "desc": "הרגל הקדמית בועטת קדימה באוויר.",
+      "after": [
+        "airwalk"
+      ]
+    },
+    {
+      "id": "madonna",
+      "baseId": "madonna",
+      "side": null,
+      "name": "מדונה",
+      "baseName": "מדונה",
+      "alias": "Madonna",
+      "discipline": "park",
+      "level": "מקצוען",
+      "desc": "טייל גראב עם בעיטה של הרגל הקדמית.",
+      "after": [
+        "benihana"
+      ]
+    },
+    {
+      "id": "lien_air",
+      "baseId": "lien_air",
+      "side": null,
+      "name": "ליין אייר",
+      "baseName": "ליין אייר",
+      "alias": "Lien Air",
+      "discipline": "park",
+      "level": "מקצוען",
+      "desc": "תפיסה בצד העקבים עם נטייה אחורה.",
+      "after": [
+        "grab_melon"
+      ]
+    },
+    {
+      "id": "crail_air",
+      "baseId": "crail_air",
+      "side": null,
+      "name": "קרייל אייר",
+      "baseName": "קרייל אייר",
+      "alias": "Crail Air",
+      "discipline": "park",
+      "level": "מקצוען",
+      "desc": "היד האחורית תופסת את החרטום.",
+      "after": [
+        "grab_nose"
+      ]
+    },
+    {
+      "id": "roastbeef",
+      "baseId": "roastbeef",
+      "side": null,
+      "name": "רוסטביף",
+      "baseName": "רוסטביף",
+      "alias": "Roast Beef",
+      "discipline": "park",
+      "level": "מקצוען",
+      "desc": "היד האחורית עוברת בין הרגליים ותופסת.",
+      "after": [
+        "grab_stalefish"
+      ]
+    },
+    {
+      "id": "cannonball",
+      "baseId": "cannonball",
+      "side": null,
+      "name": "קנונבול",
+      "baseName": "קנונבול",
+      "alias": "Cannonball",
+      "discipline": "park",
+      "level": "מקצוען",
+      "desc": "שתי ידיים תופסות חרטום וזנב.",
+      "after": [
+        "grab_tail",
+        "grab_nose"
+      ]
+    },
+    {
+      "id": "saran_wrap",
+      "baseId": "saran_wrap",
+      "side": null,
+      "name": "סרן ראפ",
+      "baseName": "סרן ראפ",
+      "alias": "Saran Wrap",
+      "discipline": "park",
+      "level": "מקצוען",
+      "desc": "היד עוברת סביב הרגל הקדמית.",
+      "after": [
+        "airwalk"
+      ]
+    },
+    {
+      "id": "gay_twist",
+      "baseId": "gay_twist",
+      "side": null,
+      "name": "גיי טוויסט",
+      "baseName": "גיי טוויסט",
+      "alias": "Gay Twist",
+      "discipline": "park",
+      "level": "מקצוען",
+      "desc": "פייקי 360 עם גראב.",
+      "after": [
+        "air360",
+        "fullcab"
+      ]
+    },
+    {
+      "id": "backflip",
+      "baseId": "backflip",
+      "side": null,
+      "name": "בקפליפ",
+      "baseName": "בקפליפ",
+      "alias": "Backflip",
+      "discipline": "park",
+      "level": "מקצוען",
+      "desc": "סלטה אחורית מלאה עם הלוח.",
+      "after": [
+        "air720"
+      ]
+    },
+    {
+      "id": "air1080",
+      "baseId": "air1080",
+      "side": null,
+      "name": "1080",
+      "baseName": "1080",
+      "alias": "1080",
+      "discipline": "park",
+      "level": "מקצוען",
+      "desc": "שלושה סיבובים מלאים. טום שאר, 2012.",
+      "after": [
+        "air900"
+      ]
+    },
+    {
+      "id": "nosegrind_overcrook_fs",
+      "baseId": "nosegrind_overcrook",
+      "side": "fs",
+      "name": "פרונטסייד נוזגריינד אוברטרן",
+      "baseName": "נוזגריינד אוברטרן",
+      "alias": "FS Nosegrind Overturn",
+      "discipline": "grind",
+      "level": "מקצוען",
+      "desc": "נוזגריינד עם סיבוב ביציאה.",
+      "after": [
+        "nosegrind"
+      ]
+    },
+    {
+      "id": "nosegrind_overcrook_bs",
+      "baseId": "nosegrind_overcrook",
+      "side": "bs",
+      "name": "בקסייד נוזגריינד אוברטרן",
+      "baseName": "נוזגריינד אוברטרן",
+      "alias": "BS Nosegrind Overturn",
+      "discipline": "grind",
+      "level": "מקצוען",
+      "desc": "נוזגריינד עם סיבוב ביציאה.",
+      "after": [
+        "nosegrind"
+      ]
+    },
+    {
+      "id": "grind5o_overturn_fs",
+      "baseId": "grind5o_overturn",
+      "side": "fs",
+      "name": "פרונטסייד 5-0 אוברטרן",
+      "baseName": "5-0 אוברטרן",
+      "alias": "FS 5-0 Overturn",
+      "discipline": "grind",
+      "level": "מקצוען",
+      "desc": "יציאה מ-5-0 עם סיבוב.",
+      "after": [
+        "grind5o"
+      ]
+    },
+    {
+      "id": "grind5o_overturn_bs",
+      "baseId": "grind5o_overturn",
+      "side": "bs",
+      "name": "בקסייד 5-0 אוברטרן",
+      "baseName": "5-0 אוברטרן",
+      "alias": "BS 5-0 Overturn",
+      "discipline": "grind",
+      "level": "מקצוען",
+      "desc": "יציאה מ-5-0 עם סיבוב.",
+      "after": [
+        "grind5o"
+      ]
+    },
+    {
+      "id": "barley_fs",
+      "baseId": "barley",
+      "side": "fs",
+      "name": "פרונטסייד בארלי גריינד",
+      "baseName": "בארלי גריינד",
+      "alias": "FS Barley Grind",
+      "discipline": "grind",
+      "level": "מקצוען",
+      "desc": "פיבל בגישה פרונטסיידית עם סיבוב.",
+      "after": [
+        "willy"
+      ]
+    },
+    {
+      "id": "barley_bs",
+      "baseId": "barley",
+      "side": "bs",
+      "name": "בקסייד בארלי גריינד",
+      "baseName": "בארלי גריינד",
+      "alias": "BS Barley Grind",
+      "discipline": "grind",
+      "level": "מקצוען",
+      "desc": "פיבל בגישה פרונטסיידית עם סיבוב.",
+      "after": [
+        "willy"
+      ]
+    },
+    {
+      "id": "darkslide_50",
+      "baseId": "darkslide_50",
+      "side": null,
+      "name": "דארק 50-50",
+      "baseName": "דארק 50-50",
+      "alias": "Dark 50-50",
+      "discipline": "grind",
+      "level": "מקצוען",
+      "desc": "גריינד כשהלוח הפוך.",
+      "after": [
+        "darkslide",
+        "grind5050"
+      ]
+    },
+    {
+      "id": "tailslide_shuv_fs",
+      "baseId": "tailslide_shuv",
+      "side": "fs",
+      "name": "פרונטסייד טיילסלייד שאביט אאוט",
+      "baseName": "טיילסלייד שאביט אאוט",
+      "alias": "FS Tailslide Shove-out",
+      "discipline": "slide",
+      "level": "מקצוען",
+      "desc": "יציאה מטיילסלייד עם שאביט.",
+      "after": [
+        "tailslide",
+        "popshuvit"
+      ]
+    },
+    {
+      "id": "tailslide_shuv_bs",
+      "baseId": "tailslide_shuv",
+      "side": "bs",
+      "name": "בקסייד טיילסלייד שאביט אאוט",
+      "baseName": "טיילסלייד שאביט אאוט",
+      "alias": "BS Tailslide Shove-out",
+      "discipline": "slide",
+      "level": "מקצוען",
+      "desc": "יציאה מטיילסלייד עם שאביט.",
+      "after": [
+        "tailslide",
+        "popshuvit"
+      ]
+    },
+    {
+      "id": "crook_bigspin_fs",
+      "baseId": "crook_bigspin",
+      "side": "fs",
+      "name": "פרונטסייד קרוקד ביגספין אאוט",
+      "baseName": "קרוקד ביגספין אאוט",
+      "alias": "FS Crook Bigspin Out",
+      "discipline": "grind",
+      "level": "מקצוען",
+      "desc": "יציאה מקרוקד עם ביגספין.",
+      "after": [
+        "crooked",
+        "bigspin"
+      ]
+    },
+    {
+      "id": "crook_bigspin_bs",
+      "baseId": "crook_bigspin",
+      "side": "bs",
+      "name": "בקסייד קרוקד ביגספין אאוט",
+      "baseName": "קרוקד ביגספין אאוט",
+      "alias": "BS Crook Bigspin Out",
+      "discipline": "grind",
+      "level": "מקצוען",
+      "desc": "יציאה מקרוקד עם ביגספין.",
+      "after": [
+        "crooked",
+        "bigspin"
+      ]
+    },
+    {
+      "id": "nollie_heel",
+      "baseId": "nollie_heel",
+      "side": null,
+      "name": "נולי הילפליפ",
+      "baseName": "נולי הילפליפ",
+      "alias": "Nollie Heelflip",
+      "discipline": "flat",
+      "level": "מקצוען",
+      "desc": "הילפליפ מהחרטום.",
+      "after": [
+        "nollie_flip",
+        "heelflip"
+      ]
+    },
+    {
+      "id": "switch_heel",
+      "baseId": "switch_heel",
+      "side": null,
+      "name": "סוויץ׳ הילפליפ",
+      "baseName": "סוויץ׳ הילפליפ",
+      "alias": "Switch Heelflip",
+      "discipline": "flat",
+      "level": "מקצוען",
+      "desc": "הילפליפ בעמידה ההפוכה.",
+      "after": [
+        "switch_flip",
+        "heelflip"
+      ]
+    },
+    {
+      "id": "fakie_flip",
+      "baseId": "fakie_flip",
+      "side": null,
+      "name": "פייקי קיקפליפ",
+      "baseName": "פייקי קיקפליפ",
+      "alias": "Fakie Flip",
+      "discipline": "flat",
+      "level": "מתקדם",
+      "desc": "קיקפליפ בנסיעה אחורה.",
+      "after": [
+        "fakie_ollie",
+        "kickflip"
+      ]
+    },
+    {
+      "id": "halfcab_flip",
+      "baseId": "halfcab_flip",
+      "side": null,
+      "name": "האף קאב פליפ",
+      "baseName": "האף קאב פליפ",
+      "alias": "Half-Cab Flip",
+      "discipline": "flat",
+      "level": "מקצוען",
+      "desc": "האף קאב עם קיקפליפ.",
+      "after": [
+        "halfcab",
+        "fakie_flip"
+      ]
+    },
+    {
+      "id": "cab_flip",
+      "baseId": "cab_flip",
+      "side": null,
+      "name": "קאב פליפ",
+      "baseName": "קאב פליפ",
+      "alias": "Cab Flip",
+      "discipline": "flat",
+      "level": "מקצוען",
+      "desc": "פול קאב עם קיקפליפ.",
+      "after": [
+        "fullcab",
+        "halfcab_flip"
+      ]
+    },
+    {
+      "id": "dolphin_flip",
+      "baseId": "dolphin_flip",
+      "side": null,
+      "name": "דולפין פליפ",
+      "baseName": "דולפין פליפ",
+      "alias": "Dolphin Flip",
+      "discipline": "flat",
+      "level": "מקצוען",
+      "desc": "הלוח מתהפך קדימה מעל הראש.",
+      "after": [
+        "hospital"
+      ]
+    },
+    {
+      "id": "jesus_flip",
+      "baseId": "jesus_flip",
+      "side": null,
+      "name": "ג׳יזוס פליפ",
+      "baseName": "ג׳יזוס פליפ",
+      "alias": "Jesus Flip",
+      "discipline": "flat",
+      "level": "מקצוען",
+      "desc": "פליפ שנתפס ביד ומוחזר לרגליים.",
+      "after": [
+        "fingerflip"
+      ]
+    },
+    {
+      "id": "ghetto_bird",
+      "baseId": "ghetto_bird",
+      "side": null,
+      "name": "גטו בירד",
+      "baseName": "גטו בירד",
+      "alias": "Ghetto Bird",
+      "discipline": "flat",
+      "level": "מקצוען",
+      "desc": "הארדפליפ עם 180 אחורה.",
+      "after": [
+        "hardflip",
+        "ollie180"
+      ]
+    },
+    {
+      "id": "360_hardflip",
+      "baseId": "360_hardflip",
+      "side": null,
+      "name": "360 הארדפליפ",
+      "baseName": "360 הארדפליפ",
+      "alias": "360 Hardflip",
+      "discipline": "flat",
+      "level": "מקצוען",
+      "desc": "הארדפליפ עם 360 של הלוח.",
+      "after": [
+        "hardflip",
+        "shuvit360"
+      ]
+    },
+    {
+      "id": "nightmare",
+      "baseId": "nightmare",
+      "side": null,
+      "name": "נייטמר פליפ",
+      "baseName": "נייטמר פליפ",
+      "alias": "Nightmare Flip",
+      "discipline": "flat",
+      "level": "מקצוען",
+      "desc": "דאבל קיקפליפ עם 360 שאביט.",
+      "after": [
+        "double_kickflip",
+        "treflip"
+      ]
+    },
+    {
+      "id": "daydream",
+      "baseId": "daydream",
+      "side": null,
+      "name": "דיידרים פליפ",
+      "baseName": "דיידרים פליפ",
+      "alias": "Daydream Flip",
+      "discipline": "flat",
+      "level": "מקצוען",
+      "desc": "דאבל הילפליפ עם 360 שאביט.",
+      "after": [
+        "double_heelflip",
+        "laserflip"
+      ]
+    },
+    {
+      "id": "semi_flip",
+      "baseId": "semi_flip",
+      "side": null,
+      "name": "סמי פליפ",
+      "baseName": "סמי פליפ",
+      "alias": "Semi-Flip",
+      "discipline": "flat",
+      "level": "מקצוען",
+      "desc": "קספר עם חצי סיבוב וחזרה.",
+      "after": [
+        "casperflip"
+      ]
+    },
+    {
+      "id": "360_shuv_underflip",
+      "baseId": "360_shuv_underflip",
+      "side": null,
+      "name": "שאביט אנדרפליפ",
+      "baseName": "שאביט אנדרפליפ",
+      "alias": "Shove Underflip",
+      "discipline": "flat",
+      "level": "מקצוען",
+      "desc": "שאביט עם אנדרפליפ מאוחר.",
+      "after": [
+        "underflip",
+        "shuvit360"
+      ]
+    },
+    {
+      "id": "late_flip",
+      "baseId": "late_flip",
+      "side": null,
+      "name": "לייט פליפ",
+      "baseName": "לייט פליפ",
+      "alias": "Late Flip",
+      "discipline": "flat",
+      "level": "מקצוען",
+      "desc": "הפליפ מתבצע אחרי שהאוליי כבר בשיא.",
+      "after": [
+        "kickflip",
+        "fullcab"
+      ]
+    },
+    {
+      "id": "bigspin_flip",
+      "baseId": "bigspin_flip",
+      "side": null,
+      "name": "ביגספין פליפ",
+      "baseName": "ביגספין פליפ",
+      "alias": "Bigspin Flip",
+      "discipline": "flat",
+      "level": "מקצוען",
+      "desc": "ביגספין עם קיקפליפ מלא.",
+      "after": [
+        "bigflip"
+      ]
+    },
+    {
+      "id": "casper_disaster",
+      "baseId": "casper_disaster",
+      "side": null,
+      "name": "קספר דיזסטר",
+      "baseName": "קספר דיזסטר",
+      "alias": "Casper Disaster",
+      "discipline": "old",
+      "level": "מקצוען",
+      "desc": "קספר על שפת מכשול.",
+      "after": [
+        "casper"
+      ]
+    },
+    {
+      "id": "anti_casper",
+      "baseId": "anti_casper",
+      "side": null,
+      "name": "אנטי קספר",
+      "baseName": "אנטי קספר",
+      "alias": "Anti-Casper",
+      "discipline": "old",
+      "level": "מקצוען",
+      "desc": "קספר מהצד ההפוך של הלוח.",
+      "after": [
+        "casper"
+      ]
+    },
+    {
+      "id": "yoyo_plant",
+      "baseId": "yoyo_plant",
+      "side": null,
+      "name": "יו-יו פלאנט",
+      "baseName": "יו-יו פלאנט",
+      "alias": "YoYo Plant",
+      "discipline": "old",
+      "level": "מקצוען",
+      "desc": "עמידת יד עם סיבוב הלוח.",
+      "after": [
+        "handstand"
+      ]
+    },
+    {
+      "id": "gymnast_plant",
+      "baseId": "gymnast_plant",
+      "side": null,
+      "name": "ג׳ימנסט פלאנט",
+      "baseName": "ג׳ימנסט פלאנט",
+      "alias": "Gymnast Plant",
+      "discipline": "old",
+      "level": "מקצוען",
+      "desc": "פלאנט על שתי ידיים.",
+      "after": [
+        "handstand"
+      ]
+    },
+    {
+      "id": "street_plant",
+      "baseId": "street_plant",
+      "side": null,
+      "name": "סטריט פלאנט",
+      "baseName": "סטריט פלאנט",
+      "alias": "Street Plant",
+      "discipline": "old",
+      "level": "מתקדם",
+      "desc": "יד על הקרקע והלוח נתפס ביד השנייה.",
+      "after": [
+        "boneless_old"
+      ]
+    },
+    {
+      "id": "butter_flip",
+      "baseId": "butter_flip",
+      "side": null,
+      "name": "באטר פליפ",
+      "baseName": "באטר פליפ",
+      "alias": "Butter Flip",
+      "discipline": "old",
+      "level": "מקצוען",
+      "desc": "פליפ מתוך רייל סטנד.",
+      "after": [
+        "railstand"
+      ]
+    },
+    {
+      "id": "godzilla_flip",
+      "baseId": "godzilla_flip",
+      "side": null,
+      "name": "גודזילה פליפ",
+      "baseName": "גודזילה פליפ",
+      "alias": "Godzilla Flip",
+      "discipline": "old",
+      "level": "מקצוען",
+      "desc": "פינגר פליפ עם 360.",
+      "after": [
+        "fingerflip_old"
+      ]
+    },
+    {
+      "id": "jaywalk",
+      "baseId": "jaywalk",
+      "side": null,
+      "name": "ג׳ייווק",
+      "baseName": "ג׳ייווק",
+      "alias": "Jaywalk",
+      "discipline": "old",
+      "level": "מתקדם",
+      "desc": "צעדים לרוחב הלוח בנסיעה.",
+      "after": [
+        "walkdog"
+      ]
+    },
+    {
+      "id": "monster_walk",
+      "baseId": "monster_walk",
+      "side": null,
+      "name": "מונסטר ווק",
+      "baseName": "מונסטר ווק",
+      "alias": "Monster Walk",
+      "discipline": "old",
+      "level": "מקצוען",
+      "desc": "הליכה שמסובבת את הלוח 360.",
+      "after": [
+        "jaywalk"
+      ]
+    },
+    {
+      "id": "ho_ho_plant",
+      "baseId": "ho_ho_plant",
+      "side": null,
+      "name": "הו-הו פלאנט",
+      "baseName": "הו-הו פלאנט",
+      "alias": "Ho-Ho Plant",
+      "discipline": "old",
+      "level": "מקצוען",
+      "desc": "עמידת ידיים על שתי ידיים בקרקע.",
+      "after": [
+        "gymnast_plant"
+      ]
+    },
+    {
+      "id": "nosehook_impossible",
+      "baseId": "nosehook_impossible",
+      "side": null,
+      "name": "נוזהוק אימפוסיבל",
+      "baseName": "נוזהוק אימפוסיבל",
+      "alias": "Nosehook Impossible",
+      "discipline": "old",
+      "level": "מקצוען",
+      "desc": "אימפוסיבל סביב החרטום.",
+      "after": [
+        "impossible",
+        "railstand"
+      ]
+    },
+    {
+      "id": "sf_flip",
+      "baseId": "sf_flip",
+      "side": null,
+      "name": "סן פרנסיסקו פליפ",
+      "baseName": "סן פרנסיסקו פליפ",
+      "alias": "San Francisco Flip",
+      "discipline": "old",
+      "level": "מקצוען",
+      "desc": "פליפ מעל הראש בעמידת ידיים.",
+      "after": [
+        "handstand",
+        "fingerflip_old"
+      ]
+    },
+    {
+      "id": "carousel",
+      "baseId": "carousel",
+      "side": null,
+      "name": "קרוסלה",
+      "baseName": "קרוסלה",
+      "alias": "Carousel",
+      "discipline": "old",
+      "level": "מקצוען",
+      "desc": "סיבוב מתמשך על גלגל אחד.",
+      "after": [
+        "spacewalk"
+      ]
+    },
+    {
+      "id": "switchfoot_pogo",
+      "baseId": "switchfoot_pogo",
+      "side": null,
+      "name": "סוויצ׳פוט פוגו",
+      "baseName": "סוויצ׳פוט פוגו",
+      "alias": "Switchfoot Pogo",
+      "discipline": "old",
+      "level": "מקצוען",
+      "desc": "פוגו עם החלפת רגליים באוויר.",
+      "after": [
+        "pogo"
+      ]
+    },
+    {
+      "id": "broken_fingers",
+      "baseId": "broken_fingers",
+      "side": null,
+      "name": "ברוקן פינגרס",
+      "baseName": "ברוקן פינגרס",
+      "alias": "Broken Fingers",
+      "discipline": "old",
+      "level": "מקצוען",
+      "desc": "שילוב של קספר ורייל סטנד.",
+      "after": [
+        "casper",
+        "railstand"
+      ]
+    },
+    {
+      "id": "nollie_shuv_fs",
+      "baseId": "nollie_shuv",
+      "side": "fs",
+      "name": "פרונטסייד נולי שאביט",
+      "baseName": "נולי שאביט",
+      "alias": "FS Nollie Shove-it",
+      "discipline": "flat",
+      "level": "מתקדם",
+      "desc": "שאביט מהחרטום.",
+      "after": [
+        "nollie"
+      ]
+    },
+    {
+      "id": "nollie_shuv_bs",
+      "baseId": "nollie_shuv",
+      "side": "bs",
+      "name": "בקסייד נולי שאביט",
+      "baseName": "נולי שאביט",
+      "alias": "BS Nollie Shove-it",
+      "discipline": "flat",
+      "level": "מתקדם",
+      "desc": "שאביט מהחרטום.",
+      "after": [
+        "nollie"
+      ]
+    },
+    {
+      "id": "switch_shuv_fs",
+      "baseId": "switch_shuv",
+      "side": "fs",
+      "name": "פרונטסייד סוויץ׳ שאביט",
+      "baseName": "סוויץ׳ שאביט",
+      "alias": "FS Switch Shove-it",
+      "discipline": "flat",
+      "level": "מתקדם",
+      "desc": "שאביט בעמידה ההפוכה.",
+      "after": [
+        "switch_ollie"
+      ]
+    },
+    {
+      "id": "switch_shuv_bs",
+      "baseId": "switch_shuv",
+      "side": "bs",
+      "name": "בקסייד סוויץ׳ שאביט",
+      "baseName": "סוויץ׳ שאביט",
+      "alias": "BS Switch Shove-it",
+      "discipline": "flat",
+      "level": "מתקדם",
+      "desc": "שאביט בעמידה ההפוכה.",
+      "after": [
+        "switch_ollie"
+      ]
+    },
+    {
+      "id": "fakie_shuv_fs",
+      "baseId": "fakie_shuv",
+      "side": "fs",
+      "name": "פרונטסייד פייקי שאביט",
+      "baseName": "פייקי שאביט",
+      "alias": "FS Fakie Shove-it",
+      "discipline": "flat",
+      "level": "בינוני",
+      "desc": "שאביט בנסיעה אחורה.",
+      "after": [
+        "fakie_ollie"
+      ]
+    },
+    {
+      "id": "fakie_shuv_bs",
+      "baseId": "fakie_shuv",
+      "side": "bs",
+      "name": "בקסייד פייקי שאביט",
+      "baseName": "פייקי שאביט",
+      "alias": "BS Fakie Shove-it",
+      "discipline": "flat",
+      "level": "בינוני",
+      "desc": "שאביט בנסיעה אחורה.",
+      "after": [
+        "fakie_ollie"
+      ]
+    },
+    {
+      "id": "fakie_heel",
+      "baseId": "fakie_heel",
+      "side": null,
+      "name": "פייקי הילפליפ",
+      "baseName": "פייקי הילפליפ",
+      "alias": "Fakie Heelflip",
+      "discipline": "flat",
+      "level": "מתקדם",
+      "desc": "הילפליפ בנסיעה אחורה.",
+      "after": [
+        "fakie_flip",
+        "heelflip"
+      ]
+    },
+    {
+      "id": "nollie_180_fs",
+      "baseId": "nollie_180",
+      "side": "fs",
+      "name": "פרונטסייד נולי 180",
+      "baseName": "נולי 180",
+      "alias": "FS Nollie 180",
+      "discipline": "flat",
+      "level": "מתקדם",
+      "desc": "חצי סיבוב מהחרטום.",
+      "after": [
+        "nollie",
+        "ollie180"
+      ]
+    },
+    {
+      "id": "nollie_180_bs",
+      "baseId": "nollie_180",
+      "side": "bs",
+      "name": "בקסייד נולי 180",
+      "baseName": "נולי 180",
+      "alias": "BS Nollie 180",
+      "discipline": "flat",
+      "level": "מתקדם",
+      "desc": "חצי סיבוב מהחרטום.",
+      "after": [
+        "nollie",
+        "ollie180"
+      ]
+    },
+    {
+      "id": "switch_180_fs",
+      "baseId": "switch_180",
+      "side": "fs",
+      "name": "פרונטסייד סוויץ׳ 180",
+      "baseName": "סוויץ׳ 180",
+      "alias": "FS Switch 180",
+      "discipline": "flat",
+      "level": "מתקדם",
+      "desc": "חצי סיבוב בעמידה ההפוכה.",
+      "after": [
+        "switch_ollie",
+        "ollie180"
+      ]
+    },
+    {
+      "id": "switch_180_bs",
+      "baseId": "switch_180",
+      "side": "bs",
+      "name": "בקסייד סוויץ׳ 180",
+      "baseName": "סוויץ׳ 180",
+      "alias": "BS Switch 180",
+      "discipline": "flat",
+      "level": "מתקדם",
+      "desc": "חצי סיבוב בעמידה ההפוכה.",
+      "after": [
+        "switch_ollie",
+        "ollie180"
+      ]
+    },
+    {
+      "id": "ollie360_fs",
+      "baseId": "ollie360",
+      "side": "fs",
+      "name": "פרונטסייד אוליי 360",
+      "baseName": "אוליי 360",
+      "alias": "FS Ollie 360",
+      "discipline": "flat",
+      "level": "מקצוען",
+      "desc": "סיבוב מלא של הגוף והלוח יחד.",
+      "after": [
+        "ollie180"
+      ]
+    },
+    {
+      "id": "ollie360_bs",
+      "baseId": "ollie360",
+      "side": "bs",
+      "name": "בקסייד אוליי 360",
+      "baseName": "אוליי 360",
+      "alias": "BS Ollie 360",
+      "discipline": "flat",
+      "level": "מקצוען",
+      "desc": "סיבוב מלא של הגוף והלוח יחד.",
+      "after": [
+        "ollie180"
+      ]
+    },
+    {
+      "id": "nollie_bigspin_fs",
+      "baseId": "nollie_bigspin",
+      "side": "fs",
+      "name": "פרונטסייד נולי ביגספין",
+      "baseName": "נולי ביגספין",
+      "alias": "FS Nollie Bigspin",
+      "discipline": "flat",
+      "level": "מקצוען",
+      "desc": "ביגספין מהחרטום.",
+      "after": [
+        "nollie_shuv",
+        "bigspin"
+      ]
+    },
+    {
+      "id": "nollie_bigspin_bs",
+      "baseId": "nollie_bigspin",
+      "side": "bs",
+      "name": "בקסייד נולי ביגספין",
+      "baseName": "נולי ביגספין",
+      "alias": "BS Nollie Bigspin",
+      "discipline": "flat",
+      "level": "מקצוען",
+      "desc": "ביגספין מהחרטום.",
+      "after": [
+        "nollie_shuv",
+        "bigspin"
+      ]
+    },
+    {
+      "id": "anti_casper_flip",
+      "baseId": "anti_casper_flip",
+      "side": null,
+      "name": "אנטי קספר פליפ",
+      "baseName": "אנטי קספר פליפ",
+      "alias": "Anti-Casper Flip",
+      "discipline": "flat",
+      "level": "מקצוען",
+      "desc": "קספר מהצד ההפוך של הלוח.",
+      "after": [
+        "casperflip"
+      ]
+    },
+    {
+      "id": "tre_flip_late",
+      "baseId": "tre_flip_late",
+      "side": null,
+      "name": "לייט טרה פליפ",
+      "baseName": "לייט טרה פליפ",
+      "alias": "Late Tre Flip",
+      "discipline": "flat",
+      "level": "מקצוען",
+      "desc": "הטרה מתחיל אחרי שהאוליי בשיא.",
+      "after": [
+        "treflip",
+        "late_flip"
+      ]
+    },
+    {
+      "id": "dolphin_heel",
+      "baseId": "dolphin_heel",
+      "side": null,
+      "name": "דולפין הילפליפ",
+      "baseName": "דולפין הילפליפ",
+      "alias": "Dolphin Heel",
+      "discipline": "flat",
+      "level": "מקצוען",
+      "desc": "דולפין פליפ עם עקב.",
+      "after": [
+        "dolphin_flip",
+        "heelflip"
+      ]
+    },
+    {
+      "id": "pressure_360",
+      "baseId": "pressure_360",
+      "side": null,
+      "name": "360 פרשר פליפ",
+      "baseName": "360 פרשר פליפ",
+      "alias": "360 Pressure Flip",
+      "discipline": "flat",
+      "level": "מקצוען",
+      "desc": "פרשר פליפ עם סיבוב מלא.",
+      "after": [
+        "pressure_flip"
+      ]
+    },
+    {
+      "id": "sex_change",
+      "baseId": "sex_change",
+      "side": null,
+      "name": "סקס צ׳יינג׳",
+      "baseName": "סקס צ׳יינג׳",
+      "alias": "Sex Change",
+      "discipline": "flat",
+      "level": "מקצוען",
+      "desc": "הרגליים מתחלפות באוויר.",
+      "after": [
+        "ollie180",
+        "kickflip"
+      ]
+    },
+    {
+      "id": "nerd_flip",
+      "baseId": "nerd_flip",
+      "side": null,
+      "name": "נרד פליפ",
+      "baseName": "נרד פליפ",
+      "alias": "Nerd Flip",
+      "discipline": "flat",
+      "level": "מקצוען",
+      "desc": "ורייל עם אנדרפליפ.",
+      "after": [
+        "underflip",
+        "varial_kickflip"
+      ]
+    },
+    {
+      "id": "bull_flip",
+      "baseId": "bull_flip",
+      "side": null,
+      "name": "בול פליפ",
+      "baseName": "בול פליפ",
+      "alias": "Bullflip",
+      "discipline": "flat",
+      "level": "מקצוען",
+      "desc": "הארדפליפ עם 360 של הגוף.",
+      "after": [
+        "hardflip",
+        "ollie360"
+      ]
+    },
+    {
+      "id": "grape_flip",
+      "baseId": "grape_flip",
+      "side": null,
+      "name": "גרייפ פליפ",
+      "baseName": "גרייפ פליפ",
+      "alias": "Grape Flip",
+      "discipline": "flat",
+      "level": "מקצוען",
+      "desc": "האף קאב עם הילפליפ מוקדם.",
+      "after": [
+        "halfcab_flip",
+        "heelflip"
+      ]
+    },
+    {
+      "id": "scissor_flip",
+      "baseId": "scissor_flip",
+      "side": null,
+      "name": "סייזר פליפ",
+      "baseName": "סייזר פליפ",
+      "alias": "Scissor Flip",
+      "discipline": "flat",
+      "level": "מקצוען",
+      "desc": "הרגליים נחצות באוויר תוך כדי פליפ.",
+      "after": [
+        "sex_change"
+      ]
+    },
+    {
+      "id": "kiwi_flip",
+      "baseId": "kiwi_flip",
+      "side": null,
+      "name": "קיווי פליפ",
+      "baseName": "קיווי פליפ",
+      "alias": "Kiwi Flip",
+      "discipline": "flat",
+      "level": "מקצוען",
+      "desc": "פליפ עם סיבוב גוף הפוך לסיבוב הלוח.",
+      "after": [
+        "scissor_flip"
+      ]
+    },
+    {
+      "id": "hangten",
+      "baseId": "hangten",
+      "side": null,
+      "name": "האנג טן",
+      "baseName": "האנג טן",
+      "alias": "Hang Ten",
+      "discipline": "flat",
+      "level": "מקצוען",
+      "desc": "שתי רגליים על החרטום במניואל.",
+      "after": [
+        "nosemanual"
+      ]
+    },
+    {
+      "id": "toe_flip",
+      "baseId": "toe_flip",
+      "side": null,
+      "name": "טו פליפ",
+      "baseName": "טו פליפ",
+      "alias": "Toe Flip",
+      "discipline": "flat",
+      "level": "מקצוען",
+      "desc": "הפליפ נעשה עם קצות האצבעות.",
+      "after": [
+        "kickflip"
+      ]
+    },
+    {
+      "id": "no_comply_180_fs",
+      "baseId": "no_comply_180",
+      "side": "fs",
+      "name": "פרונטסייד נו קומפליי 180",
+      "baseName": "נו קומפליי 180",
+      "alias": "FS No Comply 180",
+      "discipline": "flat",
+      "level": "מתקדם",
+      "desc": "נו קומפליי עם חצי סיבוב.",
+      "after": [
+        "nocomply"
+      ]
+    },
+    {
+      "id": "no_comply_180_bs",
+      "baseId": "no_comply_180",
+      "side": "bs",
+      "name": "בקסייד נו קומפליי 180",
+      "baseName": "נו קומפליי 180",
+      "alias": "BS No Comply 180",
+      "discipline": "flat",
+      "level": "מתקדם",
+      "desc": "נו קומפליי עם חצי סיבוב.",
+      "after": [
+        "nocomply"
+      ]
+    },
+    {
+      "id": "no_comply_flip",
+      "baseId": "no_comply_flip",
+      "side": null,
+      "name": "נו קומפליי פליפ",
+      "baseName": "נו קומפליי פליפ",
+      "alias": "No Comply Flip",
+      "discipline": "flat",
+      "level": "מקצוען",
+      "desc": "נו קומפליי עם קיקפליפ.",
+      "after": [
+        "no_comply_180",
+        "kickflip"
+      ]
+    },
+    {
+      "id": "wrap_around",
+      "baseId": "wrap_around",
+      "side": null,
+      "name": "ראפ אראונד",
+      "baseName": "ראפ אראונד",
+      "alias": "Wrap Around",
+      "discipline": "flat",
+      "level": "מתקדם",
+      "desc": "הלוח מקיף את הרגל הקדמית.",
+      "after": [
+        "nocomply"
+      ]
+    },
+    {
+      "id": "helipop",
+      "baseId": "helipop",
+      "side": null,
+      "name": "הליפופ",
+      "baseName": "הליפופ",
+      "alias": "Helipop",
+      "discipline": "flat",
+      "level": "מקצוען",
+      "desc": "נולי 360 בלי סיבוב של הלוח בנפרד.",
+      "after": [
+        "nollie_180",
+        "ollie360"
+      ]
+    },
+    {
+      "id": "dragonflip",
+      "baseId": "dragonflip",
+      "side": null,
+      "name": "דרגון פליפ",
+      "baseName": "דרגון פליפ",
+      "alias": "Dragonflip",
+      "discipline": "flat",
+      "level": "מקצוען",
+      "desc": "דאבל פליפ עם 360 שאביט.",
+      "after": [
+        "nightmare"
+      ]
+    },
+    {
+      "id": "bluntgrind_fs",
+      "baseId": "bluntgrind",
+      "side": "fs",
+      "name": "פרונטסייד בלאנט גריינד",
+      "baseName": "בלאנט גריינד",
+      "alias": "FS Blunt Grind",
+      "discipline": "grind",
+      "level": "מקצוען",
+      "desc": "גריינד על הזנב עם הגלגלים מעל הקצה.",
+      "after": [
+        "grind5o"
+      ]
+    },
+    {
+      "id": "bluntgrind_bs",
+      "baseId": "bluntgrind",
+      "side": "bs",
+      "name": "בקסייד בלאנט גריינד",
+      "baseName": "בלאנט גריינד",
+      "alias": "BS Blunt Grind",
+      "discipline": "grind",
+      "level": "מקצוען",
+      "desc": "גריינד על הזנב עם הגלגלים מעל הקצה.",
+      "after": [
+        "grind5o"
+      ]
+    },
+    {
+      "id": "nosebluntgrind_fs",
+      "baseId": "nosebluntgrind",
+      "side": "fs",
+      "name": "פרונטסייד נוזבלאנט גריינד",
+      "baseName": "נוזבלאנט גריינד",
+      "alias": "FS Noseblunt Grind",
+      "discipline": "grind",
+      "level": "מקצוען",
+      "desc": "אותו דבר מצד החרטום.",
+      "after": [
+        "bluntgrind",
+        "nosegrind"
+      ]
+    },
+    {
+      "id": "nosebluntgrind_bs",
+      "baseId": "nosebluntgrind",
+      "side": "bs",
+      "name": "בקסייד נוזבלאנט גריינד",
+      "baseName": "נוזבלאנט גריינד",
+      "alias": "BS Noseblunt Grind",
+      "discipline": "grind",
+      "level": "מקצוען",
+      "desc": "אותו דבר מצד החרטום.",
+      "after": [
+        "bluntgrind",
+        "nosegrind"
+      ]
+    },
+    {
+      "id": "tailgrind_fs",
+      "baseId": "tailgrind",
+      "side": "fs",
+      "name": "פרונטסייד טייל גריינד",
+      "baseName": "טייל גריינד",
+      "alias": "FS Tail Grind",
+      "discipline": "grind",
+      "level": "מתקדם",
+      "desc": "גריינד על הטראק האחורי בלבד.",
+      "after": [
+        "grind5o"
+      ]
+    },
+    {
+      "id": "tailgrind_bs",
+      "baseId": "tailgrind",
+      "side": "bs",
+      "name": "בקסייד טייל גריינד",
+      "baseName": "טייל גריינד",
+      "alias": "BS Tail Grind",
+      "discipline": "grind",
+      "level": "מתקדם",
+      "desc": "גריינד על הטראק האחורי בלבד.",
+      "after": [
+        "grind5o"
+      ]
+    },
+    {
+      "id": "halfcab_grind_fs",
+      "baseId": "halfcab_grind",
+      "side": "fs",
+      "name": "פרונטסייד האף קאב גריינד",
+      "baseName": "האף קאב גריינד",
+      "alias": "FS Half-Cab Grind",
+      "discipline": "grind",
+      "level": "מקצוען",
+      "desc": "כניסה לגריינד עם האף קאב.",
+      "after": [
+        "grind5050",
+        "halfcab"
+      ]
+    },
+    {
+      "id": "halfcab_grind_bs",
+      "baseId": "halfcab_grind",
+      "side": "bs",
+      "name": "בקסייד האף קאב גריינד",
+      "baseName": "האף קאב גריינד",
+      "alias": "BS Half-Cab Grind",
+      "discipline": "grind",
+      "level": "מקצוען",
+      "desc": "כניסה לגריינד עם האף קאב.",
+      "after": [
+        "grind5050",
+        "halfcab"
+      ]
+    },
+    {
+      "id": "grind_5050_180out_fs",
+      "baseId": "grind_5050_180out",
+      "side": "fs",
+      "name": "פרונטסייד 50-50 עם 180 ביציאה",
+      "baseName": "50-50 עם 180 ביציאה",
+      "alias": "FS 50-50 to 180 Out",
+      "discipline": "grind",
+      "level": "מקצוען",
+      "desc": "יציאה מהגריינד עם חצי סיבוב.",
+      "after": [
+        "grind5050",
+        "ollie180"
+      ]
+    },
+    {
+      "id": "grind_5050_180out_bs",
+      "baseId": "grind_5050_180out",
+      "side": "bs",
+      "name": "בקסייד 50-50 עם 180 ביציאה",
+      "baseName": "50-50 עם 180 ביציאה",
+      "alias": "BS 50-50 to 180 Out",
+      "discipline": "grind",
+      "level": "מקצוען",
+      "desc": "יציאה מהגריינד עם חצי סיבוב.",
+      "after": [
+        "grind5050",
+        "ollie180"
+      ]
+    },
+    {
+      "id": "nosegrind_180out_fs",
+      "baseId": "nosegrind_180out",
+      "side": "fs",
+      "name": "פרונטסייד נוזגריינד 180 אאוט",
+      "baseName": "נוזגריינד 180 אאוט",
+      "alias": "FS Nosegrind 180 Out",
+      "discipline": "grind",
+      "level": "מקצוען",
+      "desc": "יציאה מנוזגריינד עם סיבוב.",
+      "after": [
+        "nosegrind",
+        "ollie180"
+      ]
+    },
+    {
+      "id": "nosegrind_180out_bs",
+      "baseId": "nosegrind_180out",
+      "side": "bs",
+      "name": "בקסייד נוזגריינד 180 אאוט",
+      "baseName": "נוזגריינד 180 אאוט",
+      "alias": "BS Nosegrind 180 Out",
+      "discipline": "grind",
+      "level": "מקצוען",
+      "desc": "יציאה מנוזגריינד עם סיבוב.",
+      "after": [
+        "nosegrind",
+        "ollie180"
+      ]
+    },
+    {
+      "id": "smith_180out_fs",
+      "baseId": "smith_180out",
+      "side": "fs",
+      "name": "פרונטסייד סמית׳ 180 אאוט",
+      "baseName": "סמית׳ 180 אאוט",
+      "alias": "FS Smith 180 Out",
+      "discipline": "grind",
+      "level": "מקצוען",
+      "desc": "יציאה מסמית׳ עם סיבוב.",
+      "after": [
+        "smith",
+        "ollie180"
+      ]
+    },
+    {
+      "id": "smith_180out_bs",
+      "baseId": "smith_180out",
+      "side": "bs",
+      "name": "בקסייד סמית׳ 180 אאוט",
+      "baseName": "סמית׳ 180 אאוט",
+      "alias": "BS Smith 180 Out",
+      "discipline": "grind",
+      "level": "מקצוען",
+      "desc": "יציאה מסמית׳ עם סיבוב.",
+      "after": [
+        "smith",
+        "ollie180"
+      ]
+    },
+    {
+      "id": "kgrind_fs",
+      "baseId": "kgrind",
+      "side": "fs",
+      "name": "פרונטסייד קיי-גריינד",
+      "baseName": "קיי-גריינד",
+      "alias": "FS K-Grind",
+      "discipline": "grind",
+      "level": "מקצוען",
+      "desc": "השם הרחוב של קרוקד גריינד.",
+      "after": [
+        "crooked"
+      ]
+    },
+    {
+      "id": "kgrind_bs",
+      "baseId": "kgrind",
+      "side": "bs",
+      "name": "בקסייד קיי-גריינד",
+      "baseName": "קיי-גריינד",
+      "alias": "BS K-Grind",
+      "discipline": "grind",
+      "level": "מקצוען",
+      "desc": "השם הרחוב של קרוקד גריינד.",
+      "after": [
+        "crooked"
+      ]
+    },
+    {
+      "id": "bs_lipslide_fs",
+      "baseId": "bs_lipslide",
+      "side": "fs",
+      "name": "פרונטסייד ליפסלייד עם 270",
+      "baseName": "ליפסלייד עם 270",
+      "alias": "FS Lipslide 270 In",
+      "discipline": "slide",
+      "level": "מקצוען",
+      "desc": "כניסה לליפסלייד עם 270.",
+      "after": [
+        "lipslide",
+        "ollie360"
+      ]
+    },
+    {
+      "id": "bs_lipslide_bs",
+      "baseId": "bs_lipslide",
+      "side": "bs",
+      "name": "בקסייד ליפסלייד עם 270",
+      "baseName": "ליפסלייד עם 270",
+      "alias": "BS Lipslide 270 In",
+      "discipline": "slide",
+      "level": "מקצוען",
+      "desc": "כניסה לליפסלייד עם 270.",
+      "after": [
+        "lipslide",
+        "ollie360"
+      ]
+    },
+    {
+      "id": "noseslide_shuv_fs",
+      "baseId": "noseslide_shuv",
+      "side": "fs",
+      "name": "פרונטסייד נוזסלייד שאביט אאוט",
+      "baseName": "נוזסלייד שאביט אאוט",
+      "alias": "FS Noseslide Shove Out",
+      "discipline": "slide",
+      "level": "מקצוען",
+      "desc": "יציאה מנוזסלייד עם שאביט.",
+      "after": [
+        "noseslide",
+        "popshuvit"
+      ]
+    },
+    {
+      "id": "noseslide_shuv_bs",
+      "baseId": "noseslide_shuv",
+      "side": "bs",
+      "name": "בקסייד נוזסלייד שאביט אאוט",
+      "baseName": "נוזסלייד שאביט אאוט",
+      "alias": "BS Noseslide Shove Out",
+      "discipline": "slide",
+      "level": "מקצוען",
+      "desc": "יציאה מנוזסלייד עם שאביט.",
+      "after": [
+        "noseslide",
+        "popshuvit"
+      ]
+    },
+    {
+      "id": "bluntslide_flipout_fs",
+      "baseId": "bluntslide_flipout",
+      "side": "fs",
+      "name": "פרונטסייד בלאנטסלייד פליפ אאוט",
+      "baseName": "בלאנטסלייד פליפ אאוט",
+      "alias": "FS Bluntslide Flip Out",
+      "discipline": "slide",
+      "level": "מקצוען",
+      "desc": "יציאה מבלאנטסלייד עם קיקפליפ.",
+      "after": [
+        "bluntslide",
+        "kickflip"
+      ]
+    },
+    {
+      "id": "bluntslide_flipout_bs",
+      "baseId": "bluntslide_flipout",
+      "side": "bs",
+      "name": "בקסייד בלאנטסלייד פליפ אאוט",
+      "baseName": "בלאנטסלייד פליפ אאוט",
+      "alias": "BS Bluntslide Flip Out",
+      "discipline": "slide",
+      "level": "מקצוען",
+      "desc": "יציאה מבלאנטסלייד עם קיקפליפ.",
+      "after": [
+        "bluntslide",
+        "kickflip"
+      ]
+    },
+    {
+      "id": "salad_slide_fs",
+      "baseId": "salad_slide",
+      "side": "fs",
+      "name": "פרונטסייד סלאד סלייד",
+      "baseName": "סלאד סלייד",
+      "alias": "FS Salad Slide",
+      "discipline": "slide",
+      "level": "מקצוען",
+      "desc": "סלייד עם החרטום מופנה החוצה.",
+      "after": [
+        "tailslide"
+      ]
+    },
+    {
+      "id": "salad_slide_bs",
+      "baseId": "salad_slide",
+      "side": "bs",
+      "name": "בקסייד סלאד סלייד",
+      "baseName": "סלאד סלייד",
+      "alias": "BS Salad Slide",
+      "discipline": "slide",
+      "level": "מקצוען",
+      "desc": "סלייד עם החרטום מופנה החוצה.",
+      "after": [
+        "tailslide"
+      ]
+    },
+    {
+      "id": "hurricane_slide_fs",
+      "baseId": "hurricane_slide",
+      "side": "fs",
+      "name": "פרונטסייד הוריקן סלייד",
+      "baseName": "הוריקן סלייד",
+      "alias": "FS Hurricane Slide",
+      "discipline": "slide",
+      "level": "מקצוען",
+      "desc": "הוריקן שמחליק על הלוח.",
+      "after": [
+        "hurricane"
+      ]
+    },
+    {
+      "id": "hurricane_slide_bs",
+      "baseId": "hurricane_slide",
+      "side": "bs",
+      "name": "בקסייד הוריקן סלייד",
+      "baseName": "הוריקן סלייד",
+      "alias": "BS Hurricane Slide",
+      "discipline": "slide",
+      "level": "מקצוען",
+      "desc": "הוריקן שמחליק על הלוח.",
+      "after": [
+        "hurricane"
+      ]
+    },
+    {
+      "id": "nose_pickup",
+      "baseId": "nose_pickup",
+      "side": null,
+      "name": "נוז פיקאפ",
+      "baseName": "נוז פיקאפ",
+      "alias": "Nose Pickup",
+      "discipline": "slide",
+      "level": "מתקדם",
+      "desc": "הרמת הלוח מהחרטום בסוף סלייד.",
+      "after": [
+        "noseslide"
+      ]
+    },
+    {
+      "id": "fs_rock_slide_fs",
+      "baseId": "fs_rock_slide",
+      "side": "fs",
+      "name": "פרונטסייד רוק סלייד",
+      "baseName": "רוק סלייד",
+      "alias": "FS Rock Slide",
+      "discipline": "mini",
+      "level": "מקצוען",
+      "desc": "החלקה על מרכז הלוח לרוחב הקופינג.",
+      "after": [
+        "rocknroll"
+      ]
+    },
+    {
+      "id": "fs_rock_slide_bs",
+      "baseId": "fs_rock_slide",
+      "side": "bs",
+      "name": "בקסייד רוק סלייד",
+      "baseName": "רוק סלייד",
+      "alias": "BS Rock Slide",
+      "discipline": "mini",
+      "level": "מקצוען",
+      "desc": "החלקה על מרכז הלוח לרוחב הקופינג.",
+      "after": [
+        "rocknroll"
+      ]
+    },
+    {
+      "id": "blunt_revert_fs",
+      "baseId": "blunt_revert",
+      "side": "fs",
+      "name": "פרונטסייד בלאנט ריוורט",
+      "baseName": "בלאנט ריוורט",
+      "alias": "FS Blunt Revert",
+      "discipline": "mini",
+      "level": "מקצוען",
+      "desc": "בלאנט עם סיבוב ביציאה.",
+      "after": [
+        "blunt_stall"
+      ]
+    },
+    {
+      "id": "blunt_revert_bs",
+      "baseId": "blunt_revert",
+      "side": "bs",
+      "name": "בקסייד בלאנט ריוורט",
+      "baseName": "בלאנט ריוורט",
+      "alias": "BS Blunt Revert",
+      "discipline": "mini",
+      "level": "מקצוען",
+      "desc": "בלאנט עם סיבוב ביציאה.",
+      "after": [
+        "blunt_stall"
+      ]
+    },
+    {
+      "id": "crailtap_fs",
+      "baseId": "crailtap",
+      "side": "fs",
+      "name": "פרונטסייד קרייל טאפ",
+      "baseName": "קרייל טאפ",
+      "alias": "FS Crailtap",
+      "discipline": "mini",
+      "level": "מקצוען",
+      "desc": "נגיעה בקופינג עם תפיסת חרטום.",
+      "after": [
+        "nosepick"
+      ]
+    },
+    {
+      "id": "crailtap_bs",
+      "baseId": "crailtap",
+      "side": "bs",
+      "name": "בקסייד קרייל טאפ",
+      "baseName": "קרייל טאפ",
+      "alias": "BS Crailtap",
+      "discipline": "mini",
+      "level": "מקצוען",
+      "desc": "נגיעה בקופינג עם תפיסת חרטום.",
+      "after": [
+        "nosepick"
+      ]
+    },
+    {
+      "id": "beanplant",
+      "baseId": "beanplant",
+      "side": null,
+      "name": "בין פלאנט",
+      "baseName": "בין פלאנט",
+      "alias": "Bean Plant",
+      "discipline": "mini",
+      "level": "מתקדם",
+      "desc": "רגל על הקופינג ותפיסת לוח.",
+      "after": [
+        "boardstall"
+      ]
+    },
+    {
+      "id": "staple_gun",
+      "baseId": "staple_gun",
+      "side": null,
+      "name": "סטייפל גאן",
+      "baseName": "סטייפל גאן",
+      "alias": "Staple Gun",
+      "discipline": "mini",
+      "level": "מתקדם",
+      "desc": "רגל אחת דוחפת את הלוח על הדופן.",
+      "after": [
+        "beanplant"
+      ]
+    },
+    {
+      "id": "tail_drop",
+      "baseId": "tail_drop",
+      "side": null,
+      "name": "טייל דרופ",
+      "baseName": "טייל דרופ",
+      "alias": "Tail Drop",
+      "discipline": "mini",
+      "level": "בינוני",
+      "desc": "כניסה לראמפה מהזנב בלבד.",
+      "after": [
+        "mini_dropin"
+      ]
+    },
+    {
+      "id": "thruster_fs",
+      "baseId": "thruster",
+      "side": "fs",
+      "name": "פרונטסייד ת׳רסטר",
+      "baseName": "ת׳רסטר",
+      "alias": "FS Thruster",
+      "discipline": "mini",
+      "level": "מקצוען",
+      "desc": "סטול עם דחיפה החוצה מהקופינג.",
+      "after": [
+        "axlestall"
+      ]
+    },
+    {
+      "id": "thruster_bs",
+      "baseId": "thruster",
+      "side": "bs",
+      "name": "בקסייד ת׳רסטר",
+      "baseName": "ת׳רסטר",
+      "alias": "BS Thruster",
+      "discipline": "mini",
+      "level": "מקצוען",
+      "desc": "סטול עם דחיפה החוצה מהקופינג.",
+      "after": [
+        "axlestall"
+      ]
+    },
+    {
+      "id": "fastplant",
+      "baseId": "fastplant",
+      "side": null,
+      "name": "פאסטפלאנט",
+      "baseName": "פאסטפלאנט",
+      "alias": "Fastplant",
+      "discipline": "park",
+      "level": "מתקדם",
+      "desc": "בונלס מהיר בטרנזישן.",
+      "after": [
+        "boneless",
+        "ollie_transition"
+      ]
+    },
+    {
+      "id": "tuckknee",
+      "baseId": "tuckknee",
+      "side": null,
+      "name": "טאק-ני",
+      "baseName": "טאק-ני",
+      "alias": "Tuck Knee",
+      "discipline": "park",
+      "level": "מקצוען",
+      "desc": "מיוט גראב עם ברך מקופלת.",
+      "after": [
+        "grab_mute"
+      ]
+    },
+    {
+      "id": "slob_air_fs",
+      "baseId": "slob_air",
+      "side": "fs",
+      "name": "פרונטסייד סלוב אייר",
+      "baseName": "סלוב אייר",
+      "alias": "FS Slob Air",
+      "discipline": "park",
+      "level": "מקצוען",
+      "desc": "מיוט גראב בפרונטסייד.",
+      "after": [
+        "grab_mute"
+      ]
+    },
+    {
+      "id": "slob_air_bs",
+      "baseId": "slob_air",
+      "side": "bs",
+      "name": "בקסייד סלוב אייר",
+      "baseName": "סלוב אייר",
+      "alias": "BS Slob Air",
+      "discipline": "park",
+      "level": "מקצוען",
+      "desc": "מיוט גראב בפרונטסייד.",
+      "after": [
+        "grab_mute"
+      ]
+    },
+    {
+      "id": "seatbelt",
+      "baseId": "seatbelt",
+      "side": null,
+      "name": "סיטבלט",
+      "baseName": "סיטבלט",
+      "alias": "Seatbelt",
+      "discipline": "park",
+      "level": "מקצוען",
+      "desc": "היד האחורית תופסת מעבר לגוף.",
+      "after": [
+        "grab_melon"
+      ]
+    },
+    {
+      "id": "nose_bone",
+      "baseId": "nose_bone",
+      "side": null,
+      "name": "נוז בון",
+      "baseName": "נוז בון",
+      "alias": "Nose Bone",
+      "discipline": "park",
+      "level": "מקצוען",
+      "desc": "נוזגראב עם רגל קדמית ישרה.",
+      "after": [
+        "grab_nose"
+      ]
+    },
+    {
+      "id": "tail_bone",
+      "baseId": "tail_bone",
+      "side": null,
+      "name": "טייל בון",
+      "baseName": "טייל בון",
+      "alias": "Tail Bone",
+      "discipline": "park",
+      "level": "מקצוען",
+      "desc": "טיילגראב עם רגל אחורית ישרה.",
+      "after": [
+        "grab_tail"
+      ]
+    },
+    {
+      "id": "christ_air",
+      "baseId": "christ_air",
+      "side": null,
+      "name": "קרייסט אייר",
+      "baseName": "קרייסט אייר",
+      "alias": "Christ Air",
+      "discipline": "park",
+      "level": "מקצוען",
+      "desc": "הלוח ביד אחת והידיים פרושות.",
+      "after": [
+        "airwalk",
+        "rocket"
+      ]
+    },
+    {
+      "id": "ollie_north",
+      "baseId": "ollie_north",
+      "side": null,
+      "name": "אוליי נורת׳",
+      "baseName": "אוליי נורת׳",
+      "alias": "Ollie North",
+      "discipline": "park",
+      "level": "מקצוען",
+      "desc": "הרגל הקדמית יוצאת קדימה באוויר.",
+      "after": [
+        "airwalk"
+      ]
+    },
+    {
+      "id": "fs_invert",
+      "baseId": "fs_invert",
+      "side": null,
+      "name": "פרונטסייד אינוורט",
+      "baseName": "פרונטסייד אינוורט",
+      "alias": "FS Invert",
+      "discipline": "pool",
+      "level": "מקצוען",
+      "desc": "אינוורט בכיוון הקדמי.",
+      "after": [
+        "invert"
+      ]
+    },
+    {
+      "id": "phillips66",
+      "baseId": "phillips66",
+      "side": null,
+      "name": "פיליפס 66",
+      "baseName": "פיליפס 66",
+      "alias": "Phillips 66",
+      "discipline": "pool",
+      "level": "מקצוען",
+      "desc": "אינוורט עם סיבוב 360.",
+      "after": [
+        "millerflip"
+      ]
+    },
+    {
+      "id": "fingerflip_invert",
+      "baseId": "fingerflip_invert",
+      "side": null,
+      "name": "פינגרפליפ אינוורט",
+      "baseName": "פינגרפליפ אינוורט",
+      "alias": "Fingerflip Invert",
+      "discipline": "pool",
+      "level": "מקצוען",
+      "desc": "אינוורט עם היפוך הלוח ביד.",
+      "after": [
+        "invert",
+        "fingerflip"
+      ]
+    },
+    {
+      "id": "disaster_pool_fs",
+      "baseId": "disaster_pool",
+      "side": "fs",
+      "name": "פרונטסייד דיזסטר בפול",
+      "baseName": "דיזסטר בפול",
+      "alias": "FS Pool Disaster",
+      "discipline": "pool",
+      "level": "מקצוען",
+      "desc": "דיזסטר על הקופינג של הבריכה.",
+      "after": [
+        "pool_grind",
+        "disaster"
+      ]
+    },
+    {
+      "id": "disaster_pool_bs",
+      "baseId": "disaster_pool",
+      "side": "bs",
+      "name": "בקסייד דיזסטר בפול",
+      "baseName": "דיזסטר בפול",
+      "alias": "BS Pool Disaster",
+      "discipline": "pool",
+      "level": "מקצוען",
+      "desc": "דיזסטר על הקופינג של הבריכה.",
+      "after": [
+        "pool_grind",
+        "disaster"
+      ]
+    },
+    {
+      "id": "smith_pool_fs",
+      "baseId": "smith_pool",
+      "side": "fs",
+      "name": "פרונטסייד סמית׳ בפול",
+      "baseName": "סמית׳ בפול",
+      "alias": "FS Pool Smith",
+      "discipline": "pool",
+      "level": "מקצוען",
+      "desc": "סמית׳ גריינד לאורך דופן הבריכה.",
+      "after": [
+        "pool_grind",
+        "smith"
+      ]
+    },
+    {
+      "id": "smith_pool_bs",
+      "baseId": "smith_pool",
+      "side": "bs",
+      "name": "בקסייד סמית׳ בפול",
+      "baseName": "סמית׳ בפול",
+      "alias": "BS Pool Smith",
+      "discipline": "pool",
+      "level": "מקצוען",
+      "desc": "סמית׳ גריינד לאורך דופן הבריכה.",
+      "after": [
+        "pool_grind",
+        "smith"
+      ]
+    },
+    {
+      "id": "bert",
+      "baseId": "bert",
+      "side": null,
+      "name": "ברט",
+      "baseName": "ברט",
+      "alias": "Bert",
+      "discipline": "pool",
+      "level": "מתקדם",
+      "desc": "יד על הדופן וסיבוב רחב, שנות ה-70.",
+      "after": [
+        "layback"
+      ]
+    },
+    {
+      "id": "truckstand",
+      "baseId": "truckstand",
+      "side": null,
+      "name": "טראק סטנד",
+      "baseName": "טראק סטנד",
+      "alias": "Truckstand",
+      "discipline": "old",
+      "level": "מקצוען",
+      "desc": "עמידה על טראק אחד כשהלוח אנכי.",
+      "after": [
+        "railstand"
+      ]
+    },
+    {
+      "id": "rail_flip",
+      "baseId": "rail_flip",
+      "side": null,
+      "name": "רייל פליפ",
+      "baseName": "רייל פליפ",
+      "alias": "Rail Flip",
+      "discipline": "old",
+      "level": "מקצוען",
+      "desc": "מעבר מרייל סטנד חזרה לגלגלים בהיפוך.",
+      "after": [
+        "railstand"
+      ]
+    },
+    {
+      "id": "pivot_manual",
+      "baseId": "pivot_manual",
+      "side": null,
+      "name": "פיבוט מניואל",
+      "baseName": "פיבוט מניואל",
+      "alias": "Pivot Manual",
+      "discipline": "old",
+      "level": "מתקדם",
+      "desc": "סיבוב 180 בתוך מניואל.",
+      "after": [
+        "manual",
+        "endover"
+      ]
+    },
+    {
+      "id": "one_foot_manual",
+      "baseId": "one_foot_manual",
+      "side": null,
+      "name": "מניואל ברגל אחת",
+      "baseName": "מניואל ברגל אחת",
+      "alias": "One-Foot Manual",
+      "discipline": "old",
+      "level": "מתקדם",
+      "desc": "מניואל עם רגל אחת מורמת.",
+      "after": [
+        "manual"
+      ]
+    },
+    {
+      "id": "fifty_fifty_manual",
+      "baseId": "fifty_fifty_manual",
+      "side": null,
+      "name": "מניואל על שני הצירים",
+      "baseName": "מניואל על שני הצירים",
+      "alias": "50-50 Manual",
+      "discipline": "old",
+      "level": "מקצוען",
+      "desc": "איזון על שני הטראקים בקצה.",
+      "after": [
+        "nosemanual",
+        "manual"
+      ]
+    },
+    {
+      "id": "caveman",
+      "baseId": "caveman",
+      "side": null,
+      "name": "קייבמן",
+      "baseName": "קייבמן",
+      "alias": "Caveman",
+      "discipline": "old",
+      "level": "בינוני",
+      "desc": "קפיצה על הלוח מהיד תוך כדי ריצה.",
+      "after": [
+        "boneless_old"
+      ]
+    },
+    {
+      "id": "acid_drop",
+      "baseId": "acid_drop",
+      "side": null,
+      "name": "אסיד דרופ",
+      "baseName": "אסיד דרופ",
+      "alias": "Acid Drop",
+      "discipline": "old",
+      "level": "מתקדם",
+      "desc": "נפילה חופשית מגובה ישר לנסיעה.",
+      "after": [
+        "caveman",
+        "falling"
+      ]
+    },
+    {
+      "id": "bomb_drop",
+      "baseId": "bomb_drop",
+      "side": null,
+      "name": "בומב דרופ",
+      "baseName": "בומב דרופ",
+      "alias": "Bomb Drop",
+      "discipline": "old",
+      "level": "מקצוען",
+      "desc": "קפיצה מגובה עם הלוח ביד.",
+      "after": [
+        "acid_drop"
+      ]
+    },
+    {
+      "id": "gingersnap",
+      "baseId": "gingersnap",
+      "side": null,
+      "name": "ג׳ינג׳רסנאפ",
+      "baseName": "ג׳ינג׳רסנאפ",
+      "alias": "Gingersnap",
+      "discipline": "old",
+      "level": "מקצוען",
+      "desc": "האנג טן עם היפוך הלוח.",
+      "after": [
+        "hangten"
+      ]
+    },
+    {
+      "id": "yoho_plant",
+      "baseId": "yoho_plant",
+      "side": null,
+      "name": "יוהו פלאנט",
+      "baseName": "יוהו פלאנט",
+      "alias": "YoHo Plant",
+      "discipline": "old",
+      "level": "מקצוען",
+      "desc": "עמידת יד עם תפיסה כפולה.",
+      "after": [
+        "yoyo_plant"
+      ]
+    }
+  ]
+}

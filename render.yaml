@@ -1,0 +1,44 @@
+# הגדרות הפריסה ל-Render.
+# Render קורא את הקובץ הזה מהמאגר ובונה לפיו את השירות — אין צורך
+# למלא טפסים ביד. אחרי שינוי כאן צריך לעשות Deploy מחדש.
+
+services:
+  - type: web
+    name: skate-lab
+    runtime: node
+    plan: starter          # דיסק קבוע דורש תוכנית בתשלום; ב-free אין דיסק
+    region: frankfurt      # הכי קרוב לישראל מבין האזורים של Render
+    rootDir: server        # ה-package.json יושב בתיקיית השרת
+    buildCommand: npm install
+    startCommand: node server.js
+    healthCheckPath: /api/health
+
+    # הדיסק הקבוע. בלעדיו כל דיפלוי היה מוחק את המסד ואת הסרטונים,
+    # כי מערכת הקבצים הרגילה של Render נמחקת בכל הפעלה מחדש.
+    disk:
+      name: skatelab-data
+      mountPath: /var/data
+      sizeGB: 2        # אפשר להגדיל בהמשך, אי אפשר להקטין — לכן מתחילים קטן
+
+    envVars:
+      - key: NODE_VERSION
+        value: "24"        # node:sqlite המובנה עובד בלי דגלים מגרסה 24
+      - key: NODE_ENV
+        value: production  # מפעיל את דגל Secure בעוגיית הסשן
+      - key: DATA_DIR
+        value: /var/data   # המסד וההעלאות נשמרים על הדיסק הקבוע
+
+      # הערכים האלה מוגדרים בלוח הבקרה של Render, לא בקובץ הזה.
+      # sync: false אומר ל-Render לבקש אותם ולא לשמור אותם ב-git.
+      - key: INVITE_CODE
+        sync: false        # בלי קוד הזמנה נכון אי אפשר להירשם
+      - key: ANTHROPIC_API_KEY
+        sync: false        # בלעדיו האפליקציה עובדת, רק בלי ה-AI
+
+      # מכסות ברירת מחדל ל-AI לכל משתמש. אפשר לשנות בלי לגעת בקוד.
+      - key: AI_LIMIT_HOUR
+        value: "20"
+      - key: AI_LIMIT_DAY
+        value: "100"
+      - key: MAX_UPLOAD
+        value: 60mb

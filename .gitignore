@@ -1,0 +1,11 @@
+# סודות — לעולם לא נכנסים ל-git
+server/.env
+
+# מסד הנתונים והקבצים שהמשתמשים העלו — נוצרים בזמן ריצה
+server/data.db
+server/data.db-shm
+server/data.db-wal
+server/uploads/
+
+node_modules/
+.DS_Store

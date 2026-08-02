@@ -1,12 +1,20 @@
 /* ==========================================================================
    Media — קבצי הווידאו והתמונות הממוזערות
-   הקבצים יושבים על השרת ומוגשים מ-/media, אז אין כאן יותר אחסון מקומי:
-   רק כתובות והעלאה. הכתובות קבועות, ולכן הדפדפן גם יכול לשמור אותן במטמון.
+
+   הכתובת מגיעה מהשרת יחד עם הסרטון, כי היא תלויה במקום שבו הקובץ יושב:
+   ב-Cloudinary זו כתובת CDN מלאה, ומקומית זו כתובת /media. הנפילה
+   לכתובת המקומית קיימת רק בשביל סרטונים ישנים שנשמרו לפני המעבר.
    ========================================================================== */
 
 const Media = (() => {
-  const videoUrl = (videoId) => `/media/video_${encodeURIComponent(videoId)}`;
-  const thumbUrl = (videoId) => `/media/thumb_${encodeURIComponent(videoId)}`;
+  /** מקבל אובייקט סרטון (מועדף) או מזהה בלבד. */
+  const videoUrl = (v) => (typeof v === 'object' && v?.videoUrl)
+    ? v.videoUrl
+    : `/media/video_${encodeURIComponent(typeof v === 'object' ? v.id : v)}`;
+
+  const thumbUrl = (v) => (typeof v === 'object' && v?.thumbUrl)
+    ? v.thumbUrl
+    : `/media/thumb_${encodeURIComponent(typeof v === 'object' ? v.id : v)}`;
 
   /**
    * מקטין תמונה לפני ההעלאה. תמונה מהטלפון היא כמה מגה-בייט, ובכרטיס
@@ -77,9 +85,9 @@ const Media = (() => {
    * נעשה בדפדפן כי הוא כבר יודע לפענח וידאו — ככה אין צורך בכלי המרה בשרת.
    * מחזיר מערך של מחרוזות base64 (בלי הקידומת של data URL).
    */
-  async function extractFrames(videoId, count = 6, maxSide = 512) {
+  async function extractFrames(source, count = 6, maxSide = 512) {
     const video = document.createElement('video');
-    video.src = videoUrl(videoId);
+    video.src = videoUrl(source);
     video.muted = true;
     video.crossOrigin = 'anonymous';
     video.preload = 'auto';

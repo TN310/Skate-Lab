@@ -396,6 +396,7 @@ const inboxRows = async (userId) => await db.prepare(`
          u.name AS author_name, u.avatar AS author_avatar, u.role AS author_role,
          v.id AS video_id, v.title AS video_title, v.kind AS video_kind,
          v.poster AS video_poster, v.has_thumb AS video_has_thumb,
+         v.thumb_url AS video_thumb_url,
          (SELECT COUNT(*) FROM comments r
            WHERE r.parent_id = c.id AND r.author_id = ?)::int AS my_replies,
          -- מי כתב אחרון בשרשור: אם זה לא אני, מחכה לי תשובה
@@ -426,6 +427,7 @@ app.get('/api/inbox', requireUser, route(async (req, res) => {
     video: {
       id: r.video_id, title: r.video_title, kind: r.video_kind,
       poster: r.video_poster, hasThumb: !!r.video_has_thumb,
+      thumbUrl: r.video_thumb_url || null,
     },
   })));
 }));
@@ -530,7 +532,8 @@ const bagShape = (r) => ({
   name: r.name,
   createdAt: r.created_at,
   video: { id: r.video_id, title: r.video_title, poster: r.video_poster,
-           hasThumb: !!r.video_has_thumb, hasFile: !!r.video_has_file },
+           hasThumb: !!r.video_has_thumb, hasFile: !!r.video_has_file,
+           thumbUrl: r.video_thumb_url || null, videoUrl: r.video_video_url || null },
   ai: r.ai_verdict ? { verdict: r.ai_verdict, reason: r.ai_reason } : null,
   verifiedBy: r.verifier_name || null,
   // סרטון שמישהו אחר העלה *לפני* — סימן מובהק לקליפ שאינו שלכם
@@ -548,6 +551,7 @@ const bagShape = (r) => ({
 const BAG_SELECT = `
   SELECT b.*, v.title AS video_title, v.poster AS video_poster,
          v.has_thumb AS video_has_thumb, v.has_file AS video_has_file,
+         v.thumb_url AS video_thumb_url, v.video_url AS video_video_url,
          u.name AS verifier_name,
          (SELECT u2.name FROM videos v2 JOIN users u2 ON u2.id = v2.author_id
            WHERE v2.file_hash IS NOT NULL AND v2.file_hash = v.file_hash

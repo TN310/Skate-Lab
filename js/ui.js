@@ -256,7 +256,7 @@ function videoCard(v) {
              והאימוג׳י נחשף — כך שאף פעם אין כרטיס ריק. -->
         <span class="vcard__emoji">${esc(v.poster || '🛹')}</span>
         ${v.hasThumb
-          ? `<img class="vcard__img" src="${Media.thumbUrl(v.id)}" alt=""
+          ? `<img class="vcard__img" src="${Media.thumbUrl(v)}" alt=""
                   loading="lazy" onerror="this.remove()">`
           : ''}
         <span class="vcard__play">▶</span>

@@ -433,11 +433,11 @@ Screens.video = {
     }
 
     const player = v.hasFile
-      ? `<video class="player" src="${Media.videoUrl(v.id)}" controls playsinline
-                ${v.hasThumb ? `poster="${Media.thumbUrl(v.id)}"` : ''}></video>`
+      ? `<video class="player" src="${Media.videoUrl(v)}" controls playsinline
+                ${v.hasThumb ? `poster="${Media.thumbUrl(v)}"` : ''}></video>`
       : `<div class="player player--poster">
            ${v.hasThumb
-             ? `<img class="player__img" src="${Media.thumbUrl(v.id)}" alt=""
+             ? `<img class="player__img" src="${Media.thumbUrl(v)}" alt=""
                      onerror="this.remove()">`
              : `<span class="player__emoji">${esc(v.poster || '🛹')}</span>`}
            <span class="player__note">${v.isDemo ? 'סרטון לדוגמה — אין קובץ אמיתי' : 'הועלה בלי קובץ וידאו'}</span>
@@ -715,7 +715,7 @@ Screens.myvideos = {
                data-video="${esc(item.video.id)}" role="button" tabindex="0">
         <span class="inboxrow__poster">
           ${item.video.hasThumb
-            ? `<img src="${Media.thumbUrl(item.video.id)}" alt="" onerror="this.remove()">`
+            ? `<img src="${Media.thumbUrl(item.video)}" alt="" onerror="this.remove()">`
             : ''}
           <span>${esc(item.video.poster || '🛹')}</span>
         </span>
@@ -1325,7 +1325,7 @@ function bagCard(entry, { mine, canVerify }) {
       <button class="bagcard__media" data-video="${esc(entry.video.id)}">
         <span class="bagcard__emoji">${esc(entry.video.poster || '🛹')}</span>
         ${entry.video.hasThumb
-          ? `<img src="${Media.thumbUrl(entry.video.id)}" alt="" loading="lazy"
+          ? `<img src="${Media.thumbUrl(entry.video)}" alt="" loading="lazy"
                   onerror="this.remove()">`
           : ''}
         <span class="bagcard__play">▶</span>
@@ -1454,6 +1454,9 @@ function bindBag(userId, refresh) {
       $$('[data-pick-video]').forEach((b) => {
         b.onclick = () => {
           bagForm.videoId = b.dataset.pickVideo;
+          // הכתובת נשמרת כאן כי חילוץ הפריימים קורא את הקובץ עצמו,
+          // והוא כבר לא בהכרח יושב על השרת שלנו
+          bagForm.video = usable.find((v) => v.id === bagForm.videoId) || null;
           $$('[data-pick-video]').forEach((x) => x.classList.toggle('is-on', x === b));
         };
       });
@@ -1472,9 +1475,9 @@ function bindBag(userId, refresh) {
       rerender();
       try {
         // הפריימים מחולצים בדפדפן ונשלחים לבדיקה
-        const frames = await Media.extractFrames(bagForm.videoId);
+        const frames = await Media.extractFrames(bagForm.video || bagForm.videoId);
         await Store.addToBag(bagForm.name.trim(), bagForm.videoId, frames);
-        Object.assign(bagForm, { open: false, name: '', videoId: null });
+        Object.assign(bagForm, { open: false, name: '', videoId: null, video: null });
       } catch (err) {
         errors.bag = err.message;
       } finally {

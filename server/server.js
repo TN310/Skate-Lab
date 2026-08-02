@@ -25,7 +25,13 @@ import { rateLimit, aiQuotaExceeded, inviteRequired, inviteOk } from './guard.js
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
 const PORT = Number(process.env.PORT) || 3000;
 
-if (seedIfEmpty()) console.log('נזרעו מאמני ושיעורי הדמו');
+/*
+ * תוכן הדמו כבוי כברירת מחדל — האפליקציה מתחילה ריקה, בלי מאמנים
+ * ובלי שיעורים שלא נוצרו על ידי משתמשים אמיתיים. להחזרה: SEED_DEMO=1
+ */
+if (process.env.SEED_DEMO === '1' && seedIfEmpty()) {
+  console.log('נזרעו מאמני ושיעורי הדמו');
+}
 
 const app = express();
 app.set('trust proxy', 1);   // ב-Render יש proxy לפני השרת

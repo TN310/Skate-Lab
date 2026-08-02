@@ -62,11 +62,11 @@ const COMMENTS = {
   5: [{ by: 'c_dan', text: 'הסרטון הזה צריך להיות חובה לכל מי שקונה סקייטבורד ראשון.' }],
 };
 
-export function seedIfEmpty() {
-  const { n } = db.prepare('SELECT COUNT(*) AS n FROM users').get();
+export async function seedIfEmpty() {
+  const { n } = await db.prepare('SELECT COUNT(*) AS n FROM users').get();
   if (n > 0) return false;
 
-  const insertUser = db.prepare(`
+  const insertUser = await db.prepare(`
     INSERT INTO users (id, slug, name, password_hash, avatar, gender, stance, dob, role,
                        level, region, city, years, bio, styles, base_followers, is_demo, created_at)
     VALUES (?, ?, ?, NULL, ?, ?, ?, NULL, 'coach', NULL, ?, ?, ?, ?, ?, ?, 1, ?)`);
@@ -77,12 +77,12 @@ export function seedIfEmpty() {
                    new Date(2026, 0, 1).toISOString());
   }
 
-  const insertVideo = db.prepare(`
+  const insertVideo = await db.prepare(`
     INSERT INTO videos (id, author_id, kind, title, descr, level, region, styles,
                         poster, has_file, has_thumb, is_demo, views, created_at)
     VALUES (?, ?, 'lesson', ?, ?, ?, ?, ?, ?, 0, 0, 1, ?, ?)`);
 
-  const insertComment = db.prepare(`
+  const insertComment = await db.prepare(`
     INSERT INTO comments (id, video_id, author_id, body, created_at) VALUES (?, ?, ?, ?, ?)`);
 
   const regionOf = Object.fromEntries(COACHES.map((c) => [c.id, c.region]));
@@ -107,18 +107,20 @@ export function seedIfEmpty() {
  * שני מאמני דמו שולחים בקשת חברות למשתמש חדש, כדי שיהיה מה לאשר.
  * זה קיים רק כדי שהזרימה תהיה ניתנת להדגמה מהרגע הראשון.
  */
-export function greetNewUser(userId) {
+export async function greetNewUser(userId) {
   const insert = db.prepare(`
     INSERT INTO friend_requests (id, from_id, to_id, status, created_at)
     VALUES (?, ?, ?, 'pending', ?)`);
 
-  ['c_shira', 'c_dan'].forEach((coachId, i) => {
-    const exists = db.prepare('SELECT id FROM users WHERE id = ?').get(coachId);
+  // לולאת for ולא forEach — צריך להמתין לכל הכנסה לפני הבאה
+  const coaches = ['c_shira', 'c_dan'];
+  for (let i = 0; i < coaches.length; i++) {
+    const exists = await db.prepare('SELECT id FROM users WHERE id = ?').get(coaches[i]);
     if (exists) {
-      insert.run(newId('r'), coachId, userId,
-                 new Date(Date.now() - (i + 1) * 3600000).toISOString());
+      await insert.run(newId('r'), coaches[i], userId,
+                       new Date(Date.now() - (i + 1) * 3600000).toISOString());
     }
-  });
+  }
 }
 
 export const DEMO_GREETINGS = {

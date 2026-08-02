@@ -30,24 +30,24 @@ export async function verifyPassword(password, stored) {
 
 /* ---------- סשנים ---------- */
 
-export function createSession(userId) {
+export async function createSession(userId) {
   const token = randomBytes(32).toString('hex');
-  db.prepare('INSERT INTO sessions (token, user_id, created_at) VALUES (?, ?, ?)')
+  await db.prepare('INSERT INTO sessions (token, user_id, created_at) VALUES (?, ?, ?)')
     .run(token, userId, now());
   return token;
 }
 
-export function destroySession(token) {
-  if (token) db.prepare('DELETE FROM sessions WHERE token = ?').run(token);
+export async function destroySession(token) {
+  if (token) await db.prepare('DELETE FROM sessions WHERE token = ?').run(token);
 }
 
 /** קורא את עוגיית הסשן ומצמיד את המשתמש ל-req. תמיד ממשיך הלאה. */
-export function attachUser(req, res, next) {
+export async function attachUser(req, res, next) {
   req.user = null;
   const token = req.cookies?.[SESSION_COOKIE];
   if (token) {
-    const row = db.prepare('SELECT user_id FROM sessions WHERE token = ?').get(token);
-    if (row) req.user = publicUser(getUserRow(row.user_id));
+    const row = await db.prepare('SELECT user_id FROM sessions WHERE token = ?').get(token);
+    if (row) req.user = await publicUser(await getUserRow(row.user_id));
   }
   next();
 }

@@ -62,8 +62,8 @@ const KEY_TO_ID = (() => {
  * `unmatched` הם טריקים שבתיק שלא זוהו בקטלוג — הם נספרים בנפרד
  * כדי שלא ייעלמו בשקט, אבל אינם פותחים הישג עם שם.
  */
-export function achievementsFor(userId) {
-  const rows = db.prepare(`
+export async function achievementsFor(userId) {
+  const rows = await db.prepare(`
     SELECT name, verified_by, ai_verdict FROM bag WHERE user_id = ?`).all(userId);
 
   /** מזהה טריק -> איך הוא הוכח (הדרגה הגבוהה ביותר שנמצאה). */

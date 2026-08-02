@@ -6,30 +6,34 @@ services:
   - type: web
     name: skate-lab
     runtime: node
-    plan: starter          # דיסק קבוע דורש תוכנית בתשלום; ב-free אין דיסק
-    region: frankfurt      # הכי קרוב לישראל מבין האזורים של Render
-    rootDir: server        # ה-package.json יושב בתיקיית השרת
+    plan: free            # ללא עלות. השרת נרדם אחרי 15 דקות בלי כניסות,
+                          # והכניסה הבאה מחכה כ-50 שניות עד שהוא קם.
+    region: frankfurt     # הכי קרוב לישראל מבין האזורים של Render
+    rootDir: server       # ה-package.json יושב בתיקיית השרת
     buildCommand: npm install
     startCommand: node server.js
     healthCheckPath: /api/health
 
-    # הדיסק הקבוע. בלעדיו כל דיפלוי היה מוחק את המסד ואת הסרטונים,
-    # כי מערכת הקבצים הרגילה של Render נמחקת בכל הפעלה מחדש.
-    disk:
-      name: skatelab-data
-      mountPath: /var/data
-      sizeGB: 2        # אפשר להגדיל בהמשך, אי אפשר להקטין — לכן מתחילים קטן
+    # אין כאן disk בכוונה: התוכנית החינמית לא תומכת בדיסק קבוע, והדיסק
+    # הרגיל נמחק בכל הפעלה מחדש. לכן המסד יושב ב-Neon והסרטונים
+    # ב-Cloudinary — שניהם מחוץ לשרת, ושורדים כל הפעלה מחדש.
 
     envVars:
       - key: NODE_VERSION
-        value: "24"        # node:sqlite המובנה עובד בלי דגלים מגרסה 24
+        value: "24"
       - key: NODE_ENV
         value: production  # מפעיל את דגל Secure בעוגיית הסשן
-      - key: DATA_DIR
-        value: /var/data   # המסד וההעלאות נשמרים על הדיסק הקבוע
 
       # הערכים האלה מוגדרים בלוח הבקרה של Render, לא בקובץ הזה.
       # sync: false אומר ל-Render לבקש אותם ולא לשמור אותם ב-git.
+      - key: DATABASE_URL
+        sync: false        # מחרוזת החיבור מ-Neon
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
       - key: INVITE_CODE
         sync: false        # בלי קוד הזמנה נכון אי אפשר להירשם
       - key: ANTHROPIC_API_KEY

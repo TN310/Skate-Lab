@@ -1,32 +1,96 @@
 /* ==========================================================================
-   DB — סכימה וגישה לנתונים
-   משתמש ב-SQLite המובנה של Node (node:sqlite), בלי תלויות חיצוניות.
+   DB — סכימה וגישה לנתונים (Postgres)
+
+   שני מנועים, אותו SQL בדיוק:
+   • בייצור — Postgres מרוחק דרך DATABASE_URL (Neon).
+   • מקומית — PGlite, שהוא Postgres אמיתי שרץ בתוך התהליך ושומר לתיקייה.
+     ככה מה שנבדק מקומית מתנהג בדיוק כמו בשרת, בלי להתקין כלום.
+
+   הגישה נשארה `db.prepare(sql).get/all/run(...)` כמו קודם, רק שעכשיו
+   היא מחזירה הבטחה וצריך await. סימני השאלה מתורגמים ל-$1, $2 אוטומטית.
    ========================================================================== */
 
-import { DatabaseSync } from 'node:sqlite';
-import { mkdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { mkdirSync } from 'node:fs';
 
 const here = dirname(fileURLToPath(import.meta.url));
+const DATA_DIR = process.env.DATA_DIR || here;
+
+/* ---------- בחירת המנוע ---------- */
+
+let query;      // (text, params) -> { rows, rowCount }
+let execMulti;  // הרצת כמה פקודות בבת אחת (הסכימה) — נתיב נפרד בכוונה,
+                // כי שאילתה עם פרמטרים לא יכולה להכיל יותר מפקודה אחת
+
+if (process.env.DATABASE_URL) {
+  const { default: pg } = await import('pg');
+
+  /*
+   * COUNT מחזיר bigint, ו-node-postgres מחזיר bigint כמחרוזת כדי לא לאבד
+   * דיוק. המונים שלנו קטנים, ובלי ההמרה הזאת "3" היה מגיע למסכים במקום 3.
+   */
+  pg.types.setTypeParser(20, Number);
+
+  const pool = new pg.Pool({
+    connectionString: process.env.DATABASE_URL,
+    // Neon דורש SSL. אין לנו את שרשרת האישורים שלהם, והחיבור עצמו מוצפן.
+    ssl: { rejectUnauthorized: false },
+    max: 5,                      // התוכנית החינמית מוגבלת בחיבורים
+    idleTimeoutMillis: 10_000,
+  });
+
+  query = (text, params) => pool.query(text, params);
+  execMulti = (sql) => pool.query(sql);
+} else {
+  const { PGlite } = await import('@electric-sql/pglite');
+  mkdirSync(DATA_DIR, { recursive: true });
+  const pglite = await PGlite.create(join(DATA_DIR, 'pgdata'));
+
+  query = async (text, params) => {
+    const result = await pglite.query(text, params);
+    return { rows: result.rows, rowCount: result.affectedRows ?? result.rows.length };
+  };
+  execMulti = (sql) => pglite.exec(sql);
+}
 
 /**
- * איפה נשמרים המסד והקבצים.
- * מקומית: בתוך תיקיית server/. באירוח: על דיסק קבוע שמוגדר ב-DATA_DIR,
- * כי הדיסק הרגיל של השרת נמחק בכל פריסה מחדש.
+ * מתרגם סימני שאלה לסימני הפרמטרים של Postgres.
+ * לא מתחכם עם מחרוזות — אין בקוד הזה סימן שאלה בתוך טקסט SQL.
  */
-const DATA_DIR = process.env.DATA_DIR || here;
-mkdirSync(DATA_DIR, { recursive: true });
+function toPositional(sql) {
+  let i = 0;
+  return sql.replace(/\?/g, () => `$${++i}`);
+}
 
-export const UPLOADS = join(DATA_DIR, 'uploads');
-mkdirSync(UPLOADS, { recursive: true });
+export const db = {
+  prepare(sql) {
+    const text = toPositional(sql);
+    return {
+      async get(...params) {
+        const { rows } = await query(text, params);
+        return rows[0];
+      },
+      async all(...params) {
+        const { rows } = await query(text, params);
+        return rows;
+      },
+      async run(...params) {
+        const { rowCount } = await query(text, params);
+        return { changes: rowCount };
+      },
+    };
+  },
+  exec: (sql) => execMulti(sql),
+};
 
-export const db = new DatabaseSync(join(DATA_DIR, 'data.db'));
+/* ---------- הסכימה ---------- */
 
-db.exec('PRAGMA journal_mode = WAL');
-db.exec('PRAGMA foreign_keys = ON');
-
-db.exec(`
+/*
+ * דגלי אמת/שקר נשמרים כ-INTEGER ולא כ-BOOLEAN בכוונה: כל הקוד בצד-לקוח
+ * כבר עובד עם 0/1, ומעבר ל-BOOLEAN היה דורש לגעת בכל מקום שקורא אותם.
+ */
+await db.exec(`
   CREATE TABLE IF NOT EXISTS users (
     id             TEXT PRIMARY KEY,
     slug           TEXT NOT NULL UNIQUE,
@@ -66,6 +130,8 @@ db.exec(`
     poster     TEXT NOT NULL DEFAULT '🛹',
     trick_id   TEXT,
     file_hash  TEXT,
+    video_url  TEXT,
+    thumb_url  TEXT,
     has_file   INTEGER NOT NULL DEFAULT 0,
     has_thumb  INTEGER NOT NULL DEFAULT 0,
     is_demo    INTEGER NOT NULL DEFAULT 0,
@@ -117,68 +183,35 @@ db.exec(`
     created_at TEXT NOT NULL
   );
 
-  /* התיק: טריק שהרוכב הוסיף לעצמו, תמיד עם סרטון. */
   CREATE TABLE IF NOT EXISTS bag (
     id            TEXT PRIMARY KEY,
     user_id       TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     name          TEXT NOT NULL,
     video_id      TEXT NOT NULL REFERENCES videos(id) ON DELETE CASCADE,
-    ai_verdict    TEXT,              -- landed | unclear | bail | null (טרם נבדק)
+    ai_verdict    TEXT,
     ai_reason     TEXT,
     verified_by   TEXT REFERENCES users(id) ON DELETE SET NULL,
     created_at    TEXT NOT NULL,
     UNIQUE (user_id, video_id)
   );
 
-  CREATE INDEX IF NOT EXISTS idx_bag_user      ON bag(user_id);
-
-  /* היסטוריית השיחה עם עוזר ה-AI, לכל משתמש בנפרד. */
   CREATE TABLE IF NOT EXISTS ai_messages (
     id         TEXT PRIMARY KEY,
     user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    role       TEXT NOT NULL,   -- user | assistant
+    role       TEXT NOT NULL,
     body       TEXT NOT NULL,
     created_at TEXT NOT NULL
   );
 
-  CREATE INDEX IF NOT EXISTS idx_ai_messages_user ON ai_messages(user_id);
-  CREATE INDEX IF NOT EXISTS idx_videos_author   ON videos(author_id);
-  CREATE INDEX IF NOT EXISTS idx_comments_video  ON comments(video_id);
-  CREATE INDEX IF NOT EXISTS idx_messages_chat   ON messages(chat_id);
-  CREATE INDEX IF NOT EXISTS idx_requests_to     ON friend_requests(to_id, status);
+  CREATE INDEX IF NOT EXISTS idx_bag_user          ON bag(user_id);
+  CREATE INDEX IF NOT EXISTS idx_ai_messages_user  ON ai_messages(user_id);
+  CREATE INDEX IF NOT EXISTS idx_videos_author     ON videos(author_id);
+  CREATE INDEX IF NOT EXISTS idx_videos_hash       ON videos(file_hash);
+  CREATE INDEX IF NOT EXISTS idx_comments_video    ON comments(video_id);
+  CREATE INDEX IF NOT EXISTS idx_comments_parent   ON comments(parent_id);
+  CREATE INDEX IF NOT EXISTS idx_messages_chat     ON messages(chat_id);
+  CREATE INDEX IF NOT EXISTS idx_requests_to       ON friend_requests(to_id, status);
 `);
-
-// מסד נתונים שנוצר לפני שהתגובות היו מקוננות — הוספת העמודה בדיעבד.
-// חייב לרוץ לפני יצירת האינדקס עליה.
-try {
-  db.exec('ALTER TABLE comments ADD COLUMN parent_id TEXT REFERENCES comments(id) ON DELETE CASCADE');
-} catch {
-  // העמודה כבר קיימת
-}
-
-db.exec('CREATE INDEX IF NOT EXISTS idx_comments_parent ON comments(parent_id)');
-
-// עמודת הטריק נוספה כשהתווסף סוג הסרטון "ניסיון טריק"
-try {
-  db.exec('ALTER TABLE videos ADD COLUMN trick_id TEXT');
-} catch {
-  // העמודה כבר קיימת
-}
-
-// טביעת האצבע של הקובץ נוספה יחד עם בדיקת הסרטונים הגנובים
-try {
-  db.exec('ALTER TABLE videos ADD COLUMN file_hash TEXT');
-} catch {
-  // העמודה כבר קיימת
-}
-db.exec('CREATE INDEX IF NOT EXISTS idx_videos_hash ON videos(file_hash)');
-
-// עמודת הסטאנס נוספה אחרי שכבר היו משתמשים
-try {
-  db.exec("ALTER TABLE users ADD COLUMN stance TEXT NOT NULL DEFAULT 'unknown'");
-} catch {
-  // העמודה כבר קיימת
-}
 
 /* ---------- עזרים ---------- */
 
@@ -194,8 +227,12 @@ export const newId = (prefix) =>
  * המונים (סרטונים, עוקבים, תשובות) מחושבים בשאילתה ולא נשמרים בטבלה —
  * ככה הם לא יכולים להיסחף ולהציג מספר שקרי.
  */
-export function publicUser(row) {
+export async function publicUser(row) {
   if (!row) return null;
+
+  const following = await db.prepare('SELECT coach_id FROM follows WHERE follower_id = ?')
+    .all(row.id);
+
   return {
     id: row.id,
     name: row.name,
@@ -212,8 +249,7 @@ export function publicUser(row) {
     styles: JSON.parse(row.styles || '[]'),
     isDemo: !!row.is_demo,
     createdAt: row.created_at,
-    following: db.prepare('SELECT coach_id FROM follows WHERE follower_id = ?')
-      .all(row.id).map((r) => r.coach_id),
+    following: following.map((r) => r.coach_id),
     stats: {
       videos: row.video_count ?? 0,
       answers: row.answer_count ?? 0,
@@ -235,27 +271,30 @@ export function ageFrom(dob) {
   return age;
 }
 
-/** שאילתת המשתמש הבסיסית, כולל המונים המחושבים. */
+/**
+ * שאילתת המשתמש הבסיסית, כולל המונים המחושבים.
+ * ההמרה ל-int מפורשת כי COUNT מחזיר bigint.
+ */
 export const USER_SELECT = `
   SELECT u.*,
-    (SELECT COUNT(*) FROM videos v WHERE v.author_id = u.id)            AS video_count,
-    (SELECT COUNT(*) FROM follows f WHERE f.coach_id = u.id)            AS follower_count,
+    (SELECT COUNT(*) FROM videos v WHERE v.author_id = u.id)::int            AS video_count,
+    (SELECT COUNT(*) FROM follows f WHERE f.coach_id = u.id)::int            AS follower_count,
     (SELECT COUNT(*) FROM comments c
        JOIN videos v2 ON v2.id = c.video_id
-      WHERE c.author_id = u.id AND v2.author_id <> u.id)                AS answer_count
+      WHERE c.author_id = u.id AND v2.author_id <> u.id)::int                AS answer_count
   FROM users u`;
 
 export const getUserRow = (id) => db.prepare(`${USER_SELECT} WHERE u.id = ?`).get(id);
 export const getUserBySlug = (slug) => db.prepare(`${USER_SELECT} WHERE u.slug = ?`).get(slug);
 
 /** המרת שורת סרטון לצורה שהמסכים מצפים לה. */
-export function publicVideo(row, viewerId) {
+export async function publicVideo(row, viewerId) {
   if (!row) return null;
 
-  const likedBy = db.prepare('SELECT user_id FROM likes WHERE video_id = ?')
-    .all(row.id).map((r) => r.user_id);
+  const likes = await db.prepare('SELECT user_id FROM likes WHERE video_id = ?').all(row.id);
+  const likedBy = likes.map((r) => r.user_id);
 
-  const comments = db.prepare(`
+  const comments = await db.prepare(`
     SELECT c.id, c.author_id, c.parent_id, c.body, c.created_at,
            u.name AS author_name, u.avatar AS author_avatar, u.role AS author_role
       FROM comments c JOIN users u ON u.id = c.author_id
@@ -273,6 +312,8 @@ export function publicVideo(row, viewerId) {
     styles: JSON.parse(row.styles || '[]'),
     poster: row.poster,
     trickId: row.trick_id || null,
+    videoUrl: row.video_url || null,
+    thumbUrl: row.thumb_url || null,
     hasFile: !!row.has_file,
     hasThumb: !!row.has_thumb,
     isDemo: !!row.is_demo,
@@ -283,7 +324,7 @@ export function publicVideo(row, viewerId) {
     // התגובות מוחזרות כעץ בעומק אחד: שאלה, ומתחתיה התשובות עליה
     comments: nestComments(comments),
     commentCount: comments.length,
-    author: publicUser(getUserRow(row.author_id)),
+    author: await publicUser(await getUserRow(row.author_id)),
   };
 }
 

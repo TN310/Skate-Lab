@@ -11,7 +11,7 @@
 
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { UPLOADS } from './db.js';
+import { readThumb } from './storage.js';
 import { TRICKS, trickById } from './tricks.js';
 
 // המפתח נקרא בכל קריאה, לא נשמר בקבוע בזמן טעינת המודול. אם היה קבוע,
@@ -149,13 +149,9 @@ export async function checkAttempt(frames, trickName) {
  * ניחוש על סמך התמונה הממוזערת של הניסיון.
  * זו הצעה בלבד — פריים אחד לא מספיק כדי לדעת אם הרוכב גלגל החוצה.
  */
-export async function guessFromThumb(videoId, trickId) {
-  let image;
-  try {
-    image = await readFile(join(UPLOADS, `thumb_${videoId}`));
-  } catch {
-    return null;   // אין תמונה ממוזערת — אין על מה להסתכל
-  }
+export async function guessFromThumb(videoId, trickId, thumbUrl) {
+  const image = await readThumb(videoId, thumbUrl);
+  if (!image) return null;   // אין תמונה ממוזערת — אין על מה להסתכל
 
   const trick = trickId ? trickById[trickId] : null;
 

@@ -6,15 +6,14 @@
 import './env.mjs';   // חייב לרוץ ראשון — טוען server/.env לפני שai.js קורא ממנו
 
 import express from 'express';
-import { createWriteStream } from 'node:fs';
 import { createHash } from 'node:crypto';
-import { rm, stat } from 'node:fs/promises';
+import { stat } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { pipeline } from 'node:stream/promises';
 
 import { db, now, newId, slugify, publicUser, publicVideo,
-         getUserRow, getUserBySlug, USER_SELECT, UPLOADS } from './db.js';
+         getUserRow, getUserBySlug, USER_SELECT } from './db.js';
+import { put as putFile, remove as removeFiles, UPLOADS, usingCloud } from './storage.js';
 import { hashPassword, verifyPassword, createSession, destroySession,
          attachUser, requireUser, cookies, setSessionCookie, clearSessionCookie } from './auth.js';
 import { seedIfEmpty, greetNewUser, DEMO_GREETINGS } from './seed.js';
@@ -29,7 +28,7 @@ const PORT = Number(process.env.PORT) || 3000;
  * תוכן הדמו כבוי כברירת מחדל — האפליקציה מתחילה ריקה, בלי מאמנים
  * ובלי שיעורים שלא נוצרו על ידי משתמשים אמיתיים. להחזרה: SEED_DEMO=1
  */
-if (process.env.SEED_DEMO === '1' && seedIfEmpty()) {
+if (process.env.SEED_DEMO === '1' && await seedIfEmpty()) {
   console.log('נזרעו מאמני ושיעורי הדמו');
 }
 
@@ -83,10 +82,10 @@ app.post('/api/auth/register',
   if (dob != null && !birth) return bad(res, 'תאריך לידה לא תקין');
 
   const slug = slugify(name);
-  if (getUserBySlug(slug)) return bad(res, 'השם הזה כבר תפוס', 409);
+  if (await getUserBySlug(slug)) return bad(res, 'השם הזה כבר תפוס', 409);
 
   const id = newId('u');
-  db.prepare(`
+  await db.prepare(`
     INSERT INTO users (id, slug, name, password_hash, avatar, gender, stance, dob, role,
                        level, region, city, years, bio, styles, base_followers, is_demo, created_at)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, 0, 0, ?)`)
@@ -94,31 +93,31 @@ app.post('/api/auth/register',
          gender || 'na', stance || 'unknown', birth, role, level || null, region || null,
          (city || '').trim() || null, years || null, JSON.stringify(styles || []), now());
 
-  greetNewUser(id);
-  setSessionCookie(res, createSession(id));
-  res.json(publicUser(getUserRow(id)));
+  await greetNewUser(id);
+  setSessionCookie(res, await createSession(id));
+  res.json(await publicUser(await getUserRow(id)));
 }));
 
 app.post('/api/auth/login',
   rateLimit({ max: 10, windowMs: 900_000, message: 'יותר מדי נסיונות התחברות.' }),
   route(async (req, res) => {
   const { name, password } = req.body || {};
-  const row = getUserBySlug(slugify(name || ''));
+  const row = await getUserBySlug(slugify(name || ''));
 
   // אותה הודעה לשם לא קיים ולסיסמה שגויה, כדי לא לחשוף מי רשום
   if (!row || !row.password_hash || !await verifyPassword(password || '', row.password_hash)) {
     return bad(res, 'שם או סיסמה לא נכונים', 401);
   }
 
-  setSessionCookie(res, createSession(row.id));
-  res.json(publicUser(row));
+  setSessionCookie(res, await createSession(row.id));
+  res.json(await publicUser(row));
 }));
 
-app.post('/api/auth/logout', (req, res) => {
-  destroySession(req.cookies?.skatelab_session);
+app.post('/api/auth/logout', route(async (req, res) => {
+  await destroySession(req.cookies?.skatelab_session);
   clearSessionCookie(res);
   res.json({ ok: true });
-});
+}));
 
 app.get('/api/auth/me', (req, res) => res.json(req.user));
 
@@ -127,18 +126,15 @@ app.get('/api/auth/me', (req, res) => res.json(req.user));
  * מחיקת השורה מוחקת בשרשור גם סרטונים, תגובות, לייקים, בקשות והודעות.
  */
 app.post('/api/auth/delete', requireUser, route(async (req, res) => {
-  const row = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id);
+  const row = await db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id);
   if (!await verifyPassword(req.body?.password || '', row.password_hash)) {
     return bad(res, 'הסיסמה לא נכונה', 403);
   }
 
-  const mine = db.prepare('SELECT id FROM videos WHERE author_id = ?').all(req.user.id);
-  db.prepare('DELETE FROM users WHERE id = ?').run(req.user.id);
+  const mine = await db.prepare('SELECT id FROM videos WHERE author_id = ?').all(req.user.id);
+  await db.prepare('DELETE FROM users WHERE id = ?').run(req.user.id);
 
-  for (const v of mine) {
-    await rm(join(UPLOADS, `video_${v.id}`), { force: true });
-    await rm(join(UPLOADS, `thumb_${v.id}`), { force: true });
-  }
+  for (const v of mine) await removeFiles(v.id);
 
   clearSessionCookie(res);
   res.json({ ok: true });
@@ -149,11 +145,12 @@ app.post('/api/auth/delete', requireUser, route(async (req, res) => {
    ========================================================================== */
 
 /** רשימת המאמנים שאני עוקב אחריהם. */
-const followingOf = (userId) => !userId ? [] :
-  db.prepare('SELECT coach_id FROM follows WHERE follower_id = ?').all(userId).map((r) => r.coach_id);
+const followingOf = async (userId) => !userId ? [] :
+  (await db.prepare('SELECT coach_id FROM follows WHERE follower_id = ?').all(userId))
+    .map((r) => r.coach_id);
 
 app.get('/api/users/:id', route(async (req, res) => {
-  const user = publicUser(getUserRow(req.params.id));
+  const user = await publicUser(await getUserRow(req.params.id));
   if (!user) return bad(res, 'המשתמש לא נמצא', 404);
   res.json(user);
 }));
@@ -162,11 +159,11 @@ app.get('/api/users/:id', route(async (req, res) => {
  * חיפוש אנשים. `role` מגביל לתפקיד מסוים (למשל רק מאמנים), ובלעדיו
  * מוחזרים כל המשתמשים — כדי שרוכבים יוכלו למצוא זה את זה, לא רק מאמנים.
  */
-function searchPeople(req, { role } = {}) {
+async function searchPeople(req, { role } = {}) {
   const { region, style, query, onlyFollowed } = req.query;
-  const followed = followingOf(req.user?.id);
+  const followed = await followingOf(req.user?.id);
 
-  let rows = db.prepare(USER_SELECT).all().map(publicUser);
+  let rows = await Promise.all((await db.prepare(USER_SELECT).all()).map(publicUser));
 
   if (role) rows = rows.filter((u) => u.role === role);
   if (region) rows = rows.filter((u) => u.region === region);
@@ -189,31 +186,32 @@ function searchPeople(req, { role } = {}) {
 }
 
 app.get('/api/coaches', route(async (req, res) => {
-  res.json(searchPeople(req, { role: 'coach' }));
+  res.json(await searchPeople(req, { role: 'coach' }));
 }));
 
 app.get('/api/people', route(async (req, res) => {
   const role = ['coach', 'student', 'fan'].includes(req.query.role) ? req.query.role : null;
-  res.json(searchPeople(req, { role }));
+  res.json(await searchPeople(req, { role }));
 }));
 
-app.get('/api/me/following', requireUser, (req, res) => res.json(followingOf(req.user.id)));
+app.get('/api/me/following', requireUser,
+  route(async (req, res) => res.json(await followingOf(req.user.id))));
 
 app.post('/api/users/:id/follow', requireUser, route(async (req, res) => {
   const coachId = req.params.id;
   if (coachId === req.user.id) return bad(res, 'אי אפשר לעקוב אחרי עצמכם');
-  if (!getUserRow(coachId)) return bad(res, 'המשתמש לא נמצא', 404);
+  if (!await getUserRow(coachId)) return bad(res, 'המשתמש לא נמצא', 404);
 
-  const has = db.prepare('SELECT 1 FROM follows WHERE follower_id = ? AND coach_id = ?')
+  const has = await db.prepare('SELECT 1 FROM follows WHERE follower_id = ? AND coach_id = ?')
     .get(req.user.id, coachId);
 
   if (has) {
-    db.prepare('DELETE FROM follows WHERE follower_id = ? AND coach_id = ?').run(req.user.id, coachId);
+    await db.prepare('DELETE FROM follows WHERE follower_id = ? AND coach_id = ?').run(req.user.id, coachId);
   } else {
-    db.prepare('INSERT INTO follows (follower_id, coach_id) VALUES (?, ?)').run(req.user.id, coachId);
+    await db.prepare('INSERT INTO follows (follower_id, coach_id) VALUES (?, ?)').run(req.user.id, coachId);
   }
 
-  res.json({ following: !has, coach: publicUser(getUserRow(coachId)) });
+  res.json({ following: !has, coach: await publicUser(await getUserRow(coachId)) });
 }));
 
 /* ==========================================================================
@@ -223,8 +221,8 @@ app.post('/api/users/:id/follow', requireUser, route(async (req, res) => {
 app.get('/api/videos', route(async (req, res) => {
   const { region, style, level, kind, query, authorId, onlyFollowed } = req.query;
 
-  let rows = db.prepare('SELECT * FROM videos ORDER BY created_at DESC').all()
-    .map((r) => publicVideo(r, req.user?.id));
+  const videoRows = await db.prepare('SELECT * FROM videos ORDER BY created_at DESC').all();
+  let rows = await Promise.all(videoRows.map((r) => publicVideo(r, req.user?.id)));
 
   if (region) rows = rows.filter((v) => v.region === region);
   if (style) rows = rows.filter((v) => v.styles.includes(style));
@@ -233,7 +231,7 @@ app.get('/api/videos', route(async (req, res) => {
   if (authorId) rows = rows.filter((v) => v.authorId === authorId);
 
   if (onlyFollowed === 'true') {
-    const followed = followingOf(req.user?.id);
+    const followed = await followingOf(req.user?.id);
     rows = rows.filter((v) => followed.includes(v.authorId));
   }
 
@@ -250,9 +248,9 @@ app.get('/api/videos', route(async (req, res) => {
 }));
 
 app.get('/api/videos/:id', route(async (req, res) => {
-  const row = db.prepare('SELECT * FROM videos WHERE id = ?').get(req.params.id);
+  const row = await db.prepare('SELECT * FROM videos WHERE id = ?').get(req.params.id);
   if (!row) return bad(res, 'הסרטון לא נמצא', 404);
-  res.json(publicVideo(row, req.user?.id));
+  res.json(await publicVideo(row, req.user?.id));
 }));
 
 app.post('/api/videos', requireUser, route(async (req, res) => {
@@ -264,7 +262,7 @@ app.post('/api/videos', requireUser, route(async (req, res) => {
   if (!Array.isArray(styles) || !styles.length) return bad(res, 'בחרו לפחות סגנון אחד');
 
   const id = newId('v');
-  db.prepare(`
+  await db.prepare(`
     INSERT INTO videos (id, author_id, kind, title, descr, level, region, styles,
                         poster, trick_id, has_file, has_thumb, is_demo, views, created_at)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 0, 0, ?)`)
@@ -272,7 +270,7 @@ app.post('/api/videos', requireUser, route(async (req, res) => {
          title.trim(), (desc || '').trim(), level, region,
          JSON.stringify(styles), safeEmoji(poster), null, now());
 
-  res.json(publicVideo(db.prepare('SELECT * FROM videos WHERE id = ?').get(id), req.user.id));
+  res.json(await publicVideo(await db.prepare('SELECT * FROM videos WHERE id = ?').get(id), req.user.id));
 }));
 
 /**
@@ -281,25 +279,27 @@ app.post('/api/videos', requireUser, route(async (req, res) => {
  */
 function uploadHandler(kindOfFile) {
   return [requireUser, express.raw({ type: '*/*', limit: process.env.MAX_UPLOAD || '60mb' }), route(async (req, res) => {
-    const row = db.prepare('SELECT * FROM videos WHERE id = ?').get(req.params.id);
+    const row = await db.prepare('SELECT * FROM videos WHERE id = ?').get(req.params.id);
     if (!row) return bad(res, 'הסרטון לא נמצא', 404);
     if (row.author_id !== req.user.id) return bad(res, 'זה לא הסרטון שלכם', 403);
     if (!req.body?.length) return bad(res, 'לא התקבל קובץ');
 
-    const path = join(UPLOADS, `${kindOfFile}_${row.id}`);
-    await pipeline([req.body], createWriteStream(path));
+    const url = await putFile(kindOfFile, row.id, req.body);
 
-    const column = kindOfFile === 'thumb' ? 'has_thumb' : 'has_file';
-    db.prepare(`UPDATE videos SET ${column} = 1 WHERE id = ?`).run(row.id);
+    // הכתובת נשמרת במסד: ב-Cloudinary היא כתובת CDN מלאה, ומקומית /media
+    const flag = kindOfFile === 'thumb' ? 'has_thumb' : 'has_file';
+    const urlColumn = kindOfFile === 'thumb' ? 'thumb_url' : 'video_url';
+    await db.prepare(`UPDATE videos SET ${flag} = 1, ${urlColumn} = ? WHERE id = ?`)
+      .run(url, row.id);
 
     // טביעת אצבע של קובץ הווידאו — כך מזהים העלאה חוזרת של אותו קליפ
     // על ידי מישהו אחר, וזה בדיוק מה ש-AI לא יכול לתפוס.
     let duplicate = null;
     if (kindOfFile === 'video') {
       const hash = createHash('sha256').update(req.body).digest('hex');
-      db.prepare('UPDATE videos SET file_hash = ? WHERE id = ?').run(hash, row.id);
+      await db.prepare('UPDATE videos SET file_hash = ? WHERE id = ?').run(hash, row.id);
 
-      const other = db.prepare(`
+      const other = await db.prepare(`
         SELECT v.id, u.name FROM videos v JOIN users u ON u.id = v.author_id
          WHERE v.file_hash = ? AND v.id <> ? AND v.author_id <> ?
          ORDER BY v.created_at LIMIT 1`).get(hash, row.id, req.user.id);
@@ -315,38 +315,37 @@ app.post('/api/videos/:id/file', ...uploadHandler('video'));
 app.post('/api/videos/:id/thumb', ...uploadHandler('thumb'));
 
 app.delete('/api/videos/:id', requireUser, route(async (req, res) => {
-  const row = db.prepare('SELECT * FROM videos WHERE id = ?').get(req.params.id);
+  const row = await db.prepare('SELECT * FROM videos WHERE id = ?').get(req.params.id);
   if (!row) return bad(res, 'הסרטון לא נמצא', 404);
   if (row.author_id !== req.user.id) return bad(res, 'זה לא הסרטון שלכם', 403);
 
-  db.prepare('DELETE FROM videos WHERE id = ?').run(row.id);
-  await rm(join(UPLOADS, `video_${row.id}`), { force: true });
-  await rm(join(UPLOADS, `thumb_${row.id}`), { force: true });
+  await db.prepare('DELETE FROM videos WHERE id = ?').run(row.id);
+  await removeFiles(row.id);
   res.json({ ok: true });
 }));
 
 app.post('/api/videos/:id/like', requireUser, route(async (req, res) => {
-  const row = db.prepare('SELECT id FROM videos WHERE id = ?').get(req.params.id);
+  const row = await db.prepare('SELECT id FROM videos WHERE id = ?').get(req.params.id);
   if (!row) return bad(res, 'הסרטון לא נמצא', 404);
 
-  const has = db.prepare('SELECT 1 FROM likes WHERE video_id = ? AND user_id = ?')
+  const has = await db.prepare('SELECT 1 FROM likes WHERE video_id = ? AND user_id = ?')
     .get(row.id, req.user.id);
 
-  if (has) db.prepare('DELETE FROM likes WHERE video_id = ? AND user_id = ?').run(row.id, req.user.id);
-  else db.prepare('INSERT INTO likes (video_id, user_id) VALUES (?, ?)').run(row.id, req.user.id);
+  if (has) await db.prepare('DELETE FROM likes WHERE video_id = ? AND user_id = ?').run(row.id, req.user.id);
+  else await db.prepare('INSERT INTO likes (video_id, user_id) VALUES (?, ?)').run(row.id, req.user.id);
 
-  const { n } = db.prepare('SELECT COUNT(*) AS n FROM likes WHERE video_id = ?').get(row.id);
+  const { n } = await db.prepare('SELECT COUNT(*) AS n FROM likes WHERE video_id = ?').get(row.id);
   res.json({ likes: n, liked: !has });
 }));
 
 app.post('/api/videos/:id/view', route(async (req, res) => {
-  const row = db.prepare('SELECT author_id, views FROM videos WHERE id = ?').get(req.params.id);
+  const row = await db.prepare('SELECT author_id, views FROM videos WHERE id = ?').get(req.params.id);
   if (!row) return bad(res, 'הסרטון לא נמצא', 404);
 
   // צפייה של הבעלים על עצמו לא נספרת — אחרת הסטטיסטיקה לא אומרת כלום
   if (req.user?.id === row.author_id) return res.json({ views: row.views });
 
-  db.prepare('UPDATE videos SET views = views + 1 WHERE id = ?').run(req.params.id);
+  await db.prepare('UPDATE videos SET views = views + 1 WHERE id = ?').run(req.params.id);
   res.json({ views: row.views + 1 });
 }));
 
@@ -354,20 +353,20 @@ app.post('/api/videos/:id/comments', requireUser, route(async (req, res) => {
   const text = (req.body?.text || '').trim();
   if (!text) return bad(res, 'צריך לכתוב משהו לפני ששולחים');
 
-  const row = db.prepare('SELECT id FROM videos WHERE id = ?').get(req.params.id);
+  const row = await db.prepare('SELECT id FROM videos WHERE id = ?').get(req.params.id);
   if (!row) return bad(res, 'הסרטון לא נמצא', 404);
 
   // תשובה חייבת להתייחס לתגובה שקיימת על אותו סרטון, ורק בעומק אחד
   let parentId = req.body?.parentId || null;
   if (parentId) {
-    const parent = db.prepare('SELECT id, parent_id, video_id FROM comments WHERE id = ?').get(parentId);
+    const parent = await db.prepare('SELECT id, parent_id, video_id FROM comments WHERE id = ?').get(parentId);
     if (!parent || parent.video_id !== row.id) return bad(res, 'התגובה שעליה עניתם לא נמצאה', 404);
     parentId = parent.parent_id || parent.id;
   }
 
   const id = newId('c');
   const at = now();
-  db.prepare(`INSERT INTO comments (id, video_id, author_id, parent_id, body, created_at)
+  await db.prepare(`INSERT INTO comments (id, video_id, author_id, parent_id, body, created_at)
               VALUES (?, ?, ?, ?, ?, ?)`)
     .run(id, row.id, req.user.id, parentId, text.slice(0, 300), at);
 
@@ -392,13 +391,13 @@ app.post('/api/videos/:id/comments', requireUser, route(async (req, res) => {
  * כל התגובות שאנשים אחרים כתבו על הסרטונים שלי, עם סימון אם כבר עניתי.
  * זה מה שהופך שאלה של תלמיד למשהו שמאמן באמת רואה.
  */
-const inboxRows = (userId) => db.prepare(`
+const inboxRows = async (userId) => await db.prepare(`
   SELECT c.id, c.author_id, c.body, c.created_at,
          u.name AS author_name, u.avatar AS author_avatar, u.role AS author_role,
          v.id AS video_id, v.title AS video_title, v.kind AS video_kind,
          v.poster AS video_poster, v.has_thumb AS video_has_thumb,
          (SELECT COUNT(*) FROM comments r
-           WHERE r.parent_id = c.id AND r.author_id = ?) AS my_replies,
+           WHERE r.parent_id = c.id AND r.author_id = ?)::int AS my_replies,
          -- מי כתב אחרון בשרשור: אם זה לא אני, מחכה לי תשובה
          (SELECT r2.author_id FROM comments r2
            WHERE r2.parent_id = c.id
@@ -413,8 +412,9 @@ const inboxRows = (userId) => db.prepare(`
 const isAnswered = (r, meId) =>
   r.my_replies > 0 && (!r.last_reply_by || r.last_reply_by === meId);
 
-app.get('/api/inbox', requireUser, (req, res) => {
-  res.json(inboxRows(req.user.id).map((r) => ({
+app.get('/api/inbox', requireUser, route(async (req, res) => {
+  const rows = await inboxRows(req.user.id);
+  res.json(rows.map((r) => ({
     id: r.id,
     text: r.body,
     createdAt: r.created_at,
@@ -428,12 +428,13 @@ app.get('/api/inbox', requireUser, (req, res) => {
       poster: r.video_poster, hasThumb: !!r.video_has_thumb,
     },
   })));
-});
+}));
 
-app.get('/api/inbox/count', requireUser, (req, res) => {
-  const waiting = inboxRows(req.user.id).filter((r) => !isAnswered(r, req.user.id));
+app.get('/api/inbox/count', requireUser, route(async (req, res) => {
+  const rows = await inboxRows(req.user.id);
+  const waiting = rows.filter((r) => !isAnswered(r, req.user.id));
   res.json({ waiting: waiting.length });
-});
+}));
 
 /* ==========================================================================
    AI — עוזר האימון
@@ -441,7 +442,7 @@ app.get('/api/inbox/count', requireUser, (req, res) => {
 
 app.get('/api/ai/status', (req, res) => res.json({ available: aiAvailable() }));
 
-const needsAi = (req, res, next) => {
+const needsAi = async (req, res, next) => {
   if (!aiAvailable()) {
     return bad(res, 'ה-AI לא מוגדר בשרת. צריך להגדיר ANTHROPIC_API_KEY.', 503);
   }
@@ -462,23 +463,23 @@ app.post('/api/ai/ask', requireUser, needsAi, route(async (req, res) => {
  * לשונית "צ׳אט עם ה-AI" — שיחה מתמשכת שנשמרת לכל משתמש.
  * GET לא דורש שה-AI יהיה מוגדר, כדי שההיסטוריה עדיין תוצג אם המפתח נופל.
  */
-app.get('/api/ai/chat', requireUser, (req, res) => {
-  const rows = db.prepare(`SELECT id, role, body, created_at FROM ai_messages
+app.get('/api/ai/chat', requireUser, route(async (req, res) => {
+  const rows = await db.prepare(`SELECT id, role, body, created_at FROM ai_messages
                              WHERE user_id = ? ORDER BY created_at`).all(req.user.id);
   res.json({
     available: aiAvailable(),
     messages: rows.map((r) => ({ id: r.id, role: r.role, text: r.body, createdAt: r.created_at })),
   });
-});
+}));
 
 app.post('/api/ai/chat', requireUser, needsAi, route(async (req, res) => {
   const text = (req.body?.text || '').trim();
   if (!text) return bad(res, 'כתבו הודעה לפני ששולחים');
 
-  const history = db.prepare(`SELECT role, body FROM ai_messages
+  const history = await db.prepare(`SELECT role, body FROM ai_messages
                                 WHERE user_id = ? ORDER BY created_at`).all(req.user.id);
 
-  const insert = db.prepare(`INSERT INTO ai_messages (id, user_id, role, body, created_at)
+  const insert = await db.prepare(`INSERT INTO ai_messages (id, user_id, role, body, created_at)
                               VALUES (?, ?, ?, ?, ?)`);
   insert.run(newId('am'), req.user.id, 'user', text.slice(0, 1000), now());
 
@@ -496,24 +497,24 @@ app.post('/api/ai/chat', requireUser, needsAi, route(async (req, res) => {
   res.json({ id: replyId, role: 'assistant', text: reply, createdAt: replyAt });
 }));
 
-app.delete('/api/ai/chat', requireUser, (req, res) => {
-  db.prepare('DELETE FROM ai_messages WHERE user_id = ?').run(req.user.id);
+app.delete('/api/ai/chat', requireUser, route(async (req, res) => {
+  await db.prepare('DELETE FROM ai_messages WHERE user_id = ?').run(req.user.id);
   res.json({ ok: true });
-});
+}));
 
 /** טיוטת פידבק למאמן. הוא עורך ושולח בעצמו — ה-AI לא מפרסם כלום. */
 app.post('/api/ai/feedback/:videoId', requireUser, needsAi, route(async (req, res) => {
-  const video = db.prepare('SELECT * FROM videos WHERE id = ?').get(req.params.videoId);
+  const video = await db.prepare('SELECT * FROM videos WHERE id = ?').get(req.params.videoId);
   if (!video) return bad(res, 'הסרטון לא נמצא', 404);
 
-  const rider = publicUser(getUserRow(video.author_id));
+  const rider = await publicUser(await getUserRow(video.author_id));
   const [draft, look] = await Promise.all([
     draftFeedback({
       riderName: rider?.name || 'הרוכב',
       riderLevel: rider?.level,
       note: (req.body?.note || '').trim(),
     }),
-    guessFromThumb(video.id).catch(() => null),
+    guessFromThumb(video.id, video.trick_id, video.thumb_url).catch(() => null),
   ]);
 
   res.json({ draft, look });
@@ -558,8 +559,8 @@ const BAG_SELECT = `
     LEFT JOIN users u ON u.id = b.verified_by`;
 
 app.get('/api/bag/:userId', route(async (req, res) => {
-  if (!getUserRow(req.params.userId)) return bad(res, 'המשתמש לא נמצא', 404);
-  const rows = db.prepare(`${BAG_SELECT} WHERE b.user_id = ? ORDER BY b.created_at DESC`)
+  if (!await getUserRow(req.params.userId)) return bad(res, 'המשתמש לא נמצא', 404);
+  const rows = await db.prepare(`${BAG_SELECT} WHERE b.user_id = ? ORDER BY b.created_at DESC`)
     .all(req.params.userId);
   res.json(rows.map(bagShape));
 }));
@@ -575,12 +576,12 @@ app.post('/api/bag', requireUser, express.json({ limit: '12mb' }), route(async (
   if (name.length < 2) return bad(res, 'כתבו את שם הטריק');
   if (!videoId) return bad(res, 'צריך לצרף סרטון — הוא ההוכחה');
 
-  const video = db.prepare('SELECT * FROM videos WHERE id = ?').get(videoId);
+  const video = await db.prepare('SELECT * FROM videos WHERE id = ?').get(videoId);
   if (!video) return bad(res, 'הסרטון לא נמצא', 404);
   if (video.author_id !== req.user.id) return bad(res, 'אפשר לצרף רק סרטון שלכם', 403);
   if (!video.has_file) return bad(res, 'לסרטון הזה אין קובץ וידאו, אז אי אפשר לאמת אותו');
 
-  const already = db.prepare('SELECT id FROM bag WHERE user_id = ? AND video_id = ?')
+  const already = await db.prepare('SELECT id FROM bag WHERE user_id = ? AND video_id = ?')
     .get(req.user.id, videoId);
   if (already) return bad(res, 'הסרטון הזה כבר בתיק');
 
@@ -596,18 +597,18 @@ app.post('/api/bag', requireUser, express.json({ limit: '12mb' }), route(async (
   }
 
   const id = newId('b');
-  db.prepare(`INSERT INTO bag (id, user_id, name, video_id, ai_verdict, ai_reason, created_at)
+  await db.prepare(`INSERT INTO bag (id, user_id, name, video_id, ai_verdict, ai_reason, created_at)
               VALUES (?, ?, ?, ?, ?, ?, ?)`)
     .run(id, req.user.id, name.slice(0, 60), videoId, ai?.verdict || null, ai?.reason || null, now());
 
-  res.json(bagShape(db.prepare(`${BAG_SELECT} WHERE b.id = ?`).get(id)));
+  res.json(bagShape(await db.prepare(`${BAG_SELECT} WHERE b.id = ?`).get(id)));
 }));
 
 app.delete('/api/bag/:id', requireUser, route(async (req, res) => {
-  const row = db.prepare('SELECT * FROM bag WHERE id = ?').get(req.params.id);
+  const row = await db.prepare('SELECT * FROM bag WHERE id = ?').get(req.params.id);
   if (!row) return bad(res, 'לא נמצא', 404);
   if (row.user_id !== req.user.id) return bad(res, 'זה לא התיק שלכם', 403);
-  db.prepare('DELETE FROM bag WHERE id = ?').run(row.id);
+  await db.prepare('DELETE FROM bag WHERE id = ?').run(row.id);
   res.json({ ok: true });
 }));
 
@@ -615,13 +616,13 @@ app.delete('/api/bag/:id', requireUser, route(async (req, res) => {
 app.post('/api/bag/:id/verify', requireUser, route(async (req, res) => {
   if (req.user.role !== 'coach') return bad(res, 'רק מאמן יכול לאמת', 403);
 
-  const row = db.prepare('SELECT * FROM bag WHERE id = ?').get(req.params.id);
+  const row = await db.prepare('SELECT * FROM bag WHERE id = ?').get(req.params.id);
   if (!row) return bad(res, 'לא נמצא', 404);
   if (row.user_id === req.user.id) return bad(res, 'אי אפשר לאמת לעצמכם');
 
   const on = req.body?.verified !== false;
-  db.prepare('UPDATE bag SET verified_by = ? WHERE id = ?').run(on ? req.user.id : null, row.id);
-  res.json(bagShape(db.prepare(`${BAG_SELECT} WHERE b.id = ?`).get(row.id)));
+  await db.prepare('UPDATE bag SET verified_by = ? WHERE id = ?').run(on ? req.user.id : null, row.id);
+  res.json(bagShape(await db.prepare(`${BAG_SELECT} WHERE b.id = ?`).get(row.id)));
 }));
 
 /* ==========================================================================
@@ -629,33 +630,33 @@ app.post('/api/bag/:id/verify', requireUser, route(async (req, res) => {
    ========================================================================== */
 
 app.get('/api/achievements/:id', route(async (req, res) => {
-  if (!getUserRow(req.params.id)) return bad(res, 'המשתמש לא נמצא', 404);
-  res.json(achievementsFor(req.params.id));
+  if (!await getUserRow(req.params.id)) return bad(res, 'המשתמש לא נמצא', 404);
+  res.json(await achievementsFor(req.params.id));
 }));
 
 /* ==========================================================================
    בקשות חברות
    ========================================================================== */
 
-function chatBetween(a, b) {
-  return db.prepare(`SELECT * FROM chats
+async function chatBetween(a, b) {
+  return await db.prepare(`SELECT * FROM chats
     WHERE (a_id = ? AND b_id = ?) OR (a_id = ? AND b_id = ?)`).get(a, b, b, a);
 }
 
-function openChat(a, b) {
-  const existing = chatBetween(a, b);
+async function openChat(a, b) {
+  const existing = await chatBetween(a, b);
   if (existing) return existing;
   const id = newId('chat');
-  db.prepare('INSERT INTO chats (id, a_id, b_id, created_at) VALUES (?, ?, ?, ?)').run(id, a, b, now());
-  return db.prepare('SELECT * FROM chats WHERE id = ?').get(id);
+  await db.prepare('INSERT INTO chats (id, a_id, b_id, created_at) VALUES (?, ?, ?, ?)').run(id, a, b, now());
+  return await db.prepare('SELECT * FROM chats WHERE id = ?').get(id);
 }
 
 app.get('/api/friends/state/:id', requireUser, route(async (req, res) => {
   const other = req.params.id;
   if (other === req.user.id) return res.json({ state: 'self' });
-  if (chatBetween(req.user.id, other)) return res.json({ state: 'friends' });
+  if (await chatBetween(req.user.id, other)) return res.json({ state: 'friends' });
 
-  const pending = db.prepare(`SELECT * FROM friend_requests
+  const pending = await db.prepare(`SELECT * FROM friend_requests
     WHERE status = 'pending' AND ((from_id = ? AND to_id = ?) OR (from_id = ? AND to_id = ?))`)
     .get(req.user.id, other, other, req.user.id);
 
@@ -665,25 +666,25 @@ app.get('/api/friends/state/:id', requireUser, route(async (req, res) => {
 
 app.post('/api/friends/request', requireUser, route(async (req, res) => {
   const toId = req.body?.toId;
-  const target = getUserRow(toId);
+  const target = await getUserRow(toId);
   if (!target) return bad(res, 'המשתמש לא נמצא', 404);
   if (toId === req.user.id) return bad(res, 'אי אפשר לשלוח בקשה לעצמכם');
-  if (chatBetween(req.user.id, toId)) return bad(res, 'אתם כבר חברים');
+  if (await chatBetween(req.user.id, toId)) return bad(res, 'אתם כבר חברים');
 
-  const pending = db.prepare(`SELECT id FROM friend_requests
+  const pending = await db.prepare(`SELECT id FROM friend_requests
     WHERE status = 'pending' AND ((from_id = ? AND to_id = ?) OR (from_id = ? AND to_id = ?))`)
     .get(req.user.id, toId, toId, req.user.id);
   if (pending) return bad(res, 'כבר יש בקשה פתוחה');
 
   const id = newId('r');
-  db.prepare(`INSERT INTO friend_requests (id, from_id, to_id, status, created_at)
+  await db.prepare(`INSERT INTO friend_requests (id, from_id, to_id, status, created_at)
               VALUES (?, ?, ?, 'pending', ?)`).run(id, req.user.id, toId, now());
 
   // מאמני הדמו עונים לבד, אחרת אי אפשר להדגים את הזרימה בלי משתמש שני
   if (target.is_demo) {
-    db.prepare("UPDATE friend_requests SET status = 'accepted' WHERE id = ?").run(id);
-    const chat = openChat(req.user.id, toId);
-    db.prepare('INSERT INTO messages (id, chat_id, from_id, body, created_at) VALUES (?, ?, ?, ?, ?)')
+    await db.prepare("UPDATE friend_requests SET status = 'accepted' WHERE id = ?").run(id);
+    const chat = await openChat(req.user.id, toId);
+    await db.prepare('INSERT INTO messages (id, chat_id, from_id, body, created_at) VALUES (?, ?, ?, ?, ?)')
       .run(newId('m'), chat.id, toId, DEMO_GREETINGS[toId] || 'היי! 🛹', now());
     return res.json({ state: 'friends', chatId: chat.id });
   }
@@ -691,44 +692,44 @@ app.post('/api/friends/request', requireUser, route(async (req, res) => {
   res.json({ state: 'sent' });
 }));
 
-const withUser = (row, key) => ({
+const withUser = async (row, key) => ({
   id: row.id,
   fromId: row.from_id,
   toId: row.to_id,
   status: row.status,
   createdAt: row.created_at,
-  [key]: publicUser(getUserRow(key === 'from' ? row.from_id : row.to_id)),
+  [key]: await publicUser(await getUserRow(key === 'from' ? row.from_id : row.to_id)),
 });
 
-app.get('/api/friends/incoming', requireUser, (req, res) => {
-  const rows = db.prepare(`SELECT * FROM friend_requests
+app.get('/api/friends/incoming', requireUser, route(async (req, res) => {
+  const rows = await db.prepare(`SELECT * FROM friend_requests
     WHERE to_id = ? AND status = 'pending' ORDER BY created_at DESC`).all(req.user.id);
-  res.json(rows.map((r) => withUser(r, 'from')));
-});
+  res.json(await Promise.all(rows.map((r) => withUser(r, 'from'))));
+}));
 
-app.get('/api/friends/outgoing', requireUser, (req, res) => {
-  const rows = db.prepare(`SELECT * FROM friend_requests
+app.get('/api/friends/outgoing', requireUser, route(async (req, res) => {
+  const rows = await db.prepare(`SELECT * FROM friend_requests
     WHERE from_id = ? AND status = 'pending' ORDER BY created_at DESC`).all(req.user.id);
-  res.json(rows.map((r) => withUser(r, 'to')));
-});
+  res.json(await Promise.all(rows.map((r) => withUser(r, 'to'))));
+}));
 
 app.post('/api/friends/:id/accept', requireUser, route(async (req, res) => {
-  const row = db.prepare("SELECT * FROM friend_requests WHERE id = ? AND status = 'pending'")
+  const row = await db.prepare("SELECT * FROM friend_requests WHERE id = ? AND status = 'pending'")
     .get(req.params.id);
   if (!row) return bad(res, 'הבקשה לא נמצאה', 404);
   if (row.to_id !== req.user.id) return bad(res, 'הבקשה הזאת לא אליכם', 403);
 
-  db.prepare("UPDATE friend_requests SET status = 'accepted' WHERE id = ?").run(row.id);
-  res.json({ chatId: openChat(row.from_id, row.to_id).id });
+  await db.prepare("UPDATE friend_requests SET status = 'accepted' WHERE id = ?").run(row.id);
+  res.json({ chatId: (await openChat(row.from_id, row.to_id)).id });
 }));
 
 app.post('/api/friends/:id/decline', requireUser, route(async (req, res) => {
-  const row = db.prepare("SELECT * FROM friend_requests WHERE id = ? AND status = 'pending'")
+  const row = await db.prepare("SELECT * FROM friend_requests WHERE id = ? AND status = 'pending'")
     .get(req.params.id);
   if (!row) return bad(res, 'הבקשה לא נמצאה', 404);
   if (row.to_id !== req.user.id) return bad(res, 'הבקשה הזאת לא אליכם', 403);
 
-  db.prepare("UPDATE friend_requests SET status = 'declined' WHERE id = ?").run(row.id);
+  await db.prepare("UPDATE friend_requests SET status = 'declined' WHERE id = ?").run(row.id);
   res.json({ ok: true });
 }));
 
@@ -736,32 +737,33 @@ app.post('/api/friends/:id/decline', requireUser, route(async (req, res) => {
    צ'אטים
    ========================================================================== */
 
-function chatShape(row, meId) {
+async function chatShape(row, meId) {
   const otherId = row.a_id === meId ? row.b_id : row.a_id;
-  const last = db.prepare('SELECT * FROM messages WHERE chat_id = ? ORDER BY created_at DESC LIMIT 1')
+  const last = await db.prepare('SELECT * FROM messages WHERE chat_id = ? ORDER BY created_at DESC LIMIT 1')
     .get(row.id);
   return {
     id: row.id,
-    other: publicUser(getUserRow(otherId)),
+    other: await publicUser(await getUserRow(otherId)),
     last: last && { id: last.id, fromId: last.from_id, text: last.body, createdAt: last.created_at },
     activeAt: last ? last.created_at : row.created_at,
     createdAt: row.created_at,
   };
 }
 
-app.get('/api/chats', requireUser, (req, res) => {
-  const rows = db.prepare('SELECT * FROM chats WHERE a_id = ? OR b_id = ?').all(req.user.id, req.user.id);
-  res.json(rows.map((r) => chatShape(r, req.user.id))
+app.get('/api/chats', requireUser, route(async (req, res) => {
+  const rows = await db.prepare('SELECT * FROM chats WHERE a_id = ? OR b_id = ?').all(req.user.id, req.user.id);
+  const shaped = await Promise.all(rows.map((r) => chatShape(r, req.user.id)));
+  res.json(shaped
                 .filter((c) => c.other)
                 .sort((a, b) => b.activeAt.localeCompare(a.activeAt)));
-});
+}));
 
 app.get('/api/chats/:id', requireUser, route(async (req, res) => {
-  const row = db.prepare('SELECT * FROM chats WHERE id = ?').get(req.params.id);
+  const row = await db.prepare('SELECT * FROM chats WHERE id = ?').get(req.params.id);
   if (!row || (row.a_id !== req.user.id && row.b_id !== req.user.id)) {
     return bad(res, 'הצ׳אט לא נמצא', 404);
   }
-  const messages = db.prepare('SELECT * FROM messages WHERE chat_id = ? ORDER BY created_at').all(row.id);
+  const messages = await db.prepare('SELECT * FROM messages WHERE chat_id = ? ORDER BY created_at').all(row.id);
   res.json({
     ...chatShape(row, req.user.id),
     messages: messages.map((m) => ({ id: m.id, fromId: m.from_id, text: m.body, createdAt: m.created_at })),
@@ -772,14 +774,14 @@ app.post('/api/chats/:id/messages', requireUser, route(async (req, res) => {
   const text = (req.body?.text || '').trim();
   if (!text) return bad(res, 'ההודעה ריקה');
 
-  const row = db.prepare('SELECT * FROM chats WHERE id = ?').get(req.params.id);
+  const row = await db.prepare('SELECT * FROM chats WHERE id = ?').get(req.params.id);
   if (!row || (row.a_id !== req.user.id && row.b_id !== req.user.id)) {
     return bad(res, 'הצ׳אט לא נמצא', 404);
   }
 
   const id = newId('m');
   const at = now();
-  db.prepare('INSERT INTO messages (id, chat_id, from_id, body, created_at) VALUES (?, ?, ?, ?, ?)')
+  await db.prepare('INSERT INTO messages (id, chat_id, from_id, body, created_at) VALUES (?, ?, ?, ?, ?)')
     .run(id, row.id, req.user.id, text.slice(0, 1000), at);
 
   res.json({ id, fromId: req.user.id, text: text.slice(0, 1000), createdAt: at });

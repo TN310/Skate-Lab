@@ -51,6 +51,7 @@ cd server && npm install && npm start
 | `server/ai.js` | עוזר ה-AI (דורש `ANTHROPIC_API_KEY`) |
 | `server/tricks.js` | קטלוג הטריקים — הבסיס של 266 ההישגים |
 | `server/smoke.mjs` | בדיקת עשן: מריצה את קבצי הצד-לקוח ומוודאת שכל קריאה ל-Store קיימת |
+| `server/cleanup-bots.mjs` | מוחק חשבונות בדיקה. `--dry` מראה מה יימחק בלי למחוק |
 | `tricks.json` | הקטלוג כקובץ נתונים עצמאי |
 | `server/seed.js` | מאמני ושיעורי הדמו |
 | `js/store.js` | לקוח ה-API — כל הנתונים עוברים דרכו |

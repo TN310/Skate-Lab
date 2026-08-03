@@ -911,8 +911,14 @@ app.get('/api/chats/:id', requireUser, route(async (req, res) => {
     return bad(res, 'הצ׳אט לא נמצא', 404);
   }
   const messages = await db.prepare('SELECT * FROM messages WHERE chat_id = ? ORDER BY created_at').all(row.id);
+
+  /*
+   * ה-await כאן קריטי: chatShape אסינכרונית מאז המעבר ל-Postgres, ופיזור
+   * של הבטחה מייצר אובייקט ריק במקום לזרוק. התוצאה הייתה צ׳אט בלי `other`,
+   * והמסך נפל על קריאת השם של הצד השני.
+   */
   res.json({
-    ...chatShape(row, req.user.id),
+    ...(await chatShape(row, req.user.id)),
     messages: messages.map((m) => ({ id: m.id, fromId: m.from_id, text: m.body, createdAt: m.created_at })),
   });
 }));

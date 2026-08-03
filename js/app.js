@@ -60,22 +60,22 @@ function emptyVideos({ kind, onlyFollowed, region }) {
   if (onlyFollowed) {
     if (!(ME?.following || []).length) {
       return empty('⭐️', 'אין כאן עדיין כלום',
-                   'הוסיפו מאמנים למועדפים בלשונית "מאמנים", והסרטונים שלהם יופיעו כאן.');
+                   `${gt('הוסף','הוסיפי','הוסיפו')} מאמנים למועדפים בלשונית "מאמנים", והסרטונים שלהם יופיעו כאן.`);
     }
     return empty('⭐️', 'אין סרטונים בסינון הזה',
-                 'למאמנים שבמועדפים שלכם אין סרטונים שמתאימים לסינון. נסו סוג אחר או אזור אחר.');
+                 `למאמנים שבמועדפים ${gt('שלך','שלך','שלכם')} אין סרטונים שמתאימים לסינון. ${gt('נסה','נסי','נסו')} סוג אחר או אזור אחר.`);
   }
   if (kind === 'lesson') {
     return empty('🎓', 'עדיין אין שיעורים',
-                 region ? 'אין שיעורים באזור הזה. נסו אזור אחר.' : 'ברגע שיעלו שיעורים הם יופיעו כאן.');
+                 region ? `אין שיעורים באזור הזה. ${gt('נסה','נסי','נסו')} אזור אחר.` : 'ברגע שיעלו שיעורים הם יופיעו כאן.');
   }
   if (kind === 'clip') {
     return empty('⭐️', 'אין טריקים לפידבק',
                  region ? 'אף רוכב באזור הזה לא העלה טריק עדיין.'
-                        : 'היו הראשונים — העלו טריק וקבלו עליו פידבק.');
+                        : `${gt('היה הראשון','היי הראשונה','היו הראשונים')} — ${gt('העלה','העלי','העלו')} טריק ${gt('וקבל','וקבלי','וקבלו')} עליו פידבק.`);
   }
   return region
-    ? empty('🎬', 'אין סרטונים באזור הזה', 'נסו אזור אחר או הסירו את הסינון.')
+    ? empty('🎬', 'אין סרטונים באזור הזה', `${gt('נסה','נסי','נסו')} אזור אחר או ${gt('הסר','הסירי','הסירו')} את הסינון.`)
     : empty('🎬', 'אין עדיין סרטונים', 'ברגע שיעלו סרטונים הם יופיעו כאן.');
 }
 
@@ -202,10 +202,10 @@ Screens.coaches = {
       const noOtherFilter = !coachFilter.region && !coachFilter.style && !coachFilter.query.trim();
       if (coachFilter.onlyFollowed && noOtherFilter) {
         return empty('⭐️', 'אין עדיין מועדפים',
-                     'עברו ל"מאמנים" והוסיפו את מי שאתם רוצים לעקוב אחריו.');
+                     `${gt('עבור','עברי','עברו')} ל"מאמנים" ${gt('והוסף','והוסיפי','והוסיפו')} את מי ${gt('שאתה רוצה','שאת רוצה','שאתם רוצים')} לעקוב אחריו.`);
       }
       return empty('🔍', 'לא נמצא אף אחד',
-                   'נסו אזור אחר או סגנון אחר, או מחקו את מה שכתבתם בחיפוש.');
+                   `${gt('נסה','נסי','נסו')} אזור אחר או סגנון אחר, או ${gt('מחק','מחקי','מחקו')} את מה ${gt('שכתבת','שכתבת','שכתבתם')} בחיפוש.`);
     }
 
     const following = ME?.following || [];
@@ -314,7 +314,7 @@ Screens.user = {
           ${errorFor('friend')}
           ${isCoach && state !== 'self' ? `
             <button class="btn btn--ghost" data-follow-big="${id}">
-              ${following ? '★ במועדפים שלי' : '☆ הוסיפו למועדפים'}
+              ${following ? '★ במועדפים שלי' : `☆ ${gt('הוסף','הוסיפי','הוסיפו')} למועדפים`}
             </button>` : ''}
         </div>
 
@@ -461,8 +461,8 @@ Screens.video = {
     const comments = v.comments.length
       ? v.comments.map((c) => commentRow(c, opts)).join('')
       : `<p class="small muted" data-no-comments>${isLesson
-          ? 'אין עדיין שאלות. תהיו הראשונים לשאול את המאמן.'
-          : 'אין עדיין פידבק. תהיו הראשונים לכתוב לרוכב מה לתקן.'}</p>`;
+          ? `אין עדיין שאלות. ${gt('תהיה הראשון','תהיי הראשונה','תהיו הראשונים')} לשאול את המאמן.`
+          : `אין עדיין פידבק. ${gt('תהיה הראשון','תהיי הראשונה','תהיו הראשונים')} לכתוב לרוכב מה לתקן.`}</p>`;
 
     const heading = isLesson ? 'שאלות למאמן' : 'פידבק לרוכב';
 
@@ -503,7 +503,7 @@ Screens.video = {
 
         ${ME ? `
           <section class="ai ${aiOn ? '' : 'ai--off'}" id="ai">
-            <div class="ai__head">🤖 ${mine && v.kind !== 'lesson' ? 'עוזר הפידבק' : 'שאלו את העוזר'}</div>
+            <div class="ai__head">🤖 ${mine && v.kind !== 'lesson' ? 'עוזר הפידבק' : gt('שאל את העוזר','שאלי את העוזר','שאלו את העוזר')}</div>
             ${aiOn ? `
               <div class="ai__body" data-ai-out hidden></div>
               ${isCoachViewer && v.authorId !== ME.id
@@ -515,7 +515,7 @@ Screens.video = {
               <div class="ai__row">
                 <input class="input" data-ai-q maxlength="300"
                        placeholder="שאלה על טכניקה…">
-                <button class="btn btn--primary" data-ai-send>שאלו</button>
+                <button class="btn btn--primary" data-ai-send>${gt('שאל','שאלי','שאלו')}</button>
               </div>
               <p class="ai__note">
                 ${isCoachViewer && v.authorId !== ME.id && v.hasFile
@@ -534,12 +534,12 @@ Screens.video = {
         ${ME ? `
           <div class="composer" id="composer">
             <textarea id="comment-input" class="input composer__box" maxlength="300" rows="1"
-                      placeholder="${isLesson ? 'שאלו את המאמן…' : 'תנו פידבק לרוכב…'}"></textarea>
+                      placeholder="${isLesson ? gt('שאל את המאמן…','שאלי את המאמן…','שאלו את המאמן…') : gt('תן פידבק לרוכב…','תני פידבק לרוכב…','תנו פידבק לרוכב…')}"></textarea>
             <button class="btn btn--primary btn--sm" data-send>שליחה</button>
           </div>
           <p class="composer__hint" data-reply-hint hidden></p>
           <p class="field__error" data-comment-error hidden></p>`
-          : `<p class="small muted" style="margin-top:16px">התחברו כדי להגיב ולתת לייק.</p>`}
+          : `<p class="small muted" style="margin-top:16px">${gt('התחבר','התחברי','התחברו')} כדי להגיב ולתת לייק.</p>`}
       </div>
       ${tabbar('feed')}`;
   },
@@ -573,7 +573,7 @@ Screens.video = {
     const clearReply = () => {
       replyTo = null;
       hint.hidden = true;
-      input.placeholder = kind === 'lesson' ? 'שאלו את המאמן…' : 'תנו פידבק לרוכב…';
+      input.placeholder = kind === 'lesson' ? gt('שאל את המאמן…','שאלי את המאמן…','שאלו את המאמן…') : gt('תן פידבק לרוכב…','תני פידבק לרוכב…','תנו פידבק לרוכב…');
     };
 
     const startReply = (commentId, name) => {
@@ -581,7 +581,7 @@ Screens.video = {
       hint.innerHTML = `עונים ל<b>${esc(name)}</b> · <button class="linkname" data-cancel-reply>ביטול</button>`;
       hint.hidden = false;
       hint.querySelector('[data-cancel-reply]').onclick = clearReply;
-      input.placeholder = `התשובה שלכם ל${name}…`;
+      input.placeholder = `${gt('התשובה שלך','התשובה שלך','התשובה שלכם')} ל${name}…`;
       input.focus();
       $('#composer').scrollIntoView({ block: 'center', behavior: 'smooth' });
     };
@@ -729,7 +729,7 @@ Screens.myvideos = {
   async html() {
     if (!ME) {
       return `${header('הסרטונים שלי')}
-              ${empty('🔒', 'לא מחוברים', 'התחברו כדי להעלות סרטונים.')}
+              ${empty('🔒', gt('לא מחובר','לא מחוברת','לא מחוברים'), `${gt('התחבר','התחברי','התחברו')} כדי להעלות סרטונים.`)}
               ${tabbar('myvideos')}`;
     }
 
@@ -820,8 +820,8 @@ Screens.myvideos = {
           ? `<div class="vlist">${videos.map(videoCard).join('')}</div>`
           : empty('🎬', 'עדיין לא העליתם כלום',
                   isCoach
-                    ? 'העלו שיעור ראשון — הוא יופיע לרוכבים באזור שלכם.'
-                    : 'העלו טריק ראשון וקבלו עליו פידבק ממאמן.')}
+                    ? `${gt('העלה','העלי','העלו')} שיעור ראשון — הוא יופיע לרוכבים באזור ${gt('שלך','שלך','שלכם')}.`
+                    : `${gt('העלה','העלי','העלו')} טריק ראשון ${gt('וקבל','וקבלי','וקבלו')} עליו פידבק ממאמן.`)}
       </div>
       ${tabbar('myvideos')}`;
   },
@@ -843,7 +843,7 @@ Screens.upload = {
   async html() {
     if (!ME) {
       return `${header('העלאה', { back: true })}
-              ${empty('🔒', 'לא מחוברים', 'התחברו כדי להעלות סרטונים.')}
+              ${empty('🔒', gt('לא מחובר','לא מחוברת','לא מחוברים'), `${gt('התחבר','התחברי','התחברו')} כדי להעלות סרטונים.`)}
               ${tabbar('myvideos')}`;
     }
 
@@ -865,7 +865,7 @@ Screens.upload = {
       : `<label class="filepick">
            <span class="filepick__icon">🎬</span>
            <div>
-             <b>בחרו קובץ וידאו</b>
+             <b>${gt('בחר','בחרי','בחרו')} קובץ וידאו</b>
              <small class="muted">אפשר גם לפרסם בלי קובץ — יוצג כרטיס עם אימוג׳י</small>
            </div>
            <input type="file" accept="video/*" id="file" hidden>
@@ -875,8 +875,8 @@ Screens.upload = {
       <div class="screen__body has-tabs">
         ${header(isLesson ? 'העלאת שיעור' : 'העלאת טריק', { back: true })}
         <p class="lead">${isLesson
-          ? 'הסרטון יופיע לרוכבים באזור שלכם ולכל מי שהוסיף אתכם למועדפים.'
-          : 'מאמנים יוכלו לצפות ולתת לכם פידבק.'}</p>
+          ? `הסרטון יופיע לרוכבים באזור ${gt('שלך','שלך','שלכם')} ולכל מי ${gt('שהוסיף אותך','שהוסיף אותך','שהוסיף אתכם')} למועדפים.`
+          : `מאמנים יוכלו לצפות ולתת ${gt('לך','לך','לכם')} פידבק.`}</p>
 
         <div class="field" style="margin-top:20px">
           <label class="field__label">מה מעלים?</label>
@@ -893,7 +893,7 @@ Screens.upload = {
                     aria-pressed="${!isLesson}">
               <span style="flex:1">
                 <span class="choice__title">⭐️ טריק לפידבק</span>
-                <span class="choice__desc">מעלים ניסיון שלכם ומבקשים חוות דעת</span>
+                <span class="choice__desc">${gt('מעלה ניסיון שלך ומבקש','מעלה ניסיון שלך ומבקשת','מעלים ניסיון שלכם ומבקשים')} חוות דעת</span>
               </span>
               <span class="choice__check">✓</span>
             </button>
@@ -914,7 +914,7 @@ Screens.upload = {
           <div class="field">
             <label class="field__label" for="up-desc">תיאור <span class="muted">(לא חובה)</span></label>
             <textarea id="up-desc" class="input input--area" maxlength="400" rows="3"
-                      placeholder="${isLesson ? 'מה לומדים בסרטון?' : 'על מה תרצו פידבק?'}">${esc(upload.desc)}</textarea>
+                      placeholder="${isLesson ? 'מה לומדים בסרטון?' : gt('על מה תרצה פידבק?','על מה תרצי פידבק?','על מה תרצו פידבק?')}">${esc(upload.desc)}</textarea>
           </div>
 
           <div class="field">
@@ -928,7 +928,7 @@ Screens.upload = {
           </div>
 
           <div class="field">
-            <label class="field__label">${isLesson ? 'לאיזו רמה מיועד?' : 'באיזו רמה אתם?'}</label>
+            <label class="field__label">${isLesson ? 'לאיזו רמה מיועד?' : gt('באיזו רמה אתה?','באיזו רמה את?','באיזו רמה אתם?')}</label>
             <div class="chips">
               ${Store.LEVELS.map((l) => `
                 <button type="button" class="chip" data-up-level="${esc(l)}"
@@ -961,8 +961,8 @@ Screens.upload = {
               : `<label class="filepick">
                    <span class="filepick__icon">🖼</span>
                    <div>
-                     <b>בחרו תמונה</b>
-                     <small class="muted">או בחרו אימוג׳י למטה</small>
+                     <b>${gt('בחר','בחרי','בחרו')} תמונה</b>
+                     <small class="muted">או ${gt('בחר','בחרי','בחרו')} אימוג׳י למטה</small>
                    </div>
                    <input type="file" accept="image/*" id="thumb" hidden>
                  </label>`}
@@ -1018,7 +1018,7 @@ Screens.upload = {
         // בדיקה מוקדמת שהדפדפן בכלל יודע לפענח את הקובץ, כדי לא להבטיח
         // "תמונה נבחרה" על קובץ שבסוף יידחה בזמן ההעלאה
         if (!await Media.canDecode(picked)) {
-          errors.thumb = 'הקובץ הזה לא נראה כמו תמונה תקינה. נסו קובץ אחר.';
+          errors.thumb = `הקובץ הזה לא נראה כמו תמונה תקינה. ${gt('נסה','נסי','נסו')} קובץ אחר.`;
           return rerender();
         }
 
@@ -1080,9 +1080,9 @@ Screens.upload = {
       errors = {};
       if (thumbError) errors.thumb = thumbError;
       if (upload.title.trim().length < 3) errors.title = 'צריך כותרת של לפחות 3 תווים';
-      if (!upload.region) errors.region = 'בחרו אזור';
-      if (!upload.level) errors.level = 'בחרו רמה';
-      if (!upload.styles.length) errors.styles = 'בחרו לפחות סגנון אחד';
+      if (!upload.region) errors.region = `${gt('בחר','בחרי','בחרו')} אזור`;
+      if (!upload.level) errors.level = `${gt('בחר','בחרי','בחרו')} רמה`;
+      if (!upload.styles.length) errors.styles = `${gt('בחר','בחרי','בחרו')} לפחות סגנון אחד`;
       // בודקים ערכים ולא מפתחות — מפתח עם undefined אינו שגיאה
       if (Object.values(errors).some(Boolean)) return rerender();
 
@@ -1154,7 +1154,7 @@ Screens.search = {
   async results() {
     if (search.tab === 'coaches') {
       const people = await Store.listPeople({ region: search.region, query: search.query });
-      if (!people.length) return empty('🔍', 'לא נמצא אף אחד', 'נסו מילה אחרת או אזור אחר.');
+      if (!people.length) return empty('🔍', 'לא נמצא אף אחד', `${gt('נסה','נסי','נסו')} מילה אחרת או אזור אחר.`);
       const following = ME?.following || [];
       return `
         <p class="small muted" style="margin-bottom:10px">${countLabel(people.length, 'תוצאה אחת', 'תוצאות')}</p>
@@ -1169,8 +1169,8 @@ Screens.search = {
     if (!videos.length) {
       const kind = Store.KINDS.find((k) => k.id === search.kind);
       return empty('🔍', 'לא נמצאו סרטונים',
-                   kind ? `אין תוצאות בסינון "${kind.label}". נסו מילה אחרת, אזור אחר או "הכל".`
-                        : 'נסו מילה אחרת או אזור אחר.');
+                   kind ? `אין תוצאות בסינון "${kind.label}". ${gt('נסה','נסי','נסו')} מילה אחרת, אזור אחר או "הכל".`
+                        : `${gt('נסה','נסי','נסו')} מילה אחרת או אזור אחר.`);
     }
     return `
       <p class="small muted" style="margin-bottom:10px">${countLabel(videos.length, 'תוצאה אחת', 'תוצאות')}</p>
@@ -1208,7 +1208,7 @@ Screens.search = {
 
 Screens.chats = {
   async html() {
-    if (!ME) return `${header('צ׳אטים')}${empty('🔒', 'לא מחוברים', 'התחברו כדי לשוחח.')}${tabbar('chats')}`;
+    if (!ME) return `${header('צ׳אטים')}${empty('🔒', gt('לא מחובר','לא מחוברת','לא מחוברים'), `${gt('התחבר','התחברי','התחברו')} כדי לשוחח.`)}${tabbar('chats')}`;
 
     const incoming = await Store.listIncomingRequests();
     const outgoing = await Store.listOutgoingRequests();
@@ -1315,7 +1315,7 @@ Screens.chat = {
             <span class="bubble__time">${timeAgo(m.createdAt)}</span>
           </div>`).join('')
       : `<p class="small muted" style="text-align:center;padding:30px 0">
-           אתם חברים עכשיו. תכתבו משהו 👋</p>`;
+           ${gt('אתה חבר','את חברה','אתם חברים')} עכשיו. ${gt('תכתוב','תכתבי','תכתבו')} משהו 👋</p>`;
 
     return `
       <div class="screen__body has-tabs screen__body--chat">
@@ -1452,7 +1452,7 @@ function bagAdder() {
       <div class="field" style="margin-bottom:12px">
         <label class="field__label" for="bag-name">איזה טריק נחתת?</label>
         <input id="bag-name" class="input" maxlength="60" value="${esc(bagForm.name)}"
-               placeholder="כתבו איך שאתם קוראים לזה" list="bag-suggest" autocomplete="off">
+               placeholder="${gt('כתוב איך שאתה קורא','כתבי איך שאת קוראת','כתבו איך שאתם קוראים')} לזה" list="bag-suggest" autocomplete="off">
         <datalist id="bag-suggest"></datalist>
       </div>
 
@@ -1460,7 +1460,7 @@ function bagAdder() {
         <label class="field__label">איזה סרטון מוכיח את זה?</label>
         <div id="bag-videos" class="bagpick"></div>
         <p class="field__hint">
-          רק סרטונים שלכם עם קובץ וידאו. ה-AI יבדוק את הסרטון ויסמן מה נראה לו.
+          רק סרטונים ${gt('שלך','שלך','שלכם')} עם קובץ וידאו. ה-AI יבדוק את הסרטון ויסמן מה נראה לו.
         </p>
       </div>
 
@@ -1518,7 +1518,7 @@ function bindBag(userId, refresh) {
               <span>${esc(v.poster || '🛹')}</span>
               <b>${esc(v.title)}</b>
             </button>`).join('')
-        : '<p class="small muted">אין לכם סרטונים עם קובץ וידאו. העלו אחד קודם.</p>';
+        : `<p class="small muted">אין ${gt('לך','לך','לכם')} סרטונים עם קובץ וידאו. ${gt('העלה','העלי','העלו')} אחד קודם.</p>`;
 
       $$('[data-pick-video]').forEach((b) => {
         b.onclick = () => {
@@ -1536,8 +1536,8 @@ function bindBag(userId, refresh) {
   if (save) {
     save.onclick = async () => {
       errors = {};
-      if (bagForm.name.trim().length < 2) errors.bag = 'כתבו את שם הטריק';
-      else if (!bagForm.videoId) errors.bag = 'בחרו סרטון — הוא ההוכחה';
+      if (bagForm.name.trim().length < 2) errors.bag = `${gt('כתוב','כתבי','כתבו')} את שם הטריק`;
+      else if (!bagForm.videoId) errors.bag = `${gt('בחר','בחרי','בחרו')} סרטון — הוא ההוכחה`;
       if (errors.bag) return rerender();
 
       bagForm.busy = true;
@@ -1584,7 +1584,7 @@ Screens.aicoach = {
   async html() {
     if (!ME) {
       return `${header('עוזר ה-AI')}
-              ${empty('🔒', 'לא מחוברים', 'התחברו כדי לדבר עם העוזר.')}
+              ${empty('🔒', gt('לא מחובר','לא מחוברת','לא מחוברים'), `${gt('התחבר','התחברי','התחברו')} כדי לדבר עם העוזר.`)}
               ${tabbar('aicoach')}`;
     }
 
@@ -1604,7 +1604,7 @@ Screens.aicoach = {
       ? messages.map(aiBubble).join('')
       : `<div class="ai-intro">
            <span class="ai-intro__icon">🤖</span>
-           <p><b>שאלו אותי כל שאלה על טכניקה בסקייטבורד.</b></p>
+           <p><b>${gt('שאל','שאלי','שאלו')} אותי כל שאלה על טכניקה בסקייטבורד.</b></p>
            <p class="small muted">
              אני עונה על שאלות טכניקה בלבד. אני לא רואה סרטונים ולא קובע אם טריק נחת —
              זה תמיד נשאר אצל מאמן אמיתי.
@@ -1621,7 +1621,7 @@ Screens.aicoach = {
         <div class="thread" id="thread">${bubbles}</div>
 
         <div class="composer">
-          <input id="ai-msg" class="input" maxlength="500" placeholder="שאלו על טכניקה…" autocomplete="off">
+          <input id="ai-msg" class="input" maxlength="500" placeholder="${gt('שאל','שאלי','שאלו')} על טכניקה…" autocomplete="off">
           <button class="btn btn--primary btn--sm" data-send-ai>שליחה</button>
         </div>
         <p class="ai__note" style="margin-top:8px">
@@ -1816,7 +1816,7 @@ function profileEditor() {
       <div class="field">
         <label class="field__label" for="ed-bio">קצת עליי <span class="muted">(לא חובה)</span></label>
         <textarea id="ed-bio" class="input input--area" maxlength="300" rows="3"
-                  placeholder="מה אתם אוהבים לרכוב, איפה, כמה זמן…">${esc(d.bio || '')}</textarea>
+                  placeholder="${gt('מה אתה אוהב','מה את אוהבת','מה אתם אוהבים')} לרכוב, איפה, כמה זמן…">${esc(d.bio || '')}</textarea>
       </div>
 
       <div class="field">
@@ -1886,7 +1886,7 @@ function profileEditor() {
 
 Screens.profile = {
   async html() {
-    if (!ME) return `${header('הפרופיל שלי')}${empty('🔒', 'לא מחוברים', 'התחברו כדי לראות את הפרופיל.')}${tabbar('profile')}`;
+    if (!ME) return `${header('הפרופיל שלי')}${empty('🔒', gt('לא מחובר','לא מחוברת','לא מחוברים'), `${gt('התחבר','התחברי','התחברו')} כדי לראות את הפרופיל.`)}${tabbar('profile')}`;
 
     const role = Store.ROLES[ME.role];
     const myVideos = await Store.listVideos({ authorId: ME.id });
@@ -1914,7 +1914,7 @@ Screens.profile = {
           </p>
           ${ME.bio ? `<p class="lead" style="margin-top:12px">${esc(ME.bio)}</p>` : ''}
           ${ME.email ? `<p class="small muted" style="margin-top:8px">✉️ ${esc(ME.email)}
-            <span class="tag" style="margin-inline-start:6px">גלוי רק לכם</span></p>` : ''}
+            <span class="tag" style="margin-inline-start:6px">גלוי רק ${gt('לך','לך','לכם')}</span></p>` : ''}
           ${ME.styles.length ? `
             <div class="chips" style="justify-content:center;margin-top:14px">
               ${ME.styles.map((s) => `<span class="tag">${esc(s)}</span>`).join('')}
@@ -1934,7 +1934,7 @@ Screens.profile = {
         <h3 style="margin:26px 0 12px">המאמנים המועדפים שלי</h3>
         ${favorites.length
           ? `<div class="clist">${favorites.map((c) => coachCard(c, true)).join('')}</div>`
-          : empty('⭐️', 'אין עדיין מועדפים', 'עברו ללשונית מאמנים והוסיפו את מי שאתם אוהבים.')}
+          : empty('⭐️', 'אין עדיין מועדפים', `${gt('עבור','עברי','עברו')} ללשונית מאמנים ${gt('והוסף','והוסיפי','והוסיפו')} את מי ${gt('שאתה אוהב','שאת אוהבת','שאתם אוהבים')}.`)}
 
         <button class="btn btn--ghost" data-logout style="margin-top:26px">יציאה מהחשבון</button>
 
@@ -1945,10 +1945,10 @@ Screens.profile = {
           ${dangerZoneOpen ? `
             <div class="dangerzone__body">
               <p class="small">
-                כל הסרטונים, התגובות והצ׳אטים שלכם יימחקו לצמיתות. אי אפשר לבטל את זה.
+                כל הסרטונים, התגובות והצ׳אטים ${gt('שלך','שלך','שלכם')} יימחקו לצמיתות. אי אפשר לבטל את זה.
               </p>
               <div class="field">
-                <label class="field__label" for="del-pw">הקלידו את הסיסמה שלכם לאישור</label>
+                <label class="field__label" for="del-pw">${gt('הקלד','הקלידי','הקלידו')} את הסיסמה ${gt('שלך','שלך','שלכם')} לאישור</label>
                 <input id="del-pw" type="password" class="input ${errors.delete ? 'input--error' : ''}"
                        autocomplete="current-password">
                 ${errorFor('delete')}
@@ -2100,7 +2100,7 @@ Screens.profile = {
           errors.delete = 'צריך להקליד את הסיסמה';
           return rerender();
         }
-        if (!confirm('בטוחים? הפעולה הזאת סופית ואי אפשר לחזור ממנה.')) return;
+        if (!confirm(`${gt('בטוח','בטוחה','בטוחים')}? הפעולה הזאת סופית ואי אפשר לחזור ממנה.`)) return;
 
         try {
           await Store.deleteAccount(password);

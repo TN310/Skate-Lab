@@ -28,6 +28,35 @@ const SETTLE_MS = 300;
 /** עולה בכל כניסה למסך (ולא ברענון במקום) — משמש לספירת צפייה פעם אחת. */
 let visitSeq = 0;
 
+/* ==========================================================================
+   פנייה לפי מגדר
+   בעברית אין צורה ניטרלית לגוף שני, ולכן כל טקסט שמפנה למשתמש חייב
+   להיות מוטה. `gt` בוחרת בין זכר, נקבה, וצורת רבים לניטרלי.
+   ========================================================================== */
+
+/**
+ * המגדר של המשתמש הנוכחי.
+ * בזמן ההרשמה עוד אין ME, אבל המגדר כבר נבחר בשלב הראשון — אז נופלים
+ * לטיוטה. כך גם מסכי ההרשמה מדברים בלשון הנכונה מהשלב השני והלאה.
+ */
+function myGender() {
+  if (ME?.gender) return ME.gender;
+  try {
+    return Store.getDraft()?.gender || 'na';
+  } catch {
+    return 'na';
+  }
+}
+
+/**
+ * gt('בחר', 'בחרי', 'בחרו') — זכר, נקבה, וברירת מחדל למי שלא מסר מגדר.
+ * בלי הפרמטר השלישי, "לא רוצה להשיב" מקבל את צורת הזכר.
+ */
+function gt(masc, fem, neutral = masc) {
+  const g = myGender();
+  return g === 'female' ? fem : g === 'male' ? masc : neutral;
+}
+
 /* ---------- עזרים ---------- */
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) =>
@@ -302,7 +331,7 @@ function personCard(p, following) {
 
   const action = isCoach
     ? `<button class="follow ${following ? 'is-on' : ''}" data-follow="${p.id}"
-               aria-pressed="${following}">${following ? '★ במועדפים' : '☆ הוסיפו'}</button>`
+               aria-pressed="${following}">${following ? '★ במועדפים' : `☆ ${gt('הוסף','הוסיפי','הוסיפו')}`}</button>`
     : `<button class="follow" data-message="${p.id}">💬 צ׳אט</button>`;
 
   return `
@@ -376,7 +405,7 @@ function bindCards() {
       ME = await Store.currentUser();
       el.classList.toggle('is-on', on);
       el.setAttribute('aria-pressed', String(on));
-      el.textContent = on ? '★ במועדפים' : '☆ הוסיפו';
+      el.textContent = on ? '★ במועדפים' : `☆ ${gt('הוסף','הוסיפי','הוסיפו')}`;
 
       // עדכון מספר העוקבים על אותו כרטיס, אחרת הוא נשאר תקוע עד ניווט
       const coach = await Store.getUser(el.dataset.follow);

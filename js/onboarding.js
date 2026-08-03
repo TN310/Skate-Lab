@@ -35,8 +35,8 @@ Screens.welcome = {
 
       <div class="hero__points">
         <div class="hero__point"><i>🎬</i><span><b>סרטוני הדרכה</b> ממאמנים אמיתיים</span></div>
-        <div class="hero__point"><i>📍</i><span><b>מאמנים באזור שלכם</b> — סינון לפי אזור</span></div>
-        <div class="hero__point"><i>⭐️</i><span><b>פידבק אישי</b> על הטריקים שאתם מעלים</span></div>
+        <div class="hero__point"><i>📍</i><span><b>מאמנים באזור ${gt('שלך','שלך','שלכם')}</b> — סינון לפי אזור</span></div>
+        <div class="hero__point"><i>⭐️</i><span><b>פידבק אישי</b> על הטריקים ${gt('שאתה מעלה','שאת מעלה','שאתם מעלים')}</span></div>
       </div>
     </div>
 
@@ -58,7 +58,7 @@ Screens.name = {
     ${progressBar('name')}
     <div class="screen__body">
       <p class="eyebrow">שלב 1</p>
-      <h1>מה השם שלכם?</h1>
+      <h1>מה ${gt('שמך','שמך','השם שלכם')}?</h1>
       <p class="lead">ככה יראו אתכם בפיד ובתגובות.</p>
 
       <div class="field" style="margin-top:28px">
@@ -96,7 +96,7 @@ Screens.name = {
       </div>
 
       <div class="field">
-        <label class="field__label">בחרו אווטאר</label>
+        <label class="field__label">${gt('בחר','בחרי','בחרו')} אווטאר</label>
         <div class="avatars">
           ${Store.AVATARS.map((a) => `
             <button type="button" class="avatar-opt" data-avatar="${a}"
@@ -140,8 +140,8 @@ Screens.name = {
     $('[data-next]').onclick = () => {
       errors = {};
       if ((draft.name || '').trim().length < 2) errors.name = 'צריך שם של שני תווים לפחות';
-      if (!draft.gender) errors.gender = 'בחרו אחת מהאפשרויות';
-      if (!draft.stance) errors.stance = 'בחרו רגולר, גופי או "עוד לא יודע"';
+      if (!draft.gender) errors.gender = `${gt('בחר','בחרי','בחרו')} אחת מהאפשרויות`;
+      if (!draft.stance) errors.stance = `${gt('בחר','בחרי','בחרו')} רגולר, גופי או "עוד לא יודע"`;
       if (Object.keys(errors).length) return rerender();
       navigate('birth');
     };
@@ -150,26 +150,36 @@ Screens.name = {
 
 /* ---------- שלב 2: תאריך לידה ---------- */
 
+/**
+ * כמה ימים יש בחודש שנבחר. בלי חודש עדיין — 31, כדי שהרשימה לא תהיה ריקה.
+ * היום ה-0 של החודש הבא הוא האחרון של הנוכחי, וזה מטפל גם בשנים מעוברות.
+ */
+function daysInMonth(m, y) {
+  if (!m) return 31;
+  return new Date(y || 2024, m, 0).getDate();   // 2024 מעוברת — ברירת מחדל מקלה
+}
+
 Screens.birth = {
   html() {
     const dob = draft.dob || {};
     const thisYear = new Date().getFullYear();
     const years = Array.from({ length: 85 }, (_, i) => thisYear - 4 - i);
     const cls = errors.dob ? 'select select--error' : 'select';
+    const maxDay = daysInMonth(dob.m, dob.y);
 
     return `
       ${progressBar('birth')}
       <div class="screen__body">
         <p class="eyebrow">שלב 2</p>
-        <h1>מתי נולדתם?</h1>
-        <p class="lead">לפי הגיל נתאים לכם תרגילים ותכנים ברמה הנכונה.</p>
+        <h1>מתי ${gt('נולדת','נולדת','נולדתם')}?</h1>
+        <p class="lead">לפי הגיל נתאים ${gt('לך','לך','לכם')} תרגילים ותכנים ברמה הנכונה.</p>
 
         <div class="field" style="margin-top:28px">
           <label class="field__label">תאריך לידה</label>
           <div class="row">
             <select class="${cls}" data-dob="d" aria-label="יום">
               <option value="">יום</option>
-              ${Array.from({ length: 31 }, (_, i) => i + 1).map((d) =>
+              ${Array.from({ length: maxDay }, (_, i) => i + 1).map((d) =>
                 `<option value="${d}" ${dob.d === d ? 'selected' : ''}>${d}</option>`).join('')}
             </select>
             <select class="${cls}" data-dob="m" aria-label="חודש" style="flex:1.4">
@@ -197,6 +207,19 @@ Screens.birth = {
     $$('[data-dob]').forEach((sel) => {
       sel.onchange = () => {
         draft.dob = { ...(draft.dob || {}), [sel.dataset.dob]: Number(sel.value) || null };
+
+        /*
+         * שינוי חודש או שנה עלול להשאיר יום שכבר לא קיים — למשל 31
+         * ואז מעבר לפברואר. מנקים אותו ומציירים מחדש, אחרת הרשימה
+         * מציגה 28 ימים בזמן שהערך השמור הוא 31.
+         */
+        if (sel.dataset.dob !== 'd') {
+          const max = daysInMonth(draft.dob.m, draft.dob.y);
+          if (draft.dob.d > max) draft.dob.d = null;
+          persist();
+          return rerender();
+        }
+
         persist();
       };
     });
@@ -256,7 +279,7 @@ Screens.role = {
 
     $('[data-next]').onclick = () => {
       if (!draft.role) {
-        errors.role = 'בחרו אחת מהאפשרויות';
+        errors.role = `${gt('בחר','בחרי','בחרו')} אחת מהאפשרויות`;
         return rerender();
       }
       navigate('details');
@@ -272,7 +295,7 @@ Screens.details = {
 
     const levelBlock = isCoach ? '' : `
       <div class="field">
-        <label class="field__label">איפה אתם עומדים היום?</label>
+        <label class="field__label">${gt('איפה אתה עומד','איפה את עומדת','איפה אתם עומדים')} היום?</label>
         <div class="chips">
           ${Store.LEVELS.map((l) => `
             <button type="button" class="chip" data-level="${esc(l)}"
@@ -283,9 +306,9 @@ Screens.details = {
 
     const yearsBlock = !isCoach ? '' : `
       <div class="field">
-        <label class="field__label" for="years">כמה שנים אתם רוכבים?</label>
+        <label class="field__label" for="years">כמה שנים ${gt('אתה רוכב','את רוכבת','אתם רוכבים')}?</label>
         <select id="years" class="select ${errors.years ? 'select--error' : ''}">
-          <option value="">בחרו</option>
+          <option value="">${gt('בחר','בחרי','בחרו')}</option>
           ${[1, 2, 3, 5, 7, 10, 15, 20].map((y) =>
             `<option value="${y}" ${draft.years === y ? 'selected' : ''}>${y}+ שנים</option>`).join('')}
         </select>
@@ -299,13 +322,13 @@ Screens.details = {
         <h1>${isCoach ? 'ספרו קצת על עצמכם' : 'עוד כמה שאלות קטנות'}</h1>
         <p class="lead">${isCoach
           ? 'זה מה שרוכבים יראו כשהם יחפשו מאמן באזור שלהם.'
-          : 'ככה נדע אילו סרטונים ואילו מאמנים להראות לכם ראשונים.'}</p>
+          : `ככה נדע אילו סרטונים ואילו מאמנים להראות ${gt('לך','לך','לכם')} ראשונים.`}</p>
 
         <div style="margin-top:28px">
           <div class="field">
-            <label class="field__label" for="region">באיזה אזור אתם רוכבים?</label>
+            <label class="field__label" for="region">באיזה אזור ${gt('אתה רוכב','את רוכבת','אתם רוכבים')}?</label>
             <select id="region" class="select ${errors.region ? 'select--error' : ''}">
-              <option value="">בחרו אזור</option>
+              <option value="">${gt('בחר','בחרי','בחרו')} אזור</option>
               ${Store.REGIONS.map((r) =>
                 `<option value="${esc(r)}" ${draft.region === r ? 'selected' : ''}>${r}</option>`).join('')}
             </select>
@@ -322,7 +345,7 @@ Screens.details = {
           </div>
 
           <div class="field">
-            <label class="field__label">${isCoach ? 'במה אתם מתמחים?' : 'מה הכי מעניין אתכם?'}</label>
+            <label class="field__label">${isCoach ? gt('במה אתה מתמחה?','במה את מתמחה?','במה אתם מתמחים?') : gt('מה הכי מעניין אותך?','מה הכי מעניין אותך?','מה הכי מעניין אתכם?')}</label>
             <div class="chips">
               ${Store.STYLES.map((s) => `
                 <button type="button" class="chip" data-style="${esc(s)}"
@@ -370,9 +393,9 @@ Screens.details = {
 
     $('[data-next]').onclick = () => {
       errors = {};
-      if (!draft.region) errors.region = 'בחרו אזור';
-      if (isCoach && !draft.years) errors.years = 'בחרו כמה שנים אתם רוכבים';
-      if (!isCoach && !draft.level) errors.level = 'בחרו רמה';
+      if (!draft.region) errors.region = `${gt('בחר','בחרי','בחרו')} אזור`;
+      if (isCoach && !draft.years) errors.years = `${gt('בחר','בחרי','בחרו')} כמה שנים ${gt('אתה רוכב','את רוכבת','אתם רוכבים')}`;
+      if (!isCoach && !draft.level) errors.level = `${gt('בחר','בחרי','בחרו')} רמה`;
       if (Object.keys(errors).length) return rerender();
 
       navigate('password');
@@ -389,7 +412,7 @@ Screens.password = {
     ${progressBar('password')}
     <div class="screen__body">
       <p class="eyebrow">שלב 5</p>
-      <h1>בחרו סיסמה</h1>
+      <h1>${gt('בחר','בחרי','בחרו')} סיסמה</h1>
       <p class="lead">תצטרכו אותה בפעם הבאה שתתחברו.</p>
 
       <div class="field" style="margin-top:28px">
@@ -478,7 +501,7 @@ Screens.done = {
     <div class="hero" style="gap:0">
       <div class="hero__mark" style="animation:none">🎉</div>
       <h1>החשבון מוכן!</h1>
-      <p class="lead">ברוכים הבאים ל-Skate Lab. בואו נראה מה מחכה לכם.</p>
+      <p class="lead">${gt('ברוך הבא','ברוכה הבאה','ברוכים הבאים')} ל-Skate Lab. בוא${gt('','י','ו')} נראה מה מחכה ${gt('לך','לך','לכם')}.</p>
     </div>
     <div class="screen__footer">
       <button class="btn btn--primary" data-home>קחו אותי לפיד</button>
@@ -509,7 +532,7 @@ Screens.login = {
       <div class="field">
         <label class="field__label" for="login-pw">סיסמה</label>
         <input id="login-pw" type="password" class="input ${errors.login ? 'input--error' : ''}"
-               placeholder="הסיסמה שלכם" autocomplete="current-password">
+               placeholder="${gt('הסיסמה שלך','הסיסמה שלך','הסיסמה שלכם')}" autocomplete="current-password">
         ${errorFor('login')}
       </div>
     </div>

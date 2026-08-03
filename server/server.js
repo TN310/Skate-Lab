@@ -459,7 +459,11 @@ app.get('/api/inbox/count', requireUser, route(async (req, res) => {
 
 app.get('/api/ai/status', (req, res) => res.json({ available: aiAvailable() }));
 
-const needsAi = async (req, res, next) => {
+/*
+ * סינכרוני בכוונה — אין כאן שום המתנה. כשזה היה async, שגיאה סינכרונית
+ * בתוכו הייתה הופכת לדחייה לא מטופלת שמפילה את התהליך במקום להחזיר 500.
+ */
+const needsAi = (req, res, next) => {
   if (!aiAvailable()) {
     return bad(res, 'ה-AI לא מוגדר בשרת. צריך להגדיר ANTHROPIC_API_KEY.', 503);
   }
@@ -926,6 +930,21 @@ app.use((err, req, res, _next) => {
 
   res.status(err.status >= 400 && err.status < 500 ? err.status : 500)
      .json({ error: err.status >= 400 && err.status < 500 ? err.message : 'שגיאת שרת' });
+});
+
+/*
+ * רשת ביטחון אחרונה. Node מפיל את כל התהליך על דחייה לא מטופלת, וכאן
+ * זה אומר שכל המשתמשים מקבלים שגיאה עד שהשרת עולה מחדש — בגלל באג
+ * בבקשה בודדת של מישהו אחד. עדיף לרשום ליומן ולהמשיך לחיות.
+ *
+ * זה לא תחליף לטיפול נכון בשגיאות בנתיבים עצמם, אלא ביטוח למה שפספסנו.
+ */
+process.on('unhandledRejection', (reason) => {
+  console.error('דחייה לא מטופלת:', reason);
+});
+
+process.on('uncaughtException', (err) => {
+  console.error('חריגה לא מטופלת:', err);
 });
 
 app.listen(PORT, () => {

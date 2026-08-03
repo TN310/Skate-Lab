@@ -41,13 +41,24 @@ export async function destroySession(token) {
   if (token) await db.prepare('DELETE FROM sessions WHERE token = ?').run(token);
 }
 
-/** קורא את עוגיית הסשן ומצמיד את המשתמש ל-req. תמיד ממשיך הלאה. */
+/**
+ * קורא את עוגיית הסשן ומצמיד את המשתמש ל-req. תמיד ממשיך הלאה.
+ *
+ * ה-try חובה כאן: זה middleware אסינכרוני שרץ על *כל* בקשה ופונה למסד.
+ * בלעדיו, ניתוק רגעי של המסד היה הופך לדחייה לא מטופלת — ו-Node מפיל
+ * את כל התהליך על דחייה כזאת. במקום זה הבקשה ממשיכה כאורח לא מזוהה,
+ * והנתיבים שדורשים התחברות יחזירו 401 מסודר.
+ */
 export async function attachUser(req, res, next) {
   req.user = null;
-  const token = req.cookies?.[SESSION_COOKIE];
-  if (token) {
-    const row = await db.prepare('SELECT user_id FROM sessions WHERE token = ?').get(token);
-    if (row) req.user = await publicUser(await getUserRow(row.user_id));
+  try {
+    const token = req.cookies?.[SESSION_COOKIE];
+    if (token) {
+      const row = await db.prepare('SELECT user_id FROM sessions WHERE token = ?').get(token);
+      if (row) req.user = await publicUser(await getUserRow(row.user_id));
+    }
+  } catch (err) {
+    console.error('attachUser נכשל, ממשיכים בלי משתמש:', err.message);
   }
   next();
 }

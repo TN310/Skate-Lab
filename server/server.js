@@ -20,6 +20,8 @@ import { seedIfEmpty, greetNewUser, DEMO_GREETINGS } from './seed.js';
 import { aiAvailable, askCoach, draftFeedback, guessFromThumb, checkAttempt, chatReply } from './ai.js';
 import { achievementsFor } from './achievements.js';
 import { rateLimit, aiQuotaExceeded, inviteRequired, inviteOk } from './guard.js';
+import { adminEnabled, checkPassword, createAdminSession, destroyAdminSession,
+         isAdmin, requireAdmin, setAdminCookie, clearAdminCookie } from './admin.js';
 
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
 const PORT = Number(process.env.PORT) || 3000;
@@ -789,6 +791,78 @@ app.post('/api/chats/:id/messages', requireUser, route(async (req, res) => {
     .run(id, row.id, req.user.id, text.slice(0, 1000), at);
 
   res.json({ id, fromId: req.user.id, text: text.slice(0, 1000), createdAt: at });
+}));
+
+/* ==========================================================================
+   לוח הבקרה — מחיקת משתמשים וסרטונים
+   נפרד לגמרי מהתחברות המשתמשים: סיסמה משותפת אחת (ADMIN_PASSWORD),
+   בלי תלות בטבלת users. ראו server/admin.js.
+   ========================================================================== */
+
+app.get('/api/admin/session', (req, res) =>
+  res.json({ enabled: adminEnabled(), loggedIn: isAdmin(req) }));
+
+app.post('/api/admin/login',
+  rateLimit({ max: 10, windowMs: 900_000, message: 'יותר מדי נסיונות התחברות ללוח הבקרה.' }),
+  route(async (req, res) => {
+    if (!adminEnabled()) return bad(res, 'לוח הבקרה לא הוגדר בשרת', 503);
+    if (!checkPassword(req.body?.password)) return bad(res, 'סיסמה שגויה', 403);
+
+    setAdminCookie(res, createAdminSession());
+    res.json({ ok: true });
+  }));
+
+app.post('/api/admin/logout', (req, res) => {
+  destroyAdminSession(req.cookies?.skatelab_admin);
+  clearAdminCookie(res);
+  res.json({ ok: true });
+});
+
+app.get('/api/admin/users', requireAdmin, route(async (req, res) => {
+  const rows = await db.prepare(`
+    SELECT u.id, u.name, u.role, u.region, u.is_demo, u.created_at,
+           (SELECT COUNT(*)::int FROM videos v WHERE v.author_id = u.id) AS video_count
+      FROM users u
+     ORDER BY u.created_at DESC`).all();
+
+  res.json(rows.map((r) => ({
+    id: r.id, name: r.name, role: r.role, region: r.region,
+    isDemo: !!r.is_demo, createdAt: r.created_at, videoCount: r.video_count,
+  })));
+}));
+
+app.delete('/api/admin/users/:id', requireAdmin, route(async (req, res) => {
+  const row = await db.prepare('SELECT id FROM users WHERE id = ?').get(req.params.id);
+  if (!row) return bad(res, 'המשתמש לא נמצא', 404);
+
+  const videos = await db.prepare('SELECT id FROM videos WHERE author_id = ?').all(row.id);
+  await db.prepare('DELETE FROM users WHERE id = ?').run(row.id);   // מוחק בשרשור
+  for (const v of videos) await removeFiles(v.id);
+
+  res.json({ ok: true });
+}));
+
+app.get('/api/admin/videos', requireAdmin, route(async (req, res) => {
+  const rows = await db.prepare(`
+    SELECT v.id, v.title, v.kind, v.region, v.has_file, v.is_demo, v.created_at,
+           u.name AS author_name, u.id AS author_id
+      FROM videos v JOIN users u ON u.id = v.author_id
+     ORDER BY v.created_at DESC`).all();
+
+  res.json(rows.map((r) => ({
+    id: r.id, title: r.title, kind: r.kind, region: r.region,
+    hasFile: !!r.has_file, isDemo: !!r.is_demo, createdAt: r.created_at,
+    authorId: r.author_id, authorName: r.author_name,
+  })));
+}));
+
+app.delete('/api/admin/videos/:id', requireAdmin, route(async (req, res) => {
+  const row = await db.prepare('SELECT id FROM videos WHERE id = ?').get(req.params.id);
+  if (!row) return bad(res, 'הסרטון לא נמצא', 404);
+
+  await db.prepare('DELETE FROM videos WHERE id = ?').run(row.id);
+  await removeFiles(row.id);
+  res.json({ ok: true });
 }));
 
 /* ==========================================================================

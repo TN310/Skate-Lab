@@ -34,6 +34,8 @@ services:
         sync: false
       - key: CLOUDINARY_API_SECRET
         sync: false
+      - key: ADMIN_PASSWORD
+        sync: false        # סיסמת /admin.html למחיקת משתמשים וסרטונים
       - key: INVITE_CODE
         sync: false        # בלי קוד הזמנה נכון אי אפשר להירשם
       - key: ANTHROPIC_API_KEY

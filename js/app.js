@@ -920,7 +920,7 @@ Screens.upload = {
           <div class="field">
             <label class="field__label" for="up-region">אזור</label>
             <select id="up-region" class="select ${errors.region ? 'select--error' : ''}">
-              <option value="">בחרו אזור</option>
+              <option value="">${gt('בחר','בחרי','בחרו')} אזור</option>
               ${Store.REGIONS.map((r) =>
                 `<option value="${esc(r)}" ${upload.region === r ? 'selected' : ''}>${r}</option>`).join('')}
             </select>
@@ -1822,7 +1822,7 @@ function profileEditor() {
       <div class="field">
         <label class="field__label" for="ed-region">אזור</label>
         <select id="ed-region" class="select">
-          <option value="">בחרו אזור</option>
+          <option value="">${gt('בחר','בחרי','בחרו')} אזור</option>
           ${Store.REGIONS.map((r) =>
             `<option value="${esc(r)}" ${d.region === r ? 'selected' : ''}>${r}</option>`).join('')}
         </select>

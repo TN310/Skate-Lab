@@ -11,6 +11,15 @@ let draft = Store.getDraft();
 let busy = false;
 let needsInvite = false;   // נקבע פעם אחת מהשרת
 let inviteCode = '';       // נשמר כדי שלא ייעלם ברענון המסך
+
+/*
+ * הסיסמאות נשמרות כאן בין רינדורים. בלי זה כל שגיאת ולידציה מוחקת את
+ * שני השדות בשקט, המשתמש ממלא רק אחד מהם ומקבל "הסיסמאות לא זהות"
+ * בלי להבין למה. הן מוחזרות ל-DOM ב-bind ולא נכתבות לתוך ה-HTML,
+ * כדי שהסיסמה לא תשב במחרוזת הדף.
+ */
+let pw1Value = '';
+let pw2Value = '';
 const persist = () => Store.saveDraft(draft);
 
 function progressBar(step) {
@@ -413,7 +422,7 @@ Screens.password = {
     <div class="screen__body">
       <p class="eyebrow">שלב 5</p>
       <h1>${gt('בחר','בחרי','בחרו')} סיסמה</h1>
-      <p class="lead">תצטרכו אותה בפעם הבאה שתתחברו.</p>
+      <p class="lead">${gt('תצטרך אותה בפעם הבאה שתתחבר','תצטרכי אותה בפעם הבאה שתתחברי','תצטרכו אותה בפעם הבאה שתתחברו')}.</p>
 
       <div class="field" style="margin-top:28px">
         <label class="field__label" for="pw1">סיסמה</label>
@@ -457,9 +466,20 @@ Screens.password = {
   },
 
   bind() {
+    // החזרת מה שהוקלד לפני הרינדור האחרון
+    $('#pw1').value = pw1Value;
+    $('#pw2').value = pw2Value;
+    $('#pw1').oninput = () => { pw1Value = $('#pw1').value; };
+    $('#pw2').oninput = () => { pw2Value = $('#pw2').value; };
+
     const submit = async () => {
-      const pw1 = $('#pw1').value;
-      const pw2 = $('#pw2').value;
+      /*
+       * trim בכוונה: העתקה־הדבקה גוררת לא פעם רווח או ירידת שורה בסוף,
+       * ואז שתי סיסמאות שנראות זהות נדחות. הקיצוץ נעשה גם בהתחברות
+       * ובשרת, כדי שמה שנשמר יהיה מה שייבדק.
+       */
+      const pw1 = $('#pw1').value.trim();
+      const pw2 = $('#pw2').value.trim();
 
       errors = {};
       if (pw1.length < Store.MIN_PASSWORD) {
@@ -480,6 +500,7 @@ Screens.password = {
         await Store.register(draft, pw1, inviteCode);
         draft = {};
         inviteCode = '';
+        pw1Value = pw2Value = '';
         navigate('done');
       } catch (err) {
         errors.submit = err.message;
@@ -504,7 +525,7 @@ Screens.done = {
       <p class="lead">${gt('ברוך הבא','ברוכה הבאה','ברוכים הבאים')} ל-Skate Lab. בוא${gt('','י','ו')} נראה מה מחכה ${gt('לך','לך','לכם')}.</p>
     </div>
     <div class="screen__footer">
-      <button class="btn btn--primary" data-home>קחו אותי לפיד</button>
+      <button class="btn btn--primary" data-home>${gt('קח','קחי','קחו')} אותי לפיד</button>
     </div>`,
 
   bind() {
@@ -520,7 +541,7 @@ Screens.login = {
       <button class="iconbtn" data-back aria-label="חזרה">→</button>
     </div>
     <div class="screen__body">
-      <h1>ברוכים השבים</h1>
+      <h1>${gt('ברוך השב','ברוכה השבה','ברוכים השבים')}</h1>
       <p class="lead">הכניסו את השם והסיסמה שנרשמתם איתם.</p>
 
       <div class="field" style="margin-top:28px">
@@ -553,7 +574,7 @@ Screens.login = {
       busy = true;
       rerender();
       try {
-        await Store.login(name.value, pw.value);
+        await Store.login(name.value, pw.value.trim());
         navigate('feed');
       } catch (err) {
         errors.login = err.message;

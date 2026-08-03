@@ -112,7 +112,14 @@ app.post('/api/auth/register',
   if (!inviteOk(invite)) return bad(res, 'קוד ההזמנה לא נכון', 403);
 
   if (!name || name.trim().length < 2) return bad(res, 'צריך שם של שני תווים לפחות');
-  if (!password || password.length < 4) return bad(res, 'הסיסמה צריכה להיות באורך 4 תווים לפחות');
+
+  /*
+   * רווחים בקצוות נחתכים בשני המסלולים — הרשמה והתחברות. העתקה־הדבקה
+   * גוררת לא פעם רווח נסתר, ובלי הקיצוץ המשתמש נרשם עם סיסמה שהוא לא
+   * יוכל להקליד שוב.
+   */
+  const pass = String(password ?? '').trim();
+  if (pass.length < 4) return bad(res, 'הסיסמה צריכה להיות באורך 4 תווים לפחות');
   if (!['coach', 'student', 'fan'].includes(role)) return bad(res, 'תפקיד לא תקין');
 
   // המייל אופציונלי — מי שלא רוצה למסור, לא חייב
@@ -133,7 +140,7 @@ app.post('/api/auth/register',
     INSERT INTO users (id, slug, name, email, password_hash, avatar, gender, stance, dob, role,
                        level, region, city, years, bio, styles, base_followers, is_demo, created_at)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, 0, 0, ?)`)
-    .run(id, slug, name.trim(), mail, await hashPassword(password), safeEmoji(avatar),
+    .run(id, slug, name.trim(), mail, await hashPassword(pass), safeEmoji(avatar),
          gender || 'na', stance || 'unknown', birth, role, level || null, region || null,
          (city || '').trim() || null, years || null, JSON.stringify(styles || []), now());
 
@@ -150,7 +157,8 @@ app.post('/api/auth/login',
   const row = await getUserBySlug(slugify(name || ''));
 
   // אותה הודעה לשם לא קיים ולסיסמה שגויה, כדי לא לחשוף מי רשום
-  if (!row || !row.password_hash || !await verifyPassword(password || '', row.password_hash)) {
+  if (!row || !row.password_hash ||
+      !await verifyPassword(String(password ?? '').trim(), row.password_hash)) {
     return bad(res, 'שם או סיסמה לא נכונים', 401);
   }
 

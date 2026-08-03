@@ -532,8 +532,8 @@ Screens.video = {
 
         ${ME ? `
           <div class="composer" id="composer">
-            <input id="comment-input" class="input" maxlength="300"
-                   placeholder="${isLesson ? 'שאלו את המאמן…' : 'תנו פידבק לרוכב…'}">
+            <textarea id="comment-input" class="input composer__box" maxlength="300" rows="1"
+                      placeholder="${isLesson ? 'שאלו את המאמן…' : 'תנו פידבק לרוכב…'}"></textarea>
             <button class="btn btn--primary btn--sm" data-send>שליחה</button>
           </div>
           <p class="composer__hint" data-reply-hint hidden></p>
@@ -612,6 +612,7 @@ Screens.video = {
         return;
       }
       input.value = '';
+      input.style.height = '';   // חזרה לגובה שורה אחת אחרי שליחה
 
       const placeholder = $('[data-no-comments]');
       if (placeholder) placeholder.remove();
@@ -674,6 +675,7 @@ Screens.video = {
           showAi([look, draft].filter(Boolean).join('\n\n'));
           // הטיוטה נכנסת לתיבת התגובה כדי שהמאמן יערוך וישלח בעצמו
           input.value = draft;
+          input.dispatchEvent(new Event('input'));   // שהתיבה תגדל לפי אורך הטיוטה
           input.focus();
         } catch (err) {
           showAi(err.message);
@@ -683,7 +685,26 @@ Screens.video = {
 
     bindReplyButtons();
     $('[data-send]').onclick = send;
-    input.onkeydown = (e) => { if (e.key === 'Enter') send(); };
+
+    /*
+     * התיבה היא textarea, אז היא גדלה עם הטקסט. מאפסים את הגובה לפני
+     * המדידה, אחרת scrollHeight נשאר תקוע על הגובה הקודם והתיבה לא
+     * מתכווצת כשמוחקים שורות.
+     */
+    const autoGrow = () => {
+      input.style.height = 'auto';
+      input.style.height = `${input.scrollHeight}px`;
+    };
+    input.oninput = autoGrow;
+
+    // Enter שולח כמו קודם; Shift+Enter יורד שורה. בלי preventDefault
+    // ה-Enter היה גם שולח וגם מוסיף שורה ריקה לתיבה.
+    input.onkeydown = (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        send();
+      }
+    };
 
     const del = $('[data-delete]');
     if (del) {

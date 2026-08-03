@@ -1071,10 +1071,37 @@ button.inboxrow__on {
 .inboxrow.is-waiting .inboxrow__state { color: var(--accent-2); }
 .comment__body { flex: 1; min-width: 0; }
 .comment__head { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 14px; }
-.comment__text { margin-top: 5px; font-size: 14px; line-height: 1.55; color: var(--muted); }
+/*
+ * pre-wrap שומר את השורות שהמשתמש כתב — בלעדיו תגובה רב-שורתית
+ * נדחסת לפסקה אחת. wrap-anywhere מונע ממילה ארוכה בלי רווחים
+ * (למשל כתובת) לפרוץ את רוחב הכרטיס.
+ */
+.comment__text {
+  margin-top: 5px;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--muted);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
 
-.composer { display: flex; gap: 8px; margin-top: 18px; }
+.composer { display: flex; gap: 8px; margin-top: 18px; align-items: flex-end; }
 .composer .input { flex: 1; }
+
+/*
+ * תיבת התגובה היא textarea כדי שטיוטת הפידבק של ה-AI תישמר עם השורות
+ * שלה. היא מתחילה בגובה של שורה אחת וגדלה עם הטקסט (הגובה נקבע ב-JS),
+ * עד גובה שממנו היא מתחילה לגלול במקום לדחוף את הכפתור החוצה.
+ */
+.composer__box {
+  resize: none;
+  overflow-y: auto;
+  min-height: 54px;
+  max-height: 160px;
+  line-height: 1.5;
+  padding-top: 15px;
+  padding-bottom: 15px;
+}
 
 .btn--sm { width: auto; min-height: 54px; padding: 0 22px; font-size: 15px; }
 

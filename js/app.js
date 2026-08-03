@@ -22,13 +22,14 @@ function clearPendingThumb() {
  * שהמשתמש הקודם בחר ולא פרסם.
  */
 function resetScreenState() {
+  editDraft = null;
   trail.length = 0;
   clearPendingThumb();
   pendingFile = null;
   Object.assign(feedFilter, { region: null, kind: null, onlyFollowed: false });
   Object.assign(coachFilter, { region: null, style: null, query: '', onlyFollowed: false });
   Object.assign(search, { query: '', region: null, kind: null, tab: 'videos' });
-  Object.assign(upload, { title: '', desc: '', level: null, region: undefined, styles: [], poster: '🛹' });
+  Object.assign(upload, { kind: undefined, title: '', desc: '', level: null, region: undefined, styles: [], poster: '🛹' });
 }
 
 /** שורת צ'יפים לסינון לפי אזור. */
@@ -1774,6 +1775,115 @@ function achievementsBlock(ach) {
 /** האם אזור מחיקת החשבון פתוח כרגע, ומצב הטופס שלו. */
 let dangerZoneOpen = false;
 
+/*
+ * טיוטת עריכת הפרופיל. null = לא עורכים כרגע.
+ * מוחזקת בנפרד מ-ME כדי שאפשר יהיה לבטל בלי לגעת בנתונים האמיתיים.
+ */
+let editDraft = null;
+
+/** טופס עריכת הפרופיל. עובד על editDraft, לא על ME. */
+function profileEditor() {
+  const d = editDraft;
+  return `
+    <div class="card">
+      <h3 style="margin-bottom:16px">עריכת הפרופיל</h3>
+
+      <div class="field">
+        <label class="field__label">אווטאר</label>
+        <div class="avatars">
+          ${Store.AVATARS.map((a) => `
+            <button type="button" class="avatar-opt" data-ed-avatar="${a}"
+                    aria-pressed="${d.avatar === a}">${a}</button>`).join('')}
+        </div>
+      </div>
+
+      <div class="field">
+        <label class="field__label" for="ed-name">שם</label>
+        <input id="ed-name" class="input ${errors.name ? 'input--error' : ''}"
+               value="${esc(d.name)}" maxlength="30">
+        ${errorFor('name')}
+      </div>
+
+      <div class="field">
+        <label class="field__label" for="ed-email">מייל <span class="muted">(לא חובה)</span></label>
+        <input id="ed-email" type="email" class="input ${errors.email ? 'input--error' : ''}"
+               value="${esc(d.email || '')}" maxlength="254" autocomplete="email"
+               placeholder="you@example.com">
+        <p class="field__hint">לא מוצג לאף אחד אחר. שמור למקרה שנוסיף שחזור סיסמה.</p>
+        ${errorFor('email')}
+      </div>
+
+      <div class="field">
+        <label class="field__label" for="ed-bio">קצת עליי <span class="muted">(לא חובה)</span></label>
+        <textarea id="ed-bio" class="input input--area" maxlength="300" rows="3"
+                  placeholder="מה אתם אוהבים לרכוב, איפה, כמה זמן…">${esc(d.bio || '')}</textarea>
+      </div>
+
+      <div class="field">
+        <label class="field__label" for="ed-region">אזור</label>
+        <select id="ed-region" class="select">
+          <option value="">בחרו אזור</option>
+          ${Store.REGIONS.map((r) =>
+            `<option value="${esc(r)}" ${d.region === r ? 'selected' : ''}>${r}</option>`).join('')}
+        </select>
+      </div>
+
+      <div class="field">
+        <label class="field__label" for="ed-city">עיר <span class="muted">(לא חובה)</span></label>
+        <input id="ed-city" class="input" value="${esc(d.city || '')}" maxlength="40">
+      </div>
+
+      <div class="field">
+        <label class="field__label">הרמה שלי</label>
+        <div class="chips">
+          ${Store.LEVELS.map((l) => `
+            <button type="button" class="chip" data-ed-level="${esc(l)}"
+                    aria-pressed="${d.level === l}">${l}</button>`).join('')}
+        </div>
+      </div>
+
+      <div class="field">
+        <label class="field__label">סגנונות</label>
+        <div class="chips">
+          ${Store.STYLES.map((s) => `
+            <button type="button" class="chip" data-ed-style="${esc(s)}"
+                    aria-pressed="${d.styles.includes(s)}">${s}</button>`).join('')}
+        </div>
+      </div>
+
+      <div class="field">
+        <label class="field__label">איזו רגל קדימה?</label>
+        <div class="chips">
+          ${Store.STANCES.map((s) => `
+            <button type="button" class="chip" data-ed-stance="${s.id}"
+                    aria-pressed="${d.stance === s.id}">${s.label}</button>`).join('')}
+        </div>
+      </div>
+
+      <div class="field">
+        <label class="field__label">מגדר</label>
+        <div class="chips">
+          ${Store.GENDERS.map((g) => `
+            <button type="button" class="chip" data-ed-gender="${g.id}"
+                    aria-pressed="${d.gender === g.id}">${g.label}</button>`).join('')}
+        </div>
+      </div>
+
+      <div class="field">
+        <label class="field__label" for="ed-years">שנות רכיבה <span class="muted">(לא חובה)</span></label>
+        <input id="ed-years" type="number" min="0" max="80" class="input"
+               value="${d.years ?? ''}">
+      </div>
+
+      ${errorFor('save')}
+
+      <div class="composer" style="margin-top:20px">
+        <button class="btn btn--primary" data-save-profile style="flex:1">שמירה</button>
+        <button class="btn btn--ghost btn--sm" data-cancel-edit>ביטול</button>
+      </div>
+    </div>`;
+}
+
 Screens.profile = {
   async html() {
     if (!ME) return `${header('הפרופיל שלי')}${empty('🔒', 'לא מחוברים', 'התחברו כדי לראות את הפרופיל.')}${tabbar('profile')}`;
@@ -1790,6 +1900,7 @@ Screens.profile = {
       <div class="screen__body has-tabs">
         ${header('הפרופיל שלי')}
 
+        ${editDraft ? profileEditor() : `
         <div class="card profile">
           <div class="profile__avatar">${esc(ME.avatar)}</div>
           <div class="profile__name">${esc(ME.name)}</div>
@@ -1801,6 +1912,9 @@ Screens.profile = {
             ${ME.years ? ` · ${ME.years}+ שנות רכיבה` : ''}
             ${gender && gender.id !== 'na' ? ` · ${esc(gender.label)}` : ''}
           </p>
+          ${ME.bio ? `<p class="lead" style="margin-top:12px">${esc(ME.bio)}</p>` : ''}
+          ${ME.email ? `<p class="small muted" style="margin-top:8px">✉️ ${esc(ME.email)}
+            <span class="tag" style="margin-inline-start:6px">גלוי רק לכם</span></p>` : ''}
           ${ME.styles.length ? `
             <div class="chips" style="justify-content:center;margin-top:14px">
               ${ME.styles.map((s) => `<span class="tag">${esc(s)}</span>`).join('')}
@@ -1810,7 +1924,8 @@ Screens.profile = {
             <div class="stat"><div class="stat__num">${favorites.length}</div><div class="stat__label">מועדפים</div></div>
             <div class="stat"><div class="stat__num">${chats.length}</div><div class="stat__label">חברים</div></div>
           </div>
-        </div>
+          <button class="btn btn--ghost" data-edit-profile style="margin-top:18px">✏️ עריכת הפרופיל</button>
+        </div>`}
 
         ${await bagSection(ME.id, { mine: true })}
 
@@ -1848,6 +1963,111 @@ Screens.profile = {
   },
 
   bind() {
+    // ----- עריכת הפרופיל -----
+    const startEdit = $('[data-edit-profile]');
+    if (startEdit) {
+      startEdit.onclick = () => {
+        // עותק של הערכים הנוכחיים, כדי שביטול באמת יבטל
+        editDraft = {
+          name: ME.name, email: ME.email || '', bio: ME.bio || '',
+          avatar: ME.avatar, region: ME.region || '', city: ME.city || '',
+          level: ME.level || null, styles: [...(ME.styles || [])],
+          stance: ME.stance || 'unknown', gender: ME.gender || 'na',
+          years: ME.years ?? '',
+        };
+        errors = {};
+        rerender();
+      };
+    }
+
+    if (editDraft) {
+      const d = editDraft;
+
+      // שדות טקסט נקראים בזמן השמירה, אז מספיק לשמור את מה שנבחר בלחיצות
+      $$('[data-ed-avatar]').forEach((b) => {
+        b.onclick = () => {
+          d.avatar = b.dataset.edAvatar;
+          $$('[data-ed-avatar]').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+        };
+      });
+
+      $$('[data-ed-level]').forEach((b) => {
+        b.onclick = () => {
+          // לחיצה שנייה על אותה רמה מבטלת אותה
+          d.level = d.level === b.dataset.edLevel ? null : b.dataset.edLevel;
+          $$('[data-ed-level]').forEach((x) =>
+            x.setAttribute('aria-pressed', String(x.dataset.edLevel === d.level)));
+        };
+      });
+
+      $$('[data-ed-style]').forEach((b) => {
+        b.onclick = () => {
+          const set = new Set(d.styles);
+          const v = b.dataset.edStyle;
+          set.has(v) ? set.delete(v) : set.add(v);
+          d.styles = [...set];
+          b.setAttribute('aria-pressed', String(set.has(v)));
+        };
+      });
+
+      $$('[data-ed-stance]').forEach((b) => {
+        b.onclick = () => {
+          d.stance = b.dataset.edStance;
+          $$('[data-ed-stance]').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+        };
+      });
+
+      $$('[data-ed-gender]').forEach((b) => {
+        b.onclick = () => {
+          d.gender = b.dataset.edGender;
+          $$('[data-ed-gender]').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+        };
+      });
+
+      const cancel = $('[data-cancel-edit]');
+      if (cancel) cancel.onclick = () => { editDraft = null; errors = {}; rerender(); };
+
+      const save = $('[data-save-profile]');
+      if (save) {
+        save.onclick = async () => {
+          if (save.disabled) return;
+          errors = {};
+
+          const name = $('#ed-name').value.trim();
+          if (name.length < 2) errors.name = 'צריך שם של שני תווים לפחות';
+          if (Object.values(errors).some(Boolean)) return rerender();
+
+          save.disabled = true;
+          save.textContent = 'שומר…';
+
+          try {
+            const updated = await Store.updateProfile({
+              name,
+              email: $('#ed-email').value.trim(),
+              bio: $('#ed-bio').value,
+              city: $('#ed-city').value,
+              years: $('#ed-years').value,
+              avatar: d.avatar,
+              region: $('#ed-region').value,
+              level: d.level,
+              styles: d.styles,
+              stance: d.stance,
+              gender: d.gender,
+            });
+            // ME מתעדכן מהתשובה של השרת, לא מהטיוטה — כך שמה שמוצג
+            // הוא מה שבאמת נשמר, כולל נרמול של המייל
+            ME = updated;
+            editDraft = null;
+          } catch (err) {
+            errors.save = err.message;
+            save.disabled = false;
+            save.textContent = 'שמירה';
+          }
+          rerender();
+        };
+      }
+    }
+
     const out = $('[data-logout]');
     if (out) {
       out.onclick = async () => {

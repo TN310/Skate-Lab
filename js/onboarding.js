@@ -400,6 +400,15 @@ Screens.password = {
       </div>
 
       <div class="field">
+        <label class="field__label" for="mail">מייל <span class="muted">(לא חובה)</span></label>
+        <input id="mail" type="email" class="input ${errors.email ? 'input--error' : ''}"
+               value="${esc(draft.email || '')}" placeholder="you@example.com"
+               autocomplete="email" maxlength="254">
+        <p class="field__hint">לא מוצג לאף אחד. אפשר גם להוסיף אחר כך בפרופיל.</p>
+        ${errorFor('email')}
+      </div>
+
+      <div class="field">
         <label class="field__label" for="pw2">אימות סיסמה</label>
         <input id="pw2" type="password" class="input ${errors.password2 ? 'input--error' : ''}"
                placeholder="שוב, בשביל לוודא" autocomplete="new-password">

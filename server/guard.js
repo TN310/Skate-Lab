@@ -46,9 +46,14 @@ export const ipOf = (req) =>
  * שימו לב: זה חוסם רק הצפה אוטומטית. מי שמחליף כתובת יעקוף — לכן
  * זה נלווה לקוד ההזמנה ולא מחליף אותו.
  */
-export const rateLimit = ({ max, windowMs, message }) => (req, res, next) => {
+export const rateLimit = ({ max, windowMs, message, envKey }) => (req, res, next) => {
+  // כשיש envKey אפשר לכוונן את התקרה בלי שינוי קוד ובלי פריסה מחדש
+  const limit = envKey && Number(process.env[envKey]) > 0
+    ? Number(process.env[envKey])
+    : max;
+
   const key = `${req.method}:${req.path}:${ipOf(req)}`;
-  if (tooMany(key, { max, windowMs })) {
+  if (tooMany(key, { max: limit, windowMs })) {
     res.setHeader('Retry-After', retryIn(key));
     return res.status(429).json({ error: `${message} נסו שוב בעוד ${retryIn(key)} שניות.` });
   }

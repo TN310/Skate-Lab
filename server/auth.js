@@ -5,7 +5,7 @@
 
 import { randomBytes, scrypt, timingSafeEqual } from 'node:crypto';
 import { promisify } from 'node:util';
-import { db, now, publicUser, getUserRow } from './db.js';
+import { db, now, privateUser, getUserRow } from './db.js';
 
 const scryptAsync = promisify(scrypt);
 
@@ -55,7 +55,9 @@ export async function attachUser(req, res, next) {
     const token = req.cookies?.[SESSION_COOKIE];
     if (token) {
       const row = await db.prepare('SELECT user_id FROM sessions WHERE token = ?').get(token);
-      if (row) req.user = await publicUser(await getUserRow(row.user_id));
+      // privateUser ולא publicUser: זה החשבון של המבקש עצמו, אז מותר
+      // לו לראות את המייל שלו. הוא לא נחשף לאף אחד אחר.
+      if (row) req.user = await privateUser(await getUserRow(row.user_id));
     }
   } catch (err) {
     console.error('attachUser נכשל, ממשיכים בלי משתמש:', err.message);

@@ -102,12 +102,13 @@
       body.innerHTML = `
         <table>
           <thead><tr>
-            <th>שם</th><th>תפקיד</th><th>אזור</th><th>סרטונים</th><th>נרשם</th><th></th>
+            <th>שם</th><th>מייל</th><th>תפקיד</th><th>אזור</th><th>סרטונים</th><th>נרשם</th><th></th>
           </tr></thead>
           <tbody>
             ${rows.map((u) => `
               <tr data-id="${esc(u.id)}">
                 <td>${esc(u.name)} ${u.isDemo ? '<span class="tag">דמו</span>' : ''}</td>
+                <td class="muted">${esc(u.email || '—')}</td>
                 <td>${esc(u.role)}</td>
                 <td>${esc(u.region || '—')}</td>
                 <td>${u.videoCount}</td>

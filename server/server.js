@@ -11,7 +11,7 @@ import { stat } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { db, now, newId, slugify, publicUser, publicVideo,
+import { db, now, newId, slugify, publicUser, privateUser, publicVideo,
          getUserRow, getUserBySlug, USER_SELECT } from './db.js';
 import { put as putFile, remove as removeFiles, UPLOADS, usingCloud } from './storage.js';
 import { hashPassword, verifyPassword, createSession, destroySession,
@@ -65,6 +65,26 @@ const ALLOWED_EMOJI = new Set(
 
 const safeEmoji = (value) => ALLOWED_EMOJI.has(value) ? value : '🛹';
 
+/**
+ * מנקה ובודק כתובת מייל.
+ * מחזיר null כשלא נמסרה כתובת (זה תקין — השדה אופציונלי),
+ * false כשהיא לא תקינה, או את הכתובת המנורמלת.
+ * הבדיקה מכוונת לתפוס שגיאות הקלדה, לא לאמת שהתיבה באמת קיימת.
+ */
+function cleanEmail(value) {
+  const mail = String(value ?? '').trim().toLowerCase();
+  if (!mail) return null;
+  if (mail.length > 254) return false;
+  return /^[^\s@]+@[^\s@.]+\.[^\s@]+$/.test(mail) ? mail : false;
+}
+
+/** האם המייל כבר תפוס. `exceptId` מאפשר למשתמש לשמור את הכתובת של עצמו. */
+async function emailTaken(mail, exceptId = null) {
+  const row = await db.prepare(
+    'SELECT id FROM users WHERE LOWER(email) = ? AND id <> ?').get(mail, exceptId || '');
+  return !!row;
+}
+
 /* ==========================================================================
    התחברות והרשמה
    ========================================================================== */
@@ -75,10 +95,17 @@ app.get('/api/health', (req, res) => res.json({ ok: true }));
 
 app.get('/api/auth/invite-required', (req, res) => res.json({ required: inviteRequired() }));
 
+/*
+ * 20 ולא 5: קבוצה שנרשמת מאותו wifi (פארק, בית ספר, נקודה חמה) נראית
+ * לשרת ככתובת אחת, ותקרה נמוכה הייתה נועלת את כולם אחרי כמה הרשמות.
+ * ההגנה האמיתית מפני הרשמות לא רצויות היא קוד ההזמנה; זה רק בלם הצפה.
+ * לכוונון בלי פריסה מחדש: REGISTER_LIMIT_HOUR.
+ */
 app.post('/api/auth/register',
-  rateLimit({ max: 5, windowMs: 3_600_000, message: 'יותר מדי הרשמות מהכתובת הזאת.' }),
+  rateLimit({ max: 20, windowMs: 3_600_000, envKey: 'REGISTER_LIMIT_HOUR',
+              message: 'יותר מדי הרשמות מהכתובת הזאת.' }),
   route(async (req, res) => {
-  const { name, password, avatar, gender, stance, dob, role, level, region, city, years,
+  const { name, password, email, avatar, gender, stance, dob, role, level, region, city, years,
           styles, invite } = req.body || {};
 
   // קוד ההזמנה נבדק ראשון: בלעדיו אין טעם להמשיך
@@ -87,6 +114,11 @@ app.post('/api/auth/register',
   if (!name || name.trim().length < 2) return bad(res, 'צריך שם של שני תווים לפחות');
   if (!password || password.length < 4) return bad(res, 'הסיסמה צריכה להיות באורך 4 תווים לפחות');
   if (!['coach', 'student', 'fan'].includes(role)) return bad(res, 'תפקיד לא תקין');
+
+  // המייל אופציונלי — מי שלא רוצה למסור, לא חייב
+  const mail = cleanEmail(email);
+  if (mail === false) return bad(res, 'כתובת המייל לא נראית תקינה');
+  if (mail && await emailTaken(mail)) return bad(res, 'כתובת המייל הזאת כבר רשומה', 409);
 
   // תאריך הלידה נשמר כמחרוזת ISO. כל דבר אחר נדחה כאן, אחרת SQLite זורק
   // שגיאה והתשובה היא 500 מבלבל במקום הודעה ברורה.
@@ -98,20 +130,21 @@ app.post('/api/auth/register',
 
   const id = newId('u');
   await db.prepare(`
-    INSERT INTO users (id, slug, name, password_hash, avatar, gender, stance, dob, role,
+    INSERT INTO users (id, slug, name, email, password_hash, avatar, gender, stance, dob, role,
                        level, region, city, years, bio, styles, base_followers, is_demo, created_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, 0, 0, ?)`)
-    .run(id, slug, name.trim(), await hashPassword(password), safeEmoji(avatar),
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, 0, 0, ?)`)
+    .run(id, slug, name.trim(), mail, await hashPassword(password), safeEmoji(avatar),
          gender || 'na', stance || 'unknown', birth, role, level || null, region || null,
          (city || '').trim() || null, years || null, JSON.stringify(styles || []), now());
 
   await greetNewUser(id);
   setSessionCookie(res, await createSession(id));
-  res.json(await publicUser(await getUserRow(id)));
+  res.json(await privateUser(await getUserRow(id)));
 }));
 
 app.post('/api/auth/login',
-  rateLimit({ max: 10, windowMs: 900_000, message: 'יותר מדי נסיונות התחברות.' }),
+  rateLimit({ max: 30, windowMs: 900_000, envKey: 'LOGIN_LIMIT_QUARTER',
+              message: 'יותר מדי נסיונות התחברות.' }),
   route(async (req, res) => {
   const { name, password } = req.body || {};
   const row = await getUserBySlug(slugify(name || ''));
@@ -122,7 +155,7 @@ app.post('/api/auth/login',
   }
 
   setSessionCookie(res, await createSession(row.id));
-  res.json(await publicUser(row));
+  res.json(await privateUser(row));
 }));
 
 app.post('/api/auth/logout', route(async (req, res) => {
@@ -132,6 +165,79 @@ app.post('/api/auth/logout', route(async (req, res) => {
 }));
 
 app.get('/api/auth/me', (req, res) => res.json(req.user));
+
+/**
+ * עריכת הפרופיל.
+ * רק שדות שנשלחו מתעדכנים, כדי שמסך שמעדכן חלק מהשדות לא ימחק את השאר.
+ *
+ * מה שאי אפשר לשנות כאן בכוונה: התפקיד (משנה את כל ההרשאות),
+ * תאריך הלידה (הגיל מוצג לכולם) והסיסמה — כל אלה דורשים מסלול נפרד.
+ */
+app.patch('/api/me', requireUser, route(async (req, res) => {
+  const body = req.body || {};
+  const sets = [];
+  const values = [];
+
+  const put = (column, value) => { sets.push(`${column} = ?`); values.push(value); };
+
+  if (body.name !== undefined) {
+    const name = String(body.name).trim();
+    if (name.length < 2) return bad(res, 'צריך שם של שני תווים לפחות');
+
+    // השם הוא גם המזהה להתחברות, אז שינוי שלו חייב להישאר ייחודי
+    const slug = slugify(name);
+    const clash = await getUserBySlug(slug);
+    if (clash && clash.id !== req.user.id) return bad(res, 'השם הזה כבר תפוס', 409);
+
+    put('name', name);
+    put('slug', slug);
+  }
+
+  if (body.email !== undefined) {
+    const mail = cleanEmail(body.email);
+    if (mail === false) return bad(res, 'כתובת המייל לא נראית תקינה');
+    if (mail && await emailTaken(mail, req.user.id)) {
+      return bad(res, 'כתובת המייל הזאת כבר רשומה', 409);
+    }
+    put('email', mail);
+  }
+
+  if (body.avatar !== undefined) put('avatar', safeEmoji(body.avatar));
+  if (body.region !== undefined) put('region', body.region || null);
+  if (body.city !== undefined) put('city', String(body.city).trim() || null);
+  if (body.bio !== undefined) put('bio', String(body.bio).trim().slice(0, 300) || null);
+  if (body.level !== undefined) put('level', body.level || null);
+
+  if (body.gender !== undefined) {
+    if (!['male', 'female', 'na'].includes(body.gender)) return bad(res, 'מגדר לא תקין');
+    put('gender', body.gender);
+  }
+
+  if (body.stance !== undefined) {
+    if (!['regular', 'goofy', 'unknown'].includes(body.stance)) return bad(res, 'סטאנס לא תקין');
+    put('stance', body.stance);
+  }
+
+  if (body.years !== undefined) {
+    const years = Number(body.years);
+    if (body.years !== null && body.years !== '' && (!Number.isFinite(years) || years < 0 || years > 80)) {
+      return bad(res, 'מספר שנות הרכיבה לא תקין');
+    }
+    put('years', body.years === null || body.years === '' ? null : Math.floor(years));
+  }
+
+  if (body.styles !== undefined) {
+    if (!Array.isArray(body.styles)) return bad(res, 'סגנונות לא תקינים');
+    put('styles', JSON.stringify(body.styles));
+  }
+
+  if (!sets.length) return bad(res, 'לא נשלח שום שדה לעדכון');
+
+  values.push(req.user.id);
+  await db.prepare(`UPDATE users SET ${sets.join(', ')} WHERE id = ?`).run(...values);
+
+  res.json(await privateUser(await getUserRow(req.user.id)));
+}));
 
 /**
  * מחיקת חשבון. דורשת הזנת הסיסמה מחדש, כי הפעולה בלתי הפיכה.
@@ -847,13 +953,13 @@ app.post('/api/admin/logout', (req, res) => {
 
 app.get('/api/admin/users', requireAdmin, route(async (req, res) => {
   const rows = await db.prepare(`
-    SELECT u.id, u.name, u.role, u.region, u.is_demo, u.created_at,
+    SELECT u.id, u.name, u.email, u.role, u.region, u.is_demo, u.created_at,
            (SELECT COUNT(*)::int FROM videos v WHERE v.author_id = u.id) AS video_count
       FROM users u
      ORDER BY u.created_at DESC`).all();
 
   res.json(rows.map((r) => ({
-    id: r.id, name: r.name, role: r.role, region: r.region,
+    id: r.id, name: r.name, email: r.email || null, role: r.role, region: r.region,
     isDemo: !!r.is_demo, createdAt: r.created_at, videoCount: r.video_count,
   })));
 }));

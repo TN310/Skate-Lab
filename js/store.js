@@ -158,6 +158,7 @@ const Store = (() => {
         name: draft.name,
         password,
         invite,
+        email: draft.email || null,
         avatar: draft.avatar || '🛹',
         gender: draft.gender || 'na',
         stance: draft.stance || 'unknown',
@@ -182,6 +183,9 @@ const Store = (() => {
   const deleteAccount = (password) => api('/auth/delete', { method: 'POST', body: { password } });
 
   const currentUser = () => api('/auth/me');
+
+  /** עדכון הפרופיל. נשלחים רק השדות שהשתנו. */
+  const updateProfile = (fields) => api('/me', { method: 'PATCH', body: fields });
 
   /* ---------- משתמשים, מאמנים ומועדפים ---------- */
 
@@ -307,7 +311,7 @@ const Store = (() => {
     ROLES, REGIONS, GENDERS, STANCES, KINDS, LEVELS, STYLES, AVATARS, MIN_PASSWORD,
     ageFrom, isRealDate,
     getDraft, saveDraft, clearDraft,
-    register, login, logout, deleteAccount, currentUser, inviteRequired,
+    register, login, logout, deleteAccount, currentUser, updateProfile, inviteRequired,
     getUser, listCoaches, listPeople, toggleFollow,
     listVideos, getVideo, addVideo, deleteVideo, toggleLike, countView, addComment, myVideoStats,
     listInbox, countWaiting,

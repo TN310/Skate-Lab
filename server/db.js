@@ -107,6 +107,7 @@ await db.exec(`
     id             TEXT PRIMARY KEY,
     slug           TEXT NOT NULL UNIQUE,
     name           TEXT NOT NULL,
+    email          TEXT,
     password_hash  TEXT,
     avatar         TEXT NOT NULL DEFAULT '🛹',
     gender         TEXT NOT NULL DEFAULT 'na',
@@ -215,6 +216,19 @@ await db.exec(`
     created_at TEXT NOT NULL
   );
 
+  /*
+   * המסד כבר קיים בענן עם משתמשים, אז העמודה נוספת גם בדיעבד ולא רק
+   * ב-CREATE TABLE שרץ פעם אחת. IF NOT EXISTS הופך את זה לבטוח לחזרה.
+   */
+  ALTER TABLE users ADD COLUMN IF NOT EXISTS email TEXT;
+
+  /*
+   * ייחודיות ללא תלות ברישיות, ורק על מי שמילא — כתובת ריקה היא NULL,
+   * ו-Postgres לא סופר NULL כהתנגשות. בלי זה שני חשבונות היו יכולים
+   * להירשם עם אותו מייל וכל שחזור סיסמה עתידי היה נשבר.
+   */
+  CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email ON users (LOWER(email));
+
   CREATE INDEX IF NOT EXISTS idx_bag_user          ON bag(user_id);
   CREATE INDEX IF NOT EXISTS idx_ai_messages_user  ON ai_messages(user_id);
   CREATE INDEX IF NOT EXISTS idx_videos_author     ON videos(author_id);
@@ -268,6 +282,19 @@ export async function publicUser(row) {
       followers: (row.base_followers || 0) + (row.follower_count ?? 0),
     },
   };
+}
+
+/**
+ * כמו publicUser, אבל עם השדות הפרטיים.
+ *
+ * המייל *לא* נמצא ב-publicUser בכוונה: הוא מוחזר ברשימת כל הקהילה,
+ * אצל מחברי סרטונים ובצ׳אטים — כלומר כל משתמש היה יכול לשלוף את
+ * המיילים של כולם. השדה הזה מוחזר רק לבעל החשבון עצמו.
+ */
+export async function privateUser(row) {
+  const user = await publicUser(row);
+  if (!user) return null;
+  return { ...user, email: row.email || null };
 }
 
 /** גיל בשנים מלאות מתוך תאריך לידה שנשמר כ-"YYYY-MM-DD". */

@@ -42,6 +42,8 @@ services:
         sync: false        # בלעדיו האפליקציה עובדת, רק בלי ה-AI
 
       # מכסות ברירת מחדל ל-AI לכל משתמש. אפשר לשנות בלי לגעת בקוד.
+      - key: REGISTER_LIMIT_HOUR
+        value: "20"        # הרשמות לשעה מאותה כתובת IP
       - key: AI_LIMIT_HOUR
         value: "20"
       - key: AI_LIMIT_DAY

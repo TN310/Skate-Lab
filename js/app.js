@@ -420,7 +420,11 @@ function commentRow(c, opts = {}) {
 let lastViewedAt = '';
 
 /** פרטי הסרטון המוצג, כדי ש-bind ידע למי שייך הסרטון בלי לשלוף אותו שוב. */
-let shownVideo = { authorId: null, kind: null };
+/*
+ * הסרטון שמוצג כרגע. bind() רץ אחרי ש-html() סיים, ואין לו גישה
+ * למשתנים שלו — לכן מה שהוא צריך נשמר כאן.
+ */
+let shownVideo = { id: null, authorId: null, kind: null, hasFile: false, videoUrl: null };
 
 Screens.video = {
   async html({ id }) {
@@ -450,7 +454,8 @@ Screens.video = {
 
     const isLesson = v.kind === 'lesson';
     const opts = { canReply: !!ME, videoAuthorId: v.authorId };
-    shownVideo = { authorId: v.authorId, kind: v.kind };
+    shownVideo = { id: v.id, authorId: v.authorId, kind: v.kind,
+                   hasFile: v.hasFile, videoUrl: v.videoUrl };
 
     const comments = v.comments.length
       ? v.comments.map((c) => commentRow(c, opts)).join('')
@@ -512,8 +517,9 @@ Screens.video = {
                 <button class="btn btn--primary" data-ai-send>שאלו</button>
               </div>
               <p class="ai__note">
-                העוזר עונה על טכניקה בלבד. הוא לא רואה את הסרטון ולא קובע אם הטריק נחת —
-                זה תמיד תפקידו של המאמן.
+                ${isCoachViewer && v.authorId !== ME.id && v.hasFile
+                  ? 'בטיוטת הפידבק העוזר מסתכל על פריימים מהסרטון עצמו. הוא עדיין לא קובע אם הטריק נחת — זה תמיד תפקידו של המאמן.'
+                  : 'העוזר עונה על טכניקה בלבד. הוא לא רואה את הסרטון ולא קובע אם הטריק נחת — זה תמיד תפקידו של המאמן.'}
               </p>`
               : `<p class="ai__note">
                    ה-AI לא מוגדר בשרת. כדי להפעיל אותו צריך להגדיר
@@ -654,9 +660,17 @@ Screens.video = {
     const draftBtn = $('[data-ai-draft]');
     if (draftBtn) {
       draftBtn.onclick = async () => {
-        showAi('מנסח…');
+        // כשיש קובץ וידאו, מחלצים ממנו פריימים כדי שהעוזר באמת יראה
+        // את הניסיון ולא ינסח פידבק כללי. החילוץ לוקח כמה שניות.
+        let frames = [];
+        if (shownVideo.hasFile) {
+          showAi('צופה בסרטון…');
+          frames = await Media.extractFrames(shownVideo).catch(() => []);
+        }
+
+        showAi(frames.length ? 'מנסח על סמך מה שראיתי…' : 'מנסח…');
         try {
-          const { draft, look } = await Store.aiFeedback(draftBtn.dataset.aiDraft);
+          const { draft, look } = await Store.aiFeedback(draftBtn.dataset.aiDraft, '', frames);
           showAi([look, draft].filter(Boolean).join('\n\n'));
           // הטיוטה נכנסת לתיבת התגובה כדי שהמאמן יערוך וישלח בעצמו
           input.value = draft;
@@ -801,7 +815,7 @@ Screens.myvideos = {
    העלאת סרטון
    ========================================================================== */
 
-const upload = { title: '', desc: '', level: null, region: undefined, styles: [], poster: '🛹' };
+const upload = { kind: undefined, title: '', desc: '', level: null, region: undefined, styles: [], poster: '🛹' };
 
 Screens.upload = {
   async html() {
@@ -811,8 +825,11 @@ Screens.upload = {
               ${tabbar('myvideos')}`;
     }
 
-    const isCoach = ME.role === 'coach';
+    // ברירת המחדל תלויה בתפקיד, אבל כל אחד יכול להחליף — מאמן שמעלה
+    // טריק לפידבק, או רוכב שמלמד משהו, שניהם לגיטימיים.
+    if (upload.kind === undefined) upload.kind = ME.role === 'coach' ? 'lesson' : 'clip';
     if (upload.region === undefined) upload.region = ME.region;
+    const isLesson = upload.kind === 'lesson';
 
     const file = pendingFile
       ? `<div class="filepick is-set">
@@ -834,10 +851,32 @@ Screens.upload = {
 
     return `
       <div class="screen__body has-tabs">
-        ${header(isCoach ? 'העלאת שיעור' : 'העלאת טריק', { back: true })}
-        <p class="lead">${isCoach
+        ${header(isLesson ? 'העלאת שיעור' : 'העלאת טריק', { back: true })}
+        <p class="lead">${isLesson
           ? 'הסרטון יופיע לרוכבים באזור שלכם ולכל מי שהוסיף אתכם למועדפים.'
           : 'מאמנים יוכלו לצפות ולתת לכם פידבק.'}</p>
+
+        <div class="field" style="margin-top:20px">
+          <label class="field__label">מה מעלים?</label>
+          <div class="choices">
+            <button type="button" class="choice choice--slim" data-up-kind="lesson"
+                    aria-pressed="${isLesson}">
+              <span style="flex:1">
+                <span class="choice__title">🎓 שיעור</span>
+                <span class="choice__desc">מלמדים משהו — טכניקה, טריק, טיפ</span>
+              </span>
+              <span class="choice__check">✓</span>
+            </button>
+            <button type="button" class="choice choice--slim" data-up-kind="clip"
+                    aria-pressed="${!isLesson}">
+              <span style="flex:1">
+                <span class="choice__title">⭐️ טריק לפידבק</span>
+                <span class="choice__desc">מעלים ניסיון שלכם ומבקשים חוות דעת</span>
+              </span>
+              <span class="choice__check">✓</span>
+            </button>
+          </div>
+        </div>
 
         <div style="margin-top:20px">
           ${file}
@@ -846,14 +885,14 @@ Screens.upload = {
             <label class="field__label" for="up-title">כותרת</label>
             <input id="up-title" class="input ${errors.title ? 'input--error' : ''}"
                    value="${esc(upload.title)}" maxlength="60"
-                   placeholder="${isCoach ? 'למשל: אוליי מושלם ב-4 שלבים' : 'למשל: ניסיון ראשון בקיקפליפ'}">
+                   placeholder="${isLesson ? 'למשל: אוליי מושלם ב-4 שלבים' : 'למשל: ניסיון ראשון בקיקפליפ'}">
             ${errorFor('title')}
           </div>
 
           <div class="field">
             <label class="field__label" for="up-desc">תיאור <span class="muted">(לא חובה)</span></label>
             <textarea id="up-desc" class="input input--area" maxlength="400" rows="3"
-                      placeholder="${isCoach ? 'מה לומדים בסרטון?' : 'על מה תרצו פידבק?'}">${esc(upload.desc)}</textarea>
+                      placeholder="${isLesson ? 'מה לומדים בסרטון?' : 'על מה תרצו פידבק?'}">${esc(upload.desc)}</textarea>
           </div>
 
           <div class="field">
@@ -867,7 +906,7 @@ Screens.upload = {
           </div>
 
           <div class="field">
-            <label class="field__label">${isCoach ? 'לאיזו רמה מיועד?' : 'באיזו רמה אתם?'}</label>
+            <label class="field__label">${isLesson ? 'לאיזו רמה מיועד?' : 'באיזו רמה אתם?'}</label>
             <div class="chips">
               ${Store.LEVELS.map((l) => `
                 <button type="button" class="chip" data-up-level="${esc(l)}"
@@ -928,6 +967,14 @@ Screens.upload = {
 
   bind() {
     if (!ME) return;
+
+    $$('[data-up-kind]').forEach((btn) => {
+      btn.onclick = () => {
+        upload.kind = btn.dataset.upKind;
+        // מרנדרים מחדש כי הכותרת, הטקסט וה-placeholders תלויים בבחירה
+        rerender();
+      };
+    });
 
     const fileInput = $('#file');
     if (fileInput) {

@@ -36,6 +36,16 @@ if (process.env.SEED_DEMO === '1' && await seedIfEmpty()) {
 
 const app = express();
 app.set('trust proxy', 1);   // ב-Render יש proxy לפני השרת
+
+/*
+ * הנתיבים שמקבלים פריימים מהסרטון שולחים תמונות base64, והם חורגים
+ * מהמגבלה הרגילה. הם חייבים להירשם *לפני* המפרסר הגלובלי: המפרסר
+ * הראשון שרץ הוא זה שקורא את הגוף, ואם הגלובלי מגיע קודם הוא דוחה
+ * את הבקשה ב-413 והמגבלה הגדולה יותר לעולם לא נבדקת.
+ */
+app.use('/api/bag', express.json({ limit: '12mb' }));
+app.use('/api/ai/feedback', express.json({ limit: '12mb' }));
+
 app.use(express.json({ limit: '1mb' }));
 app.use(cookies);
 app.use(attachUser);
@@ -256,19 +266,22 @@ app.get('/api/videos/:id', route(async (req, res) => {
 }));
 
 app.post('/api/videos', requireUser, route(async (req, res) => {
-  const { title, desc, level, region, styles, poster } = req.body || {};
+  const { title, desc, level, region, styles, poster, kind } = req.body || {};
 
   if (!title || title.trim().length < 3) return bad(res, 'צריך כותרת של לפחות 3 תווים');
   if (!region) return bad(res, 'בחרו אזור');
   if (!level) return bad(res, 'בחרו רמה');
   if (!Array.isArray(styles) || !styles.length) return bad(res, 'בחרו לפחות סגנון אחד');
+  // כל תפקיד יכול להעלות גם שיעור וגם טריק לפידבק — הבחירה נעשית בטופס,
+  // לא נגזרת מהתפקיד. בלי ולידציה כאן, ערך שרירותי היה נשמר כ-kind.
+  if (!['lesson', 'clip'].includes(kind)) return bad(res, 'בחרו סוג סרטון');
 
   const id = newId('v');
   await db.prepare(`
     INSERT INTO videos (id, author_id, kind, title, descr, level, region, styles,
                         poster, trick_id, has_file, has_thumb, is_demo, views, created_at)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 0, 0, ?)`)
-    .run(id, req.user.id, req.user.role === 'coach' ? 'lesson' : 'clip',
+    .run(id, req.user.id, kind,
          title.trim(), (desc || '').trim(), level, region,
          JSON.stringify(styles), safeEmoji(poster), null, now());
 
@@ -512,16 +525,26 @@ app.post('/api/ai/feedback/:videoId', requireUser, needsAi, route(async (req, re
   if (!video) return bad(res, 'הסרטון לא נמצא', 404);
 
   const rider = await publicUser(await getUserRow(video.author_id));
+
+  // הפריימים מגיעים מהדפדפן, שכבר יודע לפענח וידאו. מגבילים כאן את
+  // הכמות ואת הגודל כדי ששדה אחד לא יתפח לבקשה ענקית.
+  const frames = (Array.isArray(req.body?.frames) ? req.body.frames : [])
+    .filter((f) => typeof f === 'string' && f.length < 400_000)
+    .slice(0, 8);
+
   const [draft, look] = await Promise.all([
     draftFeedback({
       riderName: rider?.name || 'הרוכב',
       riderLevel: rider?.level,
+      trickId: video.trick_id,
       note: (req.body?.note || '').trim(),
+      frames,
     }),
-    guessFromThumb(video.id, video.trick_id, video.thumb_url).catch(() => null),
+    // כשיש פריימים אין טעם בניחוש מתמונה בודדת — הוא כבר ראה יותר
+    frames.length ? null : guessFromThumb(video.id, video.trick_id, video.thumb_url).catch(() => null),
   ]);
 
-  res.json({ draft, look });
+  res.json({ draft, look, sawVideo: frames.length > 0 });
 }));
 
 /* ==========================================================================
@@ -575,7 +598,7 @@ app.get('/api/bag/:userId', route(async (req, res) => {
  * הוספת טריק לתיק. סרטון הוא חובה — הוא ההוכחה.
  * `frames` הם תמונות base64 שהדפדפן חילץ מהסרטון, לבדיקת ה-AI.
  */
-app.post('/api/bag', requireUser, express.json({ limit: '12mb' }), route(async (req, res) => {
+app.post('/api/bag', requireUser, route(async (req, res) => {
   const name = (req.body?.name || '').trim();
   const videoId = req.body?.videoId;
 
@@ -891,7 +914,18 @@ app.use(express.static(ROOT, { index: 'index.html', dotfiles: 'ignore' }));
 app.use((err, req, res, _next) => {
   console.error(err);
   if (res.headersSent) return;
-  res.status(500).json({ error: 'שגיאת שרת' });
+
+  /*
+   * שגיאות של מפרסר הגוף נושאות status משלהן (413 לגוף גדול מדי).
+   * בלי הבדיקה הזאת כל אחת מהן הוצגה כ"שגיאת שרת", והמשתמש לא היה
+   * מבין שהקובץ פשוט גדול מדי.
+   */
+  if (err.type === 'entity.too.large') {
+    return res.status(413).json({ error: 'הקובץ או הבקשה גדולים מדי' });
+  }
+
+  res.status(err.status >= 400 && err.status < 500 ? err.status : 500)
+     .json({ error: err.status >= 400 && err.status < 500 ? err.message : 'שגיאת שרת' });
 });
 
 app.listen(PORT, () => {

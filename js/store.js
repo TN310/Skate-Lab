@@ -215,6 +215,7 @@ const Store = (() => {
       region: data.region,
       styles: data.styles,
       poster: data.poster,
+      kind: data.kind,
     },
   });
 
@@ -254,8 +255,8 @@ const Store = (() => {
   const aiAsk = (question) =>
     api('/ai/ask', { method: 'POST', body: { question } }).then((r) => r.answer);
 
-  const aiFeedback = (videoId, note) =>
-    api(`/ai/feedback/${videoId}`, { method: 'POST', body: { note } });
+  const aiFeedback = (videoId, note, frames) =>
+    api(`/ai/feedback/${videoId}`, { method: 'POST', body: { note, frames } });
 
   /** היסטוריית הצ׳אט עם ה-AI, ושליחת הודעה לתוכה. */
   const getAiChat = () => api('/ai/chat');

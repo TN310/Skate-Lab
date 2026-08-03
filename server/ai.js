@@ -90,18 +90,40 @@ export function chatReply(history, question) {
   return ask(messages, { maxTokens: 500 });
 }
 
-/** טיוטת פידבק למאמן על ניסיון של רוכב. המאמן עורך ושולח בעצמו. */
-export function draftFeedback({ trickId, riderName, riderLevel, note }) {
+/**
+ * טיוטת פידבק למאמן על ניסיון של רוכב. המאמן עורך ושולח בעצמו.
+ *
+ * `frames` הם פריימים שהדפדפן חילץ מהסרטון. כשהם קיימים העוזר באמת
+ * מסתכל על התנועה ויכול להתייחס לתנוחה, לתזמון ולמיקום הרגליים.
+ * בלעדיהם הוא נשאר עיוור ומנסח פידבק כללי — לכן הניסוח בפרומפט שונה
+ * בין שני המצבים, כדי שהוא לא ידבר על מה שלא ראה.
+ */
+export function draftFeedback({ trickId, riderName, riderLevel, note, frames }) {
   const trick = trickId ? trickById[trickId] : null;
+  const hasFrames = Array.isArray(frames) && frames.length > 0;
 
   const prompt = [
     `כתוב טיוטת פידבק קצר לרוכב בשם ${riderName}${riderLevel ? ` (רמה: ${riderLevel})` : ''}.`,
     trick ? `הוא ניסה: ${trick.baseName} (${trick.alias}) — ${trick.desc}` : '',
     note ? `המאמן ציין: ${note}` : '',
-    'תן שתי נקודות מעשיות לתרגול, בטון מעודד. אל תקבע אם הטריק נחת — אתה לא רואה את הסרטון.',
+    hasFrames
+      ? 'הפריימים שלמעלה הם מתוך הסרטון עצמו, לפי הסדר. התייחס למה שאתה ' +
+        'באמת רואה בהם — תנוחה, כיפוף ברכיים, מיקום הרגליים על הלוח, ' +
+        'ומאזן הגוף. תן שתי נקודות מעשיות לתרגול, בטון מעודד. ' +
+        'אל תקבע סופית אם הטריק נחת — הקביעה הזאת שמורה למאמן.'
+      : 'תן שתי נקודות מעשיות לתרגול, בטון מעודד. ' +
+        'אל תקבע אם הטריק נחת — אתה לא רואה את הסרטון.',
   ].filter(Boolean).join('\n');
 
-  return ask([{ role: 'user', content: prompt }]);
+  if (!hasFrames) return ask([{ role: 'user', content: prompt }]);
+
+  const images = frames.slice(0, 8).map((data) => ({
+    type: 'image',
+    source: { type: 'base64', media_type: 'image/jpeg', data },
+  }));
+
+  return ask([{ role: 'user', content: [...images, { type: 'text', text: prompt }] }],
+             { maxTokens: 500 });
 }
 
 /**

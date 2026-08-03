@@ -19,6 +19,23 @@ import { remove as removeFiles } from './storage.js';
 const dryRun = process.argv.includes('--dry');
 const confirmed = process.argv.includes('--yes');
 
+/*
+ * מסד מרוחק הוא המסד האמיתי שהמשתמשים יושבים בו. מחיקה שם היא לא
+ * "ניקוי אחרי בדיקות" — היא מוחקת אנשים אמיתיים, ולכן היא דורשת דגל
+ * נפרד ומפורש. בלי זה מספיק היה להריץ את הפקודה מתוך הרגל.
+ */
+const remote = !!process.env.DATABASE_URL;
+const allowedRemote = process.argv.includes('--production');
+
+if (remote && confirmed && !allowedRemote) {
+  const host = process.env.DATABASE_URL.replace(/^.*@/, '').split('/')[0];
+  console.error('⛔ המסד הזה מרוחק — ' + host);
+  console.error('   שם יושבים המשתמשים האמיתיים של האתר.');
+  console.error('   אם באמת התכוונת למחוק אותם, הוסף --production.');
+  console.error('   לניקוי סביבת פיתוח: הרץ בלי DATABASE_URL בסביבה.');
+  process.exit(1);
+}
+
 const count = async (table) => (await db.prepare(`SELECT COUNT(*)::int c FROM ${table}`).get()).c;
 
 const users = await db.prepare('SELECT id, name, is_demo FROM users').all();

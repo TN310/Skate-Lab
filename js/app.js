@@ -147,7 +147,7 @@ Screens.feed = {
    מאמנים — סינון לפי אזור, סגנון וחיפוש חופשי
    ========================================================================== */
 
-/** role: null = כולם, אחרת אחד מ-coach/student/fan. */
+/** role: null = כולם, אחרת מזהה תפקיד מתוך Store.ROLES. */
 const coachFilter = { region: null, style: null, query: '', role: 'coach', onlyFollowed: false };
 
 /** לשוניות התפקיד בראש מסך האנשים. */

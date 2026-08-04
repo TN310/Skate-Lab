@@ -65,6 +65,14 @@ const ALLOWED_EMOJI = new Set(
 
 const safeEmoji = (value) => ALLOWED_EMOJI.has(value) ? value : '🛹';
 
+/*
+ * התפקידים המותרים. רשימה אחת שמשמשת גם להרשמה וגם לסינון, כדי
+ * שהוספת תפקיד לא תדרוש לזכור לעדכן שני מקומות.
+ * רק 'coach' מקבל הרשאות נוספות (אימות טריקים, טיוטת פידבק) — כל
+ * השאר, כולל 'other', מתנהגים כרוכב רגיל.
+ */
+const ROLE_IDS = ['coach', 'student', 'fan', 'other'];
+
 /**
  * מנקה ובודק כתובת מייל.
  * מחזיר null כשלא נמסרה כתובת (זה תקין — השדה אופציונלי),
@@ -120,7 +128,7 @@ app.post('/api/auth/register',
    */
   const pass = String(password ?? '').trim();
   if (pass.length < 4) return bad(res, 'הסיסמה צריכה להיות באורך 4 תווים לפחות');
-  if (!['coach', 'student', 'fan'].includes(role)) return bad(res, 'תפקיד לא תקין');
+  if (!ROLE_IDS.includes(role)) return bad(res, 'תפקיד לא תקין');
 
   // המייל אופציונלי — מי שלא רוצה למסור, לא חייב
   const mail = cleanEmail(email);
@@ -316,7 +324,7 @@ app.get('/api/coaches', route(async (req, res) => {
 }));
 
 app.get('/api/people', route(async (req, res) => {
-  const role = ['coach', 'student', 'fan'].includes(req.query.role) ? req.query.role : null;
+  const role = ROLE_IDS.includes(req.query.role) ? req.query.role : null;
   res.json(await searchPeople(req, { role }));
 }));
 

@@ -143,6 +143,98 @@ const Media = (() => {
     }
   }
 
+  /**
+   * מרכיב "גיליון" — רשת פריימים מכל אורך הסרטון בתמונה אחת.
+   *
+   * למה תמונה אחת ולא שש-עשרה: המודל מתמחר לפי פיקסלים, ורשת אחת
+   * בגודל שהוא מקבל עולה כשליש משש-עשרה תמונות נפרדות — ובנוסף
+   * הסדר והתנועה נראים בה במבט אחד במקום להתפזר בין הודעות.
+   *
+   * כל תא ממוספר ונושא את הזמן שלו, כדי שהמודל יוכל להצביע על תא
+   * מסוים. הזמן האמיתי נלקח מהמערך שמוחזר כאן ולא ממה שהמודל קורא.
+   *
+   * מחזיר { image, times, cells, duration } או null כשאי אפשר.
+   */
+  async function contactSheet(source, { cols = 4, rows = 4 } = {}) {
+    const video = document.createElement('video');
+    video.src = videoUrl(source);
+    video.muted = true;
+    video.crossOrigin = 'anonymous';
+    video.preload = 'auto';
+
+    const ready = new Promise((resolve, reject) => {
+      video.onloadedmetadata = () => resolve();
+      video.onerror = () => reject(new Error('לא הצלחנו לקרוא את הסרטון'));
+      setTimeout(() => reject(new Error('פסק זמן בקריאת הסרטון')), 15000);
+    });
+
+    try {
+      await ready;
+      const duration = video.duration;
+      if (!isFinite(duration) || duration <= 0) return null;
+
+      /*
+       * גודל התא נגזר מהמגבלה של המודל: תמונה גדולה מ-1.15 מגה-פיקסל
+       * מוקטנת אצלו ממילא, אז אין טעם לשלוח יותר — רק לשלם עליה.
+       * היחס נשמר, כך שסרטון אנכי מהטלפון לא נמתח.
+       */
+      const aspect = video.videoHeight / video.videoWidth || 0.5625;
+      const cellW = Math.min(320, Math.floor(Math.sqrt(1_100_000 / (cols * rows * aspect))));
+      const cellH = Math.round(cellW * aspect);
+
+      const canvas = document.createElement('canvas');
+      canvas.width = cols * cellW;
+      canvas.height = rows * cellH;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#000';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      const cells = cols * rows;
+      const times = [];
+
+      for (let i = 0; i < cells; i += 1) {
+        const at = duration * ((i + 0.5) / cells);
+        await seek(video, at);
+        times.push(at);
+
+        // סדר קריאה מהיר: שמאל לימין, שורה אחרי שורה. הכיתוב באנגלית
+        // כי ציור טקסט עברי על קנבס הופך את סדר האותיות בחלק מהדפדפנים
+        const x = (i % cols) * cellW;
+        const y = Math.floor(i / cols) * cellH;
+        ctx.drawImage(video, x, y, cellW, cellH);
+
+        const label = `${i + 1}  ${clockLabel(at)}`;
+        ctx.font = 'bold 13px monospace';
+        const pad = 4;
+        const width = ctx.measureText(label).width + pad * 2;
+        ctx.fillStyle = 'rgba(0,0,0,.72)';
+        ctx.fillRect(x, y, width, 19);
+        ctx.fillStyle = '#fff';
+        ctx.fillText(label, x + pad, y + 14);
+
+        ctx.strokeStyle = 'rgba(255,255,255,.35)';
+        ctx.strokeRect(x + 0.5, y + 0.5, cellW - 1, cellH - 1);
+      }
+
+      return {
+        image: canvas.toDataURL('image/jpeg', 0.72).split(',')[1],
+        times,
+        cells,
+        duration,
+      };
+    } catch (err) {
+      console.warn('בניית הגיליון נכשלה:', err);
+      return null;
+    } finally {
+      video.src = '';
+    }
+  }
+
+  const clockLabel = (seconds) => {
+    const s = Math.max(0, Math.round(seconds));
+    return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+  };
+
   /*
    * דילוג לנקודה בסרטון. שתי מלכודות:
    * • כשכבר עומדים כמעט בדיוק שם, הדפדפן לא יורה seeked בכלל — ואז
@@ -157,5 +249,6 @@ const Media = (() => {
     setTimeout(resolve, 1200);
   });
 
-  return { videoUrl, thumbUrl, shrinkImage, canDecode, putVideo, putThumb, extractFrames };
+  return { videoUrl, thumbUrl, shrinkImage, canDecode, putVideo, putThumb,
+           extractFrames, contactSheet };
 })();

@@ -1478,7 +1478,9 @@ Screens.chat = {
 /** מצב טופס ההוספה לתיק. */
 const bagForm = { open: false, name: '', videoId: null, busy: false,
                  // הרגע בסרטון שסומן, בשניות. null = נבדק כל הסרטון
-                 at: null, video: null };
+                 at: null, video: null,
+                 // תוצאת הסריקה: הרגעים שה-AI ראה בהם ניסיון
+                 scan: null, scanning: false, scanError: null };
 
 /** סולם האמון, מהגבוה לנמוך. הסרטון הוא תמיד ההוכחה — זה מה שמעליו. */
 /*
@@ -1668,6 +1670,7 @@ function bagAdder() {
             ${gt('עצור','עצרי','עצרו')} על הטריק ${gt('ולחץ','ולחצי','ולחצו')} "סימון הרגע".
             בקו של כמה טריקים זה מה שמפנה את ה-AI לטריק הנכון.
           </p>
+          ${scanBlock()}
         </div>` : ''}
 
       ${errorFor('bag')}
@@ -1681,6 +1684,54 @@ function bagAdder() {
     </div>`;
 }
 
+/*
+ * סריקת הסרטון: הדפדפן מרכיב גיליון פריימים מכל אורך הסרטון, ה-AI
+ * מסתכל עליו פעם אחת ומחזיר את הרגעים שיש בהם ניסיון.
+ *
+ * זה הדבר הכי קרוב ל"לראות את כל הסרטון" שאפשר — המודל מקבל תמונות
+ * ולא וידאו. לכן זו עזרה בסימון, לא פסיקה: הרוכב בוחר מה להוסיף.
+ * הכפתור ידני בכוונה, כי כל לחיצה היא קריאה בתשלום.
+ */
+function scanBlock() {
+  if (bagForm.scanning) {
+    return '<p class="field__hint">🔍 סורק את הסרטון…</p>';
+  }
+
+  if (!bagForm.scan) {
+    return `
+      <button type="button" class="btn btn--ghost btn--sm" data-scan
+              style="width:auto;padding:0 16px;min-height:40px;margin-top:4px">
+        🔍 סריקת הסרטון
+      </button>
+      ${bagForm.scanError ? `<p class="field__error">${esc(bagForm.scanError)}</p>` : ''}`;
+  }
+
+  if (!bagForm.scan.length) {
+    return `
+      <p class="field__hint">
+        ה-AI לא זיהה ניסיון ברור בסרטון. אפשר לסמן את הרגע ידנית.
+        <button type="button" class="btn--text" data-scan-again>סריקה מחדש</button>
+      </p>`;
+  }
+
+  const icon = { landed: '✅', bail: '❌', unclear: '❔' };
+
+  return `
+    <div class="scanlist">
+      <p class="field__hint" style="margin-top:0">
+        ה-AI עבר על כל הסרטון וראה ${countLabel(bagForm.scan.length, 'ניסיון אחד', 'ניסיונות')}.
+        ${gt('בחר','בחרי','בחרו')} את זה שרוצים להוסיף:
+      </p>
+      ${bagForm.scan.map((m) => `
+        <button type="button" class="scanrow ${bagForm.at === m.at ? 'is-on' : ''}"
+                data-scan-at="${m.at}">
+          <span class="scanrow__time">${icon[m.verdict] || '❔'} ${clock(m.at)}</span>
+          <span class="scanrow__note">${esc(m.note || '')}</span>
+        </button>`).join('')}
+      <button type="button" class="btn--text" data-scan-again>סריקה מחדש</button>
+    </div>`;
+}
+
 /** חיווט טופס התיק והפעולות עליו. */
 function bindBag(userId, refresh) {
   const open = $('[data-open-bag]');
@@ -1689,7 +1740,8 @@ function bindBag(userId, refresh) {
   const cancel = $('[data-cancel-bag]');
   if (cancel) {
     cancel.onclick = () => {
-      Object.assign(bagForm, { open: false, name: '', videoId: null });
+      Object.assign(bagForm, { open: false, name: '', videoId: null, video: null,
+                               at: null, scan: null, scanError: null });
       errors = {};
       rerender();
     };
@@ -1733,6 +1785,8 @@ function bindBag(userId, refresh) {
           // והוא כבר לא בהכרח יושב על השרת שלנו
           bagForm.video = usable.find((v) => v.id === bagForm.videoId) || null;
           bagForm.at = null;   // סרטון אחר, רגע אחר
+          bagForm.scan = null;
+          bagForm.scanError = null;
           rerender();          // כדי שנגן הסימון ייבנה לסרטון שנבחר
         };
       });
@@ -1751,6 +1805,40 @@ function bindBag(userId, refresh) {
 
   const clearAt = $('[data-clear-at]');
   if (clearAt) clearAt.onclick = () => { bagForm.at = null; rerender(); };
+
+  const runScan = async () => {
+    if (bagForm.scanning) return;
+    bagForm.scanning = true;
+    bagForm.scanError = null;
+    bagForm.scan = null;
+    rerender();
+
+    try {
+      const sheet = await Media.contactSheet(bagForm.video || bagForm.videoId);
+      if (!sheet) throw new Error('לא הצלחנו לקרוא את הסרטון בדפדפן');
+      bagForm.scan = await Store.aiScan(bagForm.videoId, sheet);
+    } catch (err) {
+      bagForm.scanError = err.message;
+    } finally {
+      bagForm.scanning = false;
+      rerender();
+    }
+  };
+
+  const scan = $('[data-scan]');
+  if (scan) scan.onclick = runScan;
+
+  const scanAgain = $('[data-scan-again]');
+  if (scanAgain) scanAgain.onclick = runScan;
+
+  $$('[data-scan-at]').forEach((b) => {
+    b.onclick = () => {
+      bagForm.at = Number(b.dataset.scanAt);
+      const player = $('#bag-scrub');
+      if (player) player.currentTime = bagForm.at;   // כדי שאפשר יהיה לוודא בעין
+      rerender();
+    };
+  });
 
   const save = $('[data-save-bag]');
   if (save) {

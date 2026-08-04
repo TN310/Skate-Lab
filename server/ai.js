@@ -38,8 +38,20 @@ const SYSTEM = `אתה מאמן סקייטבורד ישראלי באפליקצי
 
 ${catalogue()}`;
 
+/*
+ * פרומפט מערכת רזה לבדיקות הראייה.
+ *
+ * הקטלוג המלא הוא כ-5,000 טוקנים, והוא נשלח בכל קריאה — גם באלה
+ * שכל תפקידן לענות "נחת / נפל" בשורה אחת. הן לא מזכירות שמות טריקים
+ * ולכן אין מה למנוע מהן להמציא, וההוצאה הזאת הייתה שני שלישים
+ * מהעלות של כל בדיקת סרטון.
+ */
+const VISION_SYSTEM = `אתה בודק פריימים מסרטוני סקייטבורד באפליקציה ישראלית.
+אתה עונה בעברית, קצר ויבש, בדיוק בפורמט שמתבקש ובלי משפטי פתיחה.
+אתה לא מזהה איזה טריק זה — רק מה שרואים בתמונה.`;
+
 /** קריאה אחת ל-API. מחזירה טקסט, או זורקת שגיאה עם הודעה בעברית. */
-async function ask(messages, { maxTokens = 400 } = {}) {
+async function ask(messages, { maxTokens = 400, system = SYSTEM } = {}) {
   const res = await fetch(ENDPOINT, {
     method: 'POST',
     headers: {
@@ -50,7 +62,7 @@ async function ask(messages, { maxTokens = 400 } = {}) {
     body: JSON.stringify({
       model: MODEL(),
       max_tokens: maxTokens,
-      system: SYSTEM,
+      system,
       messages,
     }),
   });
@@ -176,7 +188,7 @@ export async function checkAttempt(frames, trickName) {
         'ו-MATCH הוא אחד מ: YES (מתיישב עם השם), NO (סותר את השם), ' +
         'UNSURE (אי אפשר לדעת).' },
     ],
-  }], { maxTokens: 200 });
+  }], { maxTokens: 200, system: VISION_SYSTEM });
 
   const [head, second, ...rest] = raw.split('|');
   const key = (head || '').trim().toUpperCase();
@@ -197,6 +209,60 @@ export async function checkAttempt(frames, trickName) {
   const reason = (isMatchField ? rest.join('|') : [second, ...rest].join('|')).trim();
 
   return { verdict, match, reason: reason || raw.trim() };
+}
+
+/**
+ * סריקה של סרטון שלם — מוצא איפה קורים הניסיונות.
+ *
+ * `sheet` הוא תמונה אחת שהדפדפן הרכיב: רשת של פריימים לפי הסדר, כל
+ * אחד ממוספר ומסומן בזמן שלו. זו הדרך היחידה לתת למודל להסתכל על כל
+ * הסרטון בבת אחת — הוא לא מקבל וידאו, רק תמונות, ושש-עשרה תמונות
+ * נפרדות עולות פי שלושה מגיליון אחד ומאבדות את רצף התנועה.
+ *
+ * מחזיר [{ cell, at, verdict, note }] — רגע לכל ניסיון שזוהה.
+ * זו הצעה לסימון, לא קביעה: הרוכב בוחר מה להוסיף לתיק.
+ */
+export async function scanVideo(sheet, { cells, duration, times }) {
+  const raw = await ask([{
+    role: 'user',
+    content: [
+      { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: sheet } },
+      { type: 'text', text:
+        `בתמונה רשת של ${cells} פריימים מתוך סרטון סקייטבורד באורך ` +
+        `${Math.round(duration)} שניות, לפי הסדר, כל אחד ממוספר ומסומן בזמן שלו.\n` +
+        'מצא את הניסיונות שנראים בסרטון — כל קפיצה, החלקה או ניסיון טריק.\n' +
+        'לכל ניסיון כתוב שורה אחת בדיוק בפורמט:\n' +
+        'מספר התא | LANDED או BAIL או UNCLEAR | תיאור קצר בעברית\n' +
+        'התא הוא זה שבו הניסיון נראה הכי ברור.\n' +
+        'אל תנסה לזהות איזה טריק זה — רק איפה קורה משהו ואיך זה נגמר.\n' +
+        'אם לא נראה אף ניסיון, כתוב שורה אחת: NONE' },
+    ],
+  }], { maxTokens: 400, system: VISION_SYSTEM });
+
+  if (/^\s*NONE/i.test(raw)) return [];
+
+  return raw.split('\n')
+    .map((line) => line.split('|'))
+    .filter((parts) => parts.length >= 2)
+    .map((parts) => {
+      // מספר התא כפי שהמודל ראה אותו, 1 עד cells
+      const cell = Math.round(Number(String(parts[0]).replace(/[^\d]/g, '')));
+      if (!Number.isFinite(cell) || cell < 1 || cell > cells) return null;
+
+      const key = String(parts[1]).toUpperCase();
+      return {
+        cell,
+        // הזמן נלקח מהטבלה של הדפדפן ולא ממה שהמודל קרא בתמונה,
+        // כי שעון שנקרא מפיקסלים הוא בדיוק סוג הדבר שהוא טועה בו
+        at: times[cell - 1] ?? null,
+        verdict: key.includes('LANDED') ? 'landed' : key.includes('BAIL') ? 'bail' : 'unclear',
+        note: parts.slice(2).join('|').trim(),
+      };
+    })
+    .filter((row) => row && row.at !== null)
+    // אותו תא פעמיים הוא כפילות, לא שני ניסיונות
+    .filter((row, i, all) => all.findIndex((x) => x.cell === row.cell) === i)
+    .slice(0, 8);
 }
 
 /**

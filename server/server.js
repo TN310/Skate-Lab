@@ -17,7 +17,8 @@ import { put as putFile, remove as removeFiles, UPLOADS, usingCloud } from './st
 import { hashPassword, verifyPassword, createSession, destroySession,
          attachUser, requireUser, cookies, setSessionCookie, clearSessionCookie } from './auth.js';
 import { seedIfEmpty, greetNewUser, DEMO_GREETINGS } from './seed.js';
-import { aiAvailable, askCoach, draftFeedback, guessFromThumb, checkAttempt, chatReply } from './ai.js';
+import { aiAvailable, askCoach, draftFeedback, guessFromThumb, checkAttempt, chatReply,
+         scanVideo } from './ai.js';
 import { achievementsFor, nextTricksFor, sameTrick } from './achievements.js';
 import { rateLimit, aiQuotaExceeded, inviteRequired, inviteOk } from './guard.js';
 import { adminEnabled, checkPassword, createAdminSession, destroyAdminSession,
@@ -45,6 +46,7 @@ app.set('trust proxy', 1);   // ב-Render יש proxy לפני השרת
  */
 app.use('/api/bag', express.json({ limit: '12mb' }));
 app.use('/api/ai/feedback', express.json({ limit: '12mb' }));
+app.use('/api/ai/scan', express.json({ limit: '12mb' }));
 
 app.use(express.json({ limit: '1mb' }));
 app.use(cookies);
@@ -682,6 +684,42 @@ app.post('/api/ai/feedback/:videoId', requireUser, needsAi, route(async (req, re
   ]);
 
   res.json({ draft, look, sawVideo: frames.length > 0 });
+}));
+
+/**
+ * סריקת סרטון שלם — מחזירה את הרגעים שבהם נראה ניסיון.
+ *
+ * רק הבעלים סורק את הסרטון שלו: זו קריאה בתשלום, והיא נועדה לעזור
+ * להוסיף טריקים לתיק — לא כדי שכל אחד ינתח סרטונים של אחרים.
+ */
+app.post('/api/ai/scan/:videoId', requireUser, needsAi, route(async (req, res) => {
+  const video = await db.prepare('SELECT id, author_id, has_file FROM videos WHERE id = ?')
+    .get(req.params.videoId);
+  if (!video) return bad(res, 'הסרטון לא נמצא', 404);
+  if (video.author_id !== req.user.id) return bad(res, 'אפשר לסרוק רק סרטון שלכם', 403);
+  if (!video.has_file) return bad(res, 'לסרטון הזה אין קובץ וידאו');
+
+  const sheet = req.body?.sheet;
+  if (typeof sheet !== 'string' || !sheet || sheet.length > 4_000_000) {
+    return bad(res, 'לא הצלחנו לקרוא את הסרטון בדפדפן');
+  }
+
+  /*
+   * הזמנים מגיעים מהדפדפן שבנה את הגיליון, והם מקור האמת: המודל
+   * מצביע על מספר תא, ואנחנו מתרגמים אותו לזמן. שעון שהמודל קורא
+   * מתוך הפיקסלים הוא בדיוק מה שהוא טועה בו.
+   */
+  const times = (Array.isArray(req.body?.times) ? req.body.times : [])
+    .map(Number).filter((n) => Number.isFinite(n) && n >= 0);
+
+  const duration = Number(req.body?.duration);
+  if (!times.length || !Number.isFinite(duration)) return bad(res, 'חסרים נתונים על הסרטון');
+
+  try {
+    res.json({ moments: await scanVideo(sheet, { cells: times.length, duration, times }) });
+  } catch (err) {
+    return bad(res, err.message, 502);
+  }
 }));
 
 /* ==========================================================================

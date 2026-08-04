@@ -282,6 +282,10 @@ const Store = (() => {
   const aiFeedback = (videoId, note, frames) =>
     api(`/ai/feedback/${videoId}`, { method: 'POST', body: { note, frames } });
 
+  /** סריקת סרטון שלם: גיליון פריימים אחד -> רשימת הרגעים שיש בהם ניסיון. */
+  const aiScan = (videoId, sheet) =>
+    api(`/ai/scan/${videoId}`, { method: 'POST', body: sheet }).then((r) => r.moments);
+
   /** היסטוריית הצ׳אט עם ה-AI, ושליחת הודעה לתוכה. */
   const getAiChat = () => api('/ai/chat');
   const sendToAi = (text) => api('/ai/chat', { method: 'POST', body: { text } });
@@ -339,7 +343,7 @@ const Store = (() => {
     getUser, listCoaches, listPeople, toggleFollow, getNextTricks,
     listVideos, getVideo, addVideo, deleteVideo, shareVideo, unshareVideo, shareUrl, toggleLike, countView, addComment, myVideoStats,
     listInbox, countWaiting,
-    aiStatus, aiAsk, aiFeedback, getAchievements, getAiChat, sendToAi, clearAiChat,
+    aiStatus, aiAsk, aiFeedback, aiScan, getAchievements, getAiChat, sendToAi, clearAiChat,
     getBag, addToBag, removeFromBag, verifyBagEntry,
     friendState, sendFriendRequest, listIncomingRequests, listOutgoingRequests,
     countIncomingRequests, acceptRequest, declineRequest,

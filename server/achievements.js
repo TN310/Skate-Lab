@@ -64,7 +64,7 @@ const KEY_TO_ID = (() => {
  */
 export async function achievementsFor(userId) {
   const rows = await db.prepare(`
-    SELECT name, verified_by, ai_verdict FROM bag WHERE user_id = ?`).all(userId);
+    SELECT name, verified_by, ai_verdict, ai_match FROM bag WHERE user_id = ?`).all(userId);
 
   /** מזהה טריק -> איך הוא הוכח (הדרגה הגבוהה ביותר שנמצאה). */
   const landed = new Map();
@@ -77,7 +77,14 @@ export async function achievementsFor(userId) {
       continue;
     }
 
-    const proof = row.verified_by ? 'coach' : row.ai_verdict === 'landed' ? 'ai' : 'self';
+    /*
+     * ה-AI מעיד על הנחיתה בלבד, אף פעם לא על שם הטריק. לכן כשהוא ראה
+     * סתירה בין הסרטון לשם, ההוכחה יורדת ל-'self' — ההישג עדיין נפתח,
+     * כי אולי הרוכב צודק, אבל הוא לא נחשב מגובה.
+     */
+    const proof = row.verified_by ? 'coach'
+      : row.ai_verdict === 'landed' && row.ai_match !== 'no' ? 'ai'
+      : 'self';
     // אם אותו טריק נחת כמה פעמים, שומרים את ההוכחה החזקה ביותר
     const rank = { self: 0, ai: 1, coach: 2 };
     if (!landed.has(id) || rank[proof] > rank[landed.get(id)]) landed.set(id, proof);

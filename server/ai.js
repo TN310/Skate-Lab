@@ -129,15 +129,24 @@ export function draftFeedback({ trickId, riderName, riderLevel, note, frames }) 
 /**
  * בדיקת סרטון של טריק, על סמך פריימים שהדפדפן חילץ ממנו.
  *
- * מה שהמודל באמת יודע: להבחין בין "הלוח מתחת לרגליים והרוכב ממשיך"
- * לבין "הלוח עף והרוכב על הרצפה".
- * מה שהוא לא יודע: להבדיל בין טריקים דומים, ולא לזהות סרטון גנוב.
- * לכן זה מסנן ראשון בלבד, ואישור אנושי של מאמן תמיד גובר עליו.
+ * שתי שאלות נפרדות, ובכוונה:
+ *   1. נחיתה — האם הרוכב סיים על הלוח או נפל.
+ *   2. התאמה — האם מה שנראה מתיישב עם *שם* הטריק שנרשם.
  *
- * מחזיר { verdict: 'landed'|'unclear'|'bail', reason }
+ * בלי שאלה 2 היה אפשר לצלם אוליי, לרשום "קיקפליפ", ולקבל חותמת ירוקה:
+ * הבדיקה הישנה כלל לא הסתכלה על השם.
+ *
+ * שאלה 2 מוטה בכוונה לטובת הרוכב. שמונה פריימים לא מספיקים כדי לראות
+ * סיבוב שלם של הלוח, ולכן NO נאמר רק כשיש סתירה גלויה — למשל טענה
+ * לטריק שדורש היפוך, כשהלוח נראה יציב לכל אורך הקפיצה. בכל ספק:
+ * UNSURE, שלא מאשים אף אחד ורק לא נותן חותמת.
+ *
+ * מחזיר { verdict: 'landed'|'unclear'|'bail', match: 'yes'|'no'|'unsure', reason }
  */
 export async function checkAttempt(frames, trickName) {
-  if (!frames?.length) return { verdict: 'unclear', reason: 'לא התקבלו פריימים מהסרטון.' };
+  if (!frames?.length) {
+    return { verdict: 'unclear', match: 'unsure', reason: 'לא התקבלו פריימים מהסרטון.' };
+  }
 
   const images = frames.slice(0, 8).map((data) => ({
     type: 'image',
@@ -150,21 +159,42 @@ export async function checkAttempt(frames, trickName) {
       ...images,
       { type: 'text', text:
         `אלה פריימים לפי הסדר מתוך סרטון קצר. הרוכב טוען שהוא נחת: "${trickName}".\n` +
-        'שאלה אחת בלבד: האם נראה שהרוכב סיים את הניסיון על הלוח וממשיך לנסוע, ' +
+        'ענה על שתי שאלות:\n' +
+        '1. נחיתה — האם נראה שהרוכב סיים את הניסיון על הלוח וממשיך לנסוע, ' +
         'או שהוא נפל / הלוח עף ממנו?\n' +
-        'אל תנסה לזהות איזה טריק זה — אתה לא יכול לדעת מפריימים בודדים.\n' +
-        'ענה בשורה אחת בדיוק בפורמט: VERDICT | סיבה קצרה בעברית\n' +
+        `2. התאמה — האם מה שנראה בפריימים מתיישב עם הטענה "${trickName}"?\n` +
+        '   חשוב: אל תנסה לזהות איזה טריק זה. אתה רק בודק סתירה גלויה — ' +
+        'למשל טענה לטריק שדורש היפוך או סיבוב של הלוח, כשהלוח נראה יציב ' +
+        'ובאותו כיוון בכל הפריימים.\n' +
+        '   שמונה פריימים לא מספיקים כדי לראות סיבוב מלא, ולכן בכל מקרה של ' +
+        'ספק ענה UNSURE. אל תענה NO אלא אם הסתירה ברורה לחלוטין.\n' +
+        'ענה בשורה אחת בדיוק בפורמט: VERDICT | MATCH | סיבה קצרה בעברית\n' +
         'כאשר VERDICT הוא אחד מ: LANDED (נראה שנחת), BAIL (נראה שנפל), ' +
-        'UNCLEAR (אי אפשר לקבוע מהפריימים).' },
+        'UNCLEAR (אי אפשר לקבוע מהפריימים),\n' +
+        'ו-MATCH הוא אחד מ: YES (מתיישב עם השם), NO (סותר את השם), ' +
+        'UNSURE (אי אפשר לדעת).' },
     ],
-  }], { maxTokens: 150 });
+  }], { maxTokens: 200 });
 
-  const [head, ...rest] = raw.split('|');
+  const [head, second, ...rest] = raw.split('|');
   const key = (head || '').trim().toUpperCase();
   const verdict = key.includes('LANDED') ? 'landed'
     : key.includes('BAIL') ? 'bail' : 'unclear';
 
-  return { verdict, reason: rest.join('|').trim() || raw.trim() };
+  /*
+   * המודל עלול לוותר על השדה השני ולכתוב את הסיבה במקומו. לכן מזהים
+   * אותו לפי תוכן ולא לפי מיקום: בלי מילת מפתח, השדה הוא הסיבה —
+   * וההתאמה נשארת 'unsure', ברירת המחדל שאינה מאשימה ואינה מאשרת.
+   */
+  const matchKey = (second || '').trim().toUpperCase();
+  const isMatchField = /\b(YES|NO|UNSURE)\b/.test(matchKey);
+  const match = !isMatchField ? 'unsure'
+    : /\bYES\b/.test(matchKey) ? 'yes'
+    : /\bNO\b/.test(matchKey) ? 'no' : 'unsure';
+
+  const reason = (isMatchField ? rest.join('|') : [second, ...rest].join('|')).trim();
+
+  return { verdict, match, reason: reason || raw.trim() };
 }
 
 /**

@@ -234,6 +234,17 @@ app.patch('/api/me', requireUser, route(async (req, res) => {
     put('stance', body.stance);
   }
 
+  /*
+   * החלפת תפקיד מותרת, כולל אל 'coach' — וזו לא הרחבת הרשאות: כבר
+   * במסך ההרשמה כל אחד יכול להכריז על עצמו מאמן. האימות שמאמן נותן
+   * שווה בדיוק כמה שהקהילה מכירה אותו, ולכן החתימה בכרטיס נושאת שם.
+   * אישורים שכבר ניתנו נשארים על כנם — הם תיעוד של מי אישר ומתי.
+   */
+  if (body.role !== undefined) {
+    if (!ROLE_IDS.includes(body.role)) return bad(res, 'תפקיד לא תקין');
+    put('role', body.role);
+  }
+
   if (body.years !== undefined) {
     const years = Number(body.years);
     if (body.years !== null && body.years !== '' && (!Number.isFinite(years) || years < 0 || years > 80)) {
@@ -685,16 +696,22 @@ const bagShape = (r) => ({
   video: { id: r.video_id, title: r.video_title, poster: r.video_poster,
            hasThumb: !!r.video_has_thumb, hasFile: !!r.video_has_file,
            thumbUrl: r.video_thumb_url || null, videoUrl: r.video_video_url || null },
-  ai: r.ai_verdict ? { verdict: r.ai_verdict, reason: r.ai_reason } : null,
+  ai: r.ai_verdict ? { verdict: r.ai_verdict, match: r.ai_match || 'unsure',
+                       reason: r.ai_reason } : null,
   verifiedBy: r.verifier_name || null,
   // סרטון שמישהו אחר העלה *לפני* — סימן מובהק לקליפ שאינו שלכם
   stolenFrom: r.stolen_from || null,
   /*
    * דירוג אמון: אישור אנושי של מאמן הוא הגבוה ביותר וגובר גם על סימון
    * הכפילות — הוא בן אדם שבדק. הסימון עצמו נשאר גלוי בכרטיס בכל מקרה.
+   *
+   * 'mismatch' הוא הסימון שה-AI ראה סתירה בין הסרטון לשם שנרשם. הוא
+   * מוצג לפני שאלת הנחיתה, כי נחיתה של טריק אחר אינה הוכחה לטריק
+   * שנטען. ה-AI לבדו לעולם אינו מאשר את *השם* — רק מאמן עושה זאת.
    */
   trust: r.verified_by ? 'coach'
     : r.stolen_from ? 'stolen'
+    : r.ai_match === 'no' ? 'mismatch'
     : r.ai_verdict === 'landed' ? 'ai'
     : r.ai_verdict ? 'ai-doubt' : 'none',
 });
@@ -752,9 +769,11 @@ app.post('/api/bag', requireUser, route(async (req, res) => {
   }
 
   const id = newId('b');
-  await db.prepare(`INSERT INTO bag (id, user_id, name, video_id, ai_verdict, ai_reason, created_at)
-              VALUES (?, ?, ?, ?, ?, ?, ?)`)
-    .run(id, req.user.id, name.slice(0, 60), videoId, ai?.verdict || null, ai?.reason || null, now());
+  await db.prepare(`INSERT INTO bag (id, user_id, name, video_id,
+                                     ai_verdict, ai_match, ai_reason, created_at)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
+    .run(id, req.user.id, name.slice(0, 60), videoId,
+         ai?.verdict || null, ai?.match || null, ai?.reason || null, now());
 
   res.json(bagShape(await db.prepare(`${BAG_SELECT} WHERE b.id = ?`).get(id)));
 }));

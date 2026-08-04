@@ -1363,11 +1363,18 @@ Screens.chat = {
 const bagForm = { open: false, name: '', videoId: null, busy: false };
 
 /** סולם האמון, מהגבוה לנמוך. הסרטון הוא תמיד ההוכחה — זה מה שמעליו. */
+/*
+ * חותמות האמון. הניסוח נזהר להבדיל בין שתי שאלות שונות לגמרי:
+ * "נחת?" — שאלה שה-AI יודע לענות עליה, ו"איזה טריק זה?" — שאלה שרק
+ * מאמן שצפה בסרטון יכול לאשר. חותמת שמטשטשת ביניהן היא הזמנה לרשום
+ * אוליי בתור קיקפליפ ולקבל אישור.
+ */
 const TRUST = {
   coach:     { icon: '🥇', cls: 'ok',   label: (e) => `אימת ${e.verifiedBy}` },
-  ai:        { icon: '🤖', cls: 'ok',   label: () => 'ה-AI: נראה שנחת' },
+  ai:        { icon: '🤖', cls: 'meh',  label: () => 'ה-AI: נראה שנחת · הטריק לא אומת' },
   'ai-doubt':{ icon: '⚠️', cls: 'meh',  label: (e) =>
                  e.ai.verdict === 'bail' ? 'ה-AI: נראה שלא נחת' : 'ה-AI: לא ברור' },
+  mismatch:  { icon: '🚩', cls: 'bad',  label: () => 'ה-AI: זה לא נראה כמו הטריק שנרשם' },
   none:      { icon: '○',  cls: 'meh',  label: () => 'טרם נבדק' },
   stolen:    { icon: '🚩', cls: 'bad',  label: (e) => `הסרטון הועלה קודם על ידי ${e.stolenFrom}` },
 };
@@ -1424,14 +1431,20 @@ async function bagSection(userId, { mine }) {
     : empty('🎒', mine ? 'התיק ריק' : 'אין עדיין טריקים בתיק',
             mine ? 'כל טריק בתיק חייב סרטון — הסרטון הוא ההוכחה.' : '');
 
-  const solid = bag.filter((e) => e.trust === 'coach' || e.trust === 'ai').length;
-  const flagged = bag.filter((e) => e.trust === 'stolen').length;
+  /*
+   * "מאומת" נספר רק על אישור של מאמן. בדיקת ה-AI נספרת בנפרד ובלשון
+   * מדויקת — היא אומרת שנראתה נחיתה, לא שהטריק הוא מה שנרשם.
+   */
+  const verified = bag.filter((e) => e.trust === 'coach').length;
+  const landed = bag.filter((e) => e.trust === 'ai').length;
+  const flagged = bag.filter((e) => e.trust === 'stolen' || e.trust === 'mismatch').length;
 
   return `
     <h3 style="margin:26px 0 12px">
       ${mine ? 'התיק שלי' : 'התיק'}
       <span class="pill pill--quiet">${countLabel(bag.length, 'טריק אחד', 'טריקים')}</span>
-      ${solid ? `<span class="pill">${solid} מאומתים</span>` : ''}
+      ${verified ? `<span class="pill">🥇 ${verified} אימת מאמן</span>` : ''}
+      ${landed ? `<span class="pill pill--quiet">🤖 ${landed} נראתה נחיתה</span>` : ''}
       ${flagged ? `<span class="pill pill--bad">${flagged} מסומנים</span>` : ''}
     </h3>
     ${mine ? bagAdder() : ''}
@@ -1460,7 +1473,8 @@ function bagAdder() {
         <label class="field__label">איזה סרטון מוכיח את זה?</label>
         <div id="bag-videos" class="bagpick"></div>
         <p class="field__hint">
-          רק סרטונים ${gt('שלך','שלך','שלכם')} עם קובץ וידאו. ה-AI יבדוק את הסרטון ויסמן מה נראה לו.
+          רק סרטונים ${gt('שלך','שלך','שלכם')} עם קובץ וידאו. ה-AI בודק אם נראית נחיתה,
+          אבל את שם הטריק מאמת רק מאמן שצופה בסרטון.
         </p>
       </div>
 
@@ -1703,9 +1717,10 @@ function aiBubbleEl(m) {
 let achTab = null;
 
 /** איך הטריק הוכח — מהחזק לחלש. */
+/* דרגת ההוכחה של ההישג. רק 'coach' פירושו שמישהו אישר שזה באמת הטריק. */
 const PROOF = {
   coach: { icon: '\ud83e\udd47', label: 'אימת מאמן' },
-  ai:    { icon: '\ud83e\udd16', label: 'נבדק ב-AI' },
+  ai:    { icon: '\ud83e\udd16', label: 'נראתה נחיתה' },
   self:  { icon: '\u2713',       label: 'בתיק' },
 };
 
@@ -1781,6 +1796,22 @@ let dangerZoneOpen = false;
  */
 let editDraft = null;
 
+/*
+ * שדות הטקסט נקראים מה-DOM רק בשמירה, ולכן כל רינדור מחדש של הטופס
+ * היה מוחק בשקט מה שהוקלד וטרם נשמר. כל מי שמרנדר מחדש חייב לקרוא
+ * לזה קודם.
+ */
+function syncEditText() {
+  if (!editDraft) return;
+  const read = (sel, key) => { const el = $(sel); if (el) editDraft[key] = el.value; };
+  read('#ed-name', 'name');
+  read('#ed-email', 'email');
+  read('#ed-bio', 'bio');
+  read('#ed-city', 'city');
+  read('#ed-years', 'years');
+  read('#ed-region', 'region');
+}
+
 /** טופס עריכת הפרופיל. עובד על editDraft, לא על ME. */
 function profileEditor() {
   const d = editDraft;
@@ -1817,6 +1848,20 @@ function profileEditor() {
         <label class="field__label" for="ed-bio">קצת עליי <span class="muted">(לא חובה)</span></label>
         <textarea id="ed-bio" class="input input--area" maxlength="300" rows="3"
                   placeholder="${gt('מה אתה אוהב','מה את אוהבת','מה אתם אוהבים')} לרכוב, איפה, כמה זמן…">${esc(d.bio || '')}</textarea>
+      </div>
+
+      <div class="field">
+        <label class="field__label">התפקיד שלי</label>
+        <div class="chips">
+          ${Object.values(Store.ROLES).map((r) => `
+            <button type="button" class="chip" data-ed-role="${r.id}"
+                    aria-pressed="${d.role === r.id}">${r.icon} ${r.title}</button>`).join('')}
+        </div>
+        <p class="field__hint">
+          ${d.role === 'coach'
+            ? 'כמאמן אפשר לאמת טריקים בתיק של רוכבים אחרים.'
+            : 'מאמן יכול לאמת טריקים בתיק של רוכבים אחרים.'}
+        </p>
       </div>
 
       <div class="field">
@@ -1973,6 +2018,7 @@ Screens.profile = {
           avatar: ME.avatar, region: ME.region || '', city: ME.city || '',
           level: ME.level || null, styles: [...(ME.styles || [])],
           stance: ME.stance || 'unknown', gender: ME.gender || 'na',
+          role: ME.role,
           years: ME.years ?? '',
         };
         errors = {};
@@ -2017,6 +2063,14 @@ Screens.profile = {
         };
       });
 
+      $$('[data-ed-role]').forEach((b) => {
+        b.onclick = () => {
+          d.role = b.dataset.edRole;
+          syncEditText();
+          rerender();   // הרמז שמתחת לשדה משתנה לפי הבחירה
+        };
+      });
+
       $$('[data-ed-gender]').forEach((b) => {
         b.onclick = () => {
           d.gender = b.dataset.edGender;
@@ -2032,6 +2086,7 @@ Screens.profile = {
         save.onclick = async () => {
           if (save.disabled) return;
           errors = {};
+          syncEditText();   // כדי שרינדור אחרי שגיאה לא ימחק את מה שהוקלד
 
           const name = $('#ed-name').value.trim();
           if (name.length < 2) errors.name = 'צריך שם של שני תווים לפחות';
@@ -2053,6 +2108,7 @@ Screens.profile = {
               styles: d.styles,
               stance: d.stance,
               gender: d.gender,
+              role: d.role,
             });
             // ME מתעדכן מהתשובה של השרת, לא מהטיוטה — כך שמה שמוצג
             // הוא מה שבאמת נשמר, כולל נרמול של המייל

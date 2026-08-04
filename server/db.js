@@ -202,6 +202,7 @@ await db.exec(`
     name          TEXT NOT NULL,
     video_id      TEXT NOT NULL REFERENCES videos(id) ON DELETE CASCADE,
     ai_verdict    TEXT,
+    ai_match      TEXT,
     ai_reason     TEXT,
     verified_by   TEXT REFERENCES users(id) ON DELETE SET NULL,
     created_at    TEXT NOT NULL,
@@ -221,6 +222,13 @@ await db.exec(`
    * ב-CREATE TABLE שרץ פעם אחת. IF NOT EXISTS הופך את זה לבטוח לחזרה.
    */
   ALTER TABLE users ADD COLUMN IF NOT EXISTS email TEXT;
+
+  /*
+   * האם מה שנראה בסרטון מתיישב עם שם הטריק שנרשם: 'yes' / 'no' / 'unsure'.
+   * שורות ישנות נשארות NULL — הן נבדקו לפני שהשאלה הזאת נשאלה בכלל,
+   * ולכן הן מטופלות כ"לא ידוע" ולא כ"מאושר".
+   */
+  ALTER TABLE bag ADD COLUMN IF NOT EXISTS ai_match TEXT;
 
   /*
    * ייחודיות ללא תלות ברישיות, ורק על מי שמילא — כתובת ריקה היא NULL,

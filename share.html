@@ -30,6 +30,14 @@
     }
     .sharepage__cta p { color: var(--muted); margin: 6px 0 14px; font-size: 14px; }
     .sharepage__cta .btn { text-decoration: none; }
+    .sharepage__locked {
+      margin-top: 20px; padding: 16px;
+      border: 1px solid var(--line); border-radius: var(--r-md);
+      background: var(--surface);
+    }
+    .sharepage__locked b { display: block; margin-bottom: 4px; }
+    .sharepage__locked p { color: var(--muted); font-size: 13px; margin: 0; }
+    .sharepage__once { color: var(--accent); font-size: 12px; margin-top: 14px; }
   </style>
 </head>
 <body>
@@ -88,7 +96,18 @@
           <b>${esc(data.author.name)}</b>
         </div>
         ${data.desc ? `<p class="lead">${esc(data.desc)}</p>` : ''}
-        <span class="tag">${data.kind === 'lesson' ? '🎓 שיעור' : '⭐️ טריק'}</span>`);
+        <span class="tag">${data.kind === 'lesson' ? '🎓 שיעור' : '⭐️ טריק'}</span>
+
+        <div class="sharepage__locked">
+          <b>💬 ${data.commentCount === 1 ? 'תגובה אחת' : `${data.commentCount} תגובות`}</b>
+          <p>${data.commentCount
+            ? 'כדי לקרוא את התגובות ולהגיב צריך להתחבר או להירשם.'
+            : 'עוד אין תגובות. כדי להגיב צריך להתחבר או להירשם.'}</p>
+        </div>
+
+        ${data.once
+          ? '<p class="sharepage__once">🔒 זהו קישור חד-פעמי — הוא נפתח פעם אחת ולא יעבוד למי שיקבל אותו בהעברה.</p>'
+          : ''}`);
     })();
   </script>
 </body>

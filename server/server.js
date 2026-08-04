@@ -11,14 +11,14 @@ import { stat } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { db, now, newId, slugify, publicUser, privateUser, publicVideo,
+import { db, now, newId, slugify, publicUser, privateUser, publicVideo, ageFrom,
          getUserRow, getUserBySlug, USER_SELECT } from './db.js';
 import { put as putFile, remove as removeFiles, UPLOADS, usingCloud } from './storage.js';
 import { hashPassword, verifyPassword, createSession, destroySession,
          attachUser, requireUser, cookies, setSessionCookie, clearSessionCookie } from './auth.js';
 import { seedIfEmpty, greetNewUser, DEMO_GREETINGS } from './seed.js';
 import { aiAvailable, askCoach, draftFeedback, guessFromThumb, checkAttempt, chatReply } from './ai.js';
-import { achievementsFor, nextTricksFor } from './achievements.js';
+import { achievementsFor, nextTricksFor, sameTrick } from './achievements.js';
 import { rateLimit, aiQuotaExceeded, inviteRequired, inviteOk } from './guard.js';
 import { adminEnabled, checkPassword, createAdminSession, destroyAdminSession,
          isAdmin, requireAdmin, setAdminCookie, clearAdminCookie } from './admin.js';
@@ -693,6 +693,8 @@ const bagShape = (r) => ({
   id: r.id,
   name: r.name,
   createdAt: r.created_at,
+  // הרגע בסרטון שאליו הטריק שייך, כשהרוכב סימן אותו
+  at: r.at_seconds ?? null,
   video: { id: r.video_id, title: r.video_title, poster: r.video_poster,
            hasThumb: !!r.video_has_thumb, hasFile: !!r.video_has_file,
            thumbUrl: r.video_thumb_url || null, videoUrl: r.video_video_url || null },
@@ -753,9 +755,20 @@ app.post('/api/bag', requireUser, route(async (req, res) => {
   if (video.author_id !== req.user.id) return bad(res, 'אפשר לצרף רק סרטון שלכם', 403);
   if (!video.has_file) return bad(res, 'לסרטון הזה אין קובץ וידאו, אז אי אפשר לאמת אותו');
 
-  const already = await db.prepare('SELECT id FROM bag WHERE user_id = ? AND video_id = ?')
-    .get(req.user.id, videoId);
-  if (already) return bad(res, 'הסרטון הזה כבר בתיק');
+  /*
+   * אותו סרטון יכול להיכנס כמה פעמים — קו של שלושה טריקים הוא שלושה
+   * הישגים. מה שנחסם זה אותו טריק פעמיים מאותו סרטון, כולל כתיב אחר:
+   * "קיקפליפ" ו-"kickflip" הם אותו הישג ולכן אותה שורה.
+   */
+  const fromClip = await db.prepare('SELECT name FROM bag WHERE user_id = ? AND video_id = ?')
+    .all(req.user.id, videoId);
+  if (fromClip.some((row) => sameTrick(row.name, name))) {
+    return bad(res, 'הטריק הזה כבר בתיק מהסרטון הזה');
+  }
+
+  // הרגע בסרטון, אם הרוכב סימן אותו. מחוץ לתחום הסביר נזרק בשקט.
+  const at = Number(req.body?.at);
+  const atSeconds = Number.isFinite(at) && at >= 0 && at < 86_400 ? at : null;
 
   // הבדיקה רצה עכשיו כדי שהתשובה תחזור עם התוצאה. אם אין מפתח או שהיא
   // נכשלת, הטריק נכנס בכל זאת ומסומן כלא-נבדק.
@@ -769,10 +782,10 @@ app.post('/api/bag', requireUser, route(async (req, res) => {
   }
 
   const id = newId('b');
-  await db.prepare(`INSERT INTO bag (id, user_id, name, video_id,
+  await db.prepare(`INSERT INTO bag (id, user_id, name, video_id, at_seconds,
                                      ai_verdict, ai_match, ai_reason, created_at)
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
-    .run(id, req.user.id, name.slice(0, 60), videoId,
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+    .run(id, req.user.id, name.slice(0, 60), videoId, atSeconds,
          ai?.verdict || null, ai?.match || null, ai?.reason || null, now());
 
   res.json(bagShape(await db.prepare(`${BAG_SELECT} WHERE b.id = ?`).get(id)));
@@ -1056,8 +1069,20 @@ app.delete('/api/admin/videos/:id', requireAdmin, route(async (req, res) => {
    • אפשר לבטל בכל רגע, והקישור מת מיד.
    ========================================================================== */
 
-/** צורת הסרטון בעמוד הציבורי — מכוונת למינימום ההכרחי. */
-const sharedShape = (row, author) => ({
+/** מתחת לגיל הזה הקישור חד-פעמי. גיל לא ידוע נחשב לילד. */
+const SHARE_ADULT_AGE = 16;
+
+const isMinor = (author) => {
+  const age = ageFrom(author?.dob);
+  return age === null || age < SHARE_ADULT_AGE;
+};
+
+/**
+ * צורת הסרטון בעמוד הציבורי — מכוונת למינימום ההכרחי.
+ * מספר התגובות נשלח בלי התוכן: העמוד מזמין להירשם כדי לקרוא אותן,
+ * ומי שאין לו חשבון לא רואה מה נכתב ולא מי כתב.
+ */
+const sharedShape = (row, author, commentCount) => ({
   title: row.title,
   desc: row.descr || null,
   kind: row.kind,
@@ -1066,20 +1091,37 @@ const sharedShape = (row, author) => ({
   thumbUrl: row.thumb_url || null,
   hasFile: !!row.has_file,
   createdAt: row.created_at,
+  commentCount,
+  once: !!row.share_once,
   author: { name: author?.name || 'רוכב', avatar: author?.avatar || '🛹' },
 });
+
+/*
+ * העוגייה מסמנת "אני מי שפתח את הקישור החד-פעמי הזה", כדי שרענון של
+ * הדף או טעינה חוזרת לא יהרגו אותו למי שכבר צפה. מי שקיבל את הקישור
+ * בהעברה, בדפדפן אחר, כבר לא ייכנס — וזה בדיוק מה שחד-פעמי אמור לעשות.
+ */
+const SHARE_COOKIE = 'sk_share';
+const shareCookie = (res, token) => res.setHeader('Set-Cookie',
+  `${SHARE_COOKIE}=${token}; HttpOnly; Path=/; SameSite=Lax` +
+  `${process.env.NODE_ENV === 'production' ? '; Secure' : ''}; Max-Age=${60 * 60 * 24 * 30}`);
 
 app.post('/api/videos/:id/share', requireUser, route(async (req, res) => {
   const row = await db.prepare('SELECT * FROM videos WHERE id = ?').get(req.params.id);
   if (!row) return bad(res, 'הסרטון לא נמצא', 404);
   if (row.author_id !== req.user.id) return bad(res, 'זה לא הסרטון שלכם', 403);
 
+  const author = await getUserRow(req.user.id);
+  const once = isMinor(author) ? 1 : 0;
+
   // טוקן קיים נשמר: יצירה חוזרת הייתה שוברת קישור שכבר נשלח למישהו
   const token = row.share_token || randomBytes(16).toString('hex');
   if (!row.share_token) {
-    await db.prepare('UPDATE videos SET share_token = ? WHERE id = ?').run(token, row.id);
+    await db.prepare(
+      'UPDATE videos SET share_token = ?, share_once = ?, share_used_at = NULL WHERE id = ?')
+      .run(token, once, row.id);
   }
-  res.json({ token });
+  res.json({ token, once: !!once });
 }));
 
 app.delete('/api/videos/:id/share', requireUser, route(async (req, res) => {
@@ -1087,7 +1129,8 @@ app.delete('/api/videos/:id/share', requireUser, route(async (req, res) => {
   if (!row) return bad(res, 'הסרטון לא נמצא', 404);
   if (row.author_id !== req.user.id) return bad(res, 'זה לא הסרטון שלכם', 403);
 
-  await db.prepare('UPDATE videos SET share_token = NULL WHERE id = ?').run(req.params.id);
+  await db.prepare(
+    'UPDATE videos SET share_token = NULL, share_used_at = NULL WHERE id = ?').run(req.params.id);
   res.json({ ok: true });
 }));
 
@@ -1100,11 +1143,26 @@ app.get('/api/share/:token',
   rateLimit({ max: 120, windowMs: 900_000, envKey: 'SHARE_LIMIT_QUARTER',
               message: 'יותר מדי בקשות.' }),
   route(async (req, res) => {
-  const row = await db.prepare('SELECT * FROM videos WHERE share_token = ?').get(req.params.token);
+  const token = req.params.token;
+  const row = await db.prepare('SELECT * FROM videos WHERE share_token = ?').get(token);
   if (!row) return bad(res, 'הקישור לא קיים או שבוטל', 404);
 
   res.setHeader('X-Robots-Tag', 'noindex, nofollow');
-  res.json(sharedShape(row, await getUserRow(row.author_id)));
+
+  // קישור חד-פעמי שכבר נצרך נפתח רק למי שצרך אותו
+  if (row.share_once && row.share_used_at && req.cookies?.[SHARE_COOKIE] !== token) {
+    return bad(res, 'הקישור הזה כבר נפתח. אפשר לבקש מהבעלים קישור חדש.', 404);
+  }
+
+  if (row.share_once && !row.share_used_at) {
+    await db.prepare('UPDATE videos SET share_used_at = ? WHERE id = ?').run(now(), row.id);
+    shareCookie(res, token);
+  }
+
+  const { n } = await db.prepare('SELECT COUNT(*)::int AS n FROM comments WHERE video_id = ?')
+    .get(row.id);
+
+  res.json(sharedShape(row, await getUserRow(row.author_id), n));
 }));
 
 /** העמוד עצמו. הוא מושך את הנתונים מהכתובת שמעל. */

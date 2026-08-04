@@ -1649,3 +1649,24 @@ button.mini-avatar { border: none; cursor: pointer; }
   font-family: inherit; font-size: 13px; cursor: pointer;
   text-decoration: underline;
 }
+
+/* נגן קטן בטופס התיק, לסימון הרגע שבו הטריק קורה */
+.bagscrub {
+  width: 100%;
+  max-height: 220px;
+  border-radius: var(--r-md);
+  background: #000;
+}
+.bagscrub__row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+.bagscrub__row .btn { width: auto; flex: none; }
+.bagscrub__at { font-size: 13px; color: var(--accent); font-weight: 600; }
+.bagscrub__row .btn--text {
+  border: none; background: none; padding: 0; min-height: 0;
+  font-family: inherit; font-size: 13px; cursor: pointer; text-decoration: underline;
+}

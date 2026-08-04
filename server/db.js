@@ -204,9 +204,9 @@ await db.exec(`
     ai_verdict    TEXT,
     ai_match      TEXT,
     ai_reason     TEXT,
+    at_seconds    REAL,
     verified_by   TEXT REFERENCES users(id) ON DELETE SET NULL,
-    created_at    TEXT NOT NULL,
-    UNIQUE (user_id, video_id)
+    created_at    TEXT NOT NULL
   );
 
   CREATE TABLE IF NOT EXISTS ai_messages (
@@ -236,6 +236,24 @@ await db.exec(`
    */
   ALTER TABLE videos ADD COLUMN IF NOT EXISTS share_token TEXT;
   CREATE UNIQUE INDEX IF NOT EXISTS idx_videos_share ON videos (share_token);
+
+  /*
+   * קישור של מי שמתחת לגיל 16 הוא חד-פעמי: הוא נצרך בפתיחה הראשונה,
+   * כדי שקליפ של ילד לא ימשיך להתגלגל מקבוצה לקבוצה. מגיל 16 הקישור
+   * רב-פעמי ונשאר פתוח עד שהבעלים מבטל אותו.
+   */
+  ALTER TABLE videos ADD COLUMN IF NOT EXISTS share_once INTEGER NOT NULL DEFAULT 0;
+  ALTER TABLE videos ADD COLUMN IF NOT EXISTS share_used_at TEXT;
+
+  /*
+   * בסרטון אחד אפשר לנחות כמה טריקים ברצף, ולכל אחד מגיע הישג משלו.
+   * המגבלה הישנה — סרטון אחד = שורה אחת בתיק — חסמה בדיוק את זה, אז
+   * היא יורדת. במקומה: אותו *טריק* מאותו סרטון לא ייכנס פעמיים.
+   */
+  ALTER TABLE bag DROP CONSTRAINT IF EXISTS bag_user_id_video_id_key;
+  ALTER TABLE bag ADD COLUMN IF NOT EXISTS at_seconds REAL;
+  CREATE UNIQUE INDEX IF NOT EXISTS idx_bag_trick_once
+    ON bag (user_id, video_id, LOWER(name));
 
   /*
    * ייחודיות ללא תלות ברישיות, ורק על מי שמילא — כתובת ריקה היא NULL,
@@ -380,6 +398,8 @@ export async function publicVideo(row, viewerId) {
      * אמור לדעת אם סרטון משותף, בוודאי לא להפיץ את הקישור בעצמו.
      */
     shareToken: viewerId && viewerId === row.author_id ? (row.share_token || null) : undefined,
+    shareOnce: viewerId && viewerId === row.author_id ? !!row.share_once : undefined,
+    shareUsedAt: viewerId && viewerId === row.author_id ? (row.share_used_at || null) : undefined,
     // התגובות מוחזרות כעץ בעומק אחד: שאלה, ומתחתיה התשובות עליה
     comments: nestComments(comments),
     commentCount: comments.length,

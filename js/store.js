@@ -291,9 +291,13 @@ const Store = (() => {
 
   const getBag = (userId) => api(`/bag/${userId}`);
 
-  /** הוספת טריק לתיק. הפריימים נשלחים לבדיקת ה-AI. */
-  const addToBag = (name, videoId, frames) =>
-    api('/bag', { method: 'POST', body: { name, videoId, frames } });
+  /**
+   * הוספת טריק לתיק. הפריימים נשלחים לבדיקת ה-AI.
+   * `at` הוא הרגע בסרטון שאליו הטריק שייך, כשהרוכב סימן אותו — כך
+   * אפשר להוסיף כמה טריקים מאותו קו, וכל אחד נבדק על הקטע שלו.
+   */
+  const addToBag = (name, videoId, frames, at = null) =>
+    api('/bag', { method: 'POST', body: { name, videoId, frames, at } });
 
   const removeFromBag = (id) => api(`/bag/${id}`, { method: 'DELETE' });
 

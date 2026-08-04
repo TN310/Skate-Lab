@@ -789,8 +789,13 @@ Screens.video = {
     const shareOff = $('[data-share-off]');
     if (shareOff) {
       shareOff.onclick = async () => {
-        if (!confirm('לבטל את הקישור? מי שכבר קיבל אותו לא יוכל לפתוח יותר.')) return;
+        // קישור חד-פעמי שכבר נוצל הוא ממילא מת, אז אין מה לאשר —
+        // הלחיצה פשוט מייצרת אחד חדש
+        const spent = shareOff.textContent.includes('חדש');
+        if (!spent && !confirm('לבטל את הקישור? מי שכבר קיבל אותו לא יוכל לפתוח יותר.')) return;
+
         await Store.unshareVideo(shareOff.dataset.shareOff);
+        if (spent) await Store.shareVideo(shareOff.dataset.shareOff);
         rerender();
       };
     }
@@ -1471,7 +1476,9 @@ Screens.chat = {
    ========================================================================== */
 
 /** מצב טופס ההוספה לתיק. */
-const bagForm = { open: false, name: '', videoId: null, busy: false };
+const bagForm = { open: false, name: '', videoId: null, busy: false,
+                 // הרגע בסרטון שסומן, בשניות. null = נבדק כל הסרטון
+                 at: null, video: null };
 
 /** סולם האמון, מהגבוה לנמוך. הסרטון הוא תמיד ההוכחה — זה מה שמעליו. */
 /*
@@ -1498,27 +1505,49 @@ const TRUST = {
  * רואה את הסרטון, נקודה. ההפעלה ידנית לכל סרטון בנפרד.
  */
 function shareBox(v) {
+  // מתחת ל-16 הקישור חד-פעמי, וזה נאמר לפני הלחיצה ולא אחריה
+  const minor = ME?.age === null || ME?.age === undefined || ME.age < 16;
+
   if (!v.shareToken) {
     return `
       <div class="sharebox">
         <button class="btn btn--ghost btn--sm" data-share-on="${esc(v.id)}">🔗 יצירת קישור לשיתוף</button>
         <p class="field__hint">
           קישור שנפתח בלי הרשמה, ומראה את הסרטון הזה בלבד — כותרת, שם ואווטאר.
-          בלי אזור, בלי גיל ובלי תגובות. אפשר לבטל בכל רגע.
+          בלי אזור, בלי גיל ובלי תוכן התגובות. אפשר לבטל בכל רגע.
+          ${minor
+            ? '<br><b>הקישור שלך יהיה חד-פעמי:</b> הוא נפתח פעם אחת, ומי שיקבל אותו בהעברה כבר לא ייכנס.'
+            : ''}
         </p>
       </div>`;
   }
+
+  const used = v.shareOnce && v.shareUsedAt;
 
   return `
     <div class="sharebox is-on">
       <div class="sharebox__row">
         <input class="input" id="share-url" readonly value="${esc(Store.shareUrl(v.shareToken))}">
-        <button class="btn btn--primary btn--sm" data-share-send>שליחה</button>
+        <button class="btn btn--primary btn--sm" data-share-send ${used ? 'disabled' : ''}>שליחה</button>
       </div>
-      <p class="field__hint">כל מי שיש לו את הקישור רואה את הסרטון, בלי חשבון.</p>
-      <button class="btn--text" data-share-off="${esc(v.id)}">ביטול הקישור</button>
+      <p class="field__hint">
+        ${v.shareOnce
+          ? (used
+              ? '🔒 הקישור הזה כבר נפתח, והוא לא יעבוד יותר. אפשר לבטל וליצור אחד חדש.'
+              : '🔒 קישור חד-פעמי — הראשון שיפתח אותו יראה את הסרטון, ואחריו הוא נסגר.')
+          : 'כל מי שיש לו את הקישור רואה את הסרטון, בלי חשבון.'}
+      </p>
+      <button class="btn--text" data-share-off="${esc(v.id)}">
+        ${used ? 'יצירת קישור חדש' : 'ביטול הקישור'}
+      </button>
     </div>`;
 }
+
+/** שניות -> 1:07, לתצוגת הרגע בסרטון. */
+const clock = (seconds) => {
+  const s = Math.max(0, Math.round(seconds || 0));
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+};
 
 /**
  * כרטיס טריק בתיק. הסרטון הוא ההוכחה, ולכן הוא תמיד לחיץ —
@@ -1549,7 +1578,8 @@ function bagCard(entry, { mine, canVerify }) {
       </button>
       <div class="bagcard__body">
         <b class="bagcard__name">${esc(entry.name)}</b>
-        <span class="bagcard__when">${timeAgo(entry.createdAt)}</span>
+        <span class="bagcard__when">${timeAgo(entry.createdAt)}${
+          entry.at === null || entry.at === undefined ? '' : ` · ${clock(entry.at)} בסרטון`}</span>
         ${stamp}
       </div>
       <div class="bagcard__side">
@@ -1614,10 +1644,31 @@ function bagAdder() {
         <label class="field__label">איזה סרטון מוכיח את זה?</label>
         <div id="bag-videos" class="bagpick"></div>
         <p class="field__hint">
-          רק סרטונים ${gt('שלך','שלך','שלכם')} עם קובץ וידאו. ה-AI בודק אם נראית נחיתה,
+          רק סרטונים ${gt('שלך','שלך','שלכם')} עם קובץ וידאו. אפשר להוסיף כמה טריקים
+          מאותו סרטון — כל אחד פותח הישג משלו. ה-AI בודק אם נראית נחיתה,
           אבל את שם הטריק מאמת רק מאמן שצופה בסרטון.
         </p>
       </div>
+
+      ${bagForm.video?.hasFile ? `
+        <div class="field" style="margin-bottom:12px">
+          <label class="field__label">איפה בסרטון הטריק הזה?</label>
+          <video id="bag-scrub" class="bagscrub" controls playsinline preload="metadata"
+                 src="${Media.videoUrl(bagForm.video)}"></video>
+          <div class="bagscrub__row">
+            <button type="button" class="btn btn--ghost btn--sm" data-mark-at>🎯 סימון הרגע</button>
+            <span class="bagscrub__at">
+              ${bagForm.at === null
+                ? 'נבדק כל הסרטון'
+                : `נבדקות ±2 שניות סביב ${clock(bagForm.at)}`}
+            </span>
+            ${bagForm.at === null ? '' : '<button type="button" class="btn--text" data-clear-at>ניקוי</button>'}
+          </div>
+          <p class="field__hint">
+            ${gt('עצור','עצרי','עצרו')} על הטריק ${gt('ולחץ','ולחצי','ולחצו')} "סימון הרגע".
+            בקו של כמה טריקים זה מה שמפנה את ה-AI לטריק הנכון.
+          </p>
+        </div>` : ''}
 
       ${errorFor('bag')}
 
@@ -1681,15 +1732,32 @@ function bindBag(userId, refresh) {
           // הכתובת נשמרת כאן כי חילוץ הפריימים קורא את הקובץ עצמו,
           // והוא כבר לא בהכרח יושב על השרת שלנו
           bagForm.video = usable.find((v) => v.id === bagForm.videoId) || null;
-          $$('[data-pick-video]').forEach((x) => x.classList.toggle('is-on', x === b));
+          bagForm.at = null;   // סרטון אחר, רגע אחר
+          rerender();          // כדי שנגן הסימון ייבנה לסרטון שנבחר
         };
       });
     });
   }
 
+  const mark = $('[data-mark-at]');
+  if (mark) {
+    mark.onclick = () => {
+      const player = $('#bag-scrub');
+      if (!player) return;
+      bagForm.at = player.currentTime;
+      rerender();
+    };
+  }
+
+  const clearAt = $('[data-clear-at]');
+  if (clearAt) clearAt.onclick = () => { bagForm.at = null; rerender(); };
+
   const save = $('[data-save-bag]');
   if (save) {
     save.onclick = async () => {
+      // הכפתור נשאר בדף בזמן הבדיקה, והקשה כפולה בטלפון שלחה שתי בקשות
+      if (bagForm.busy) return;
+
       errors = {};
       if (bagForm.name.trim().length < 2) errors.bag = `${gt('כתוב','כתבי','כתבו')} את שם הטריק`;
       else if (!bagForm.videoId) errors.bag = `${gt('בחר','בחרי','בחרו')} סרטון — הוא ההוכחה`;
@@ -1698,10 +1766,19 @@ function bindBag(userId, refresh) {
       bagForm.busy = true;
       rerender();
       try {
-        // הפריימים מחולצים בדפדפן ונשלחים לבדיקה
-        const frames = await Media.extractFrames(bagForm.video || bagForm.videoId);
-        await Store.addToBag(bagForm.name.trim(), bagForm.videoId, frames);
-        Object.assign(bagForm, { open: false, name: '', videoId: null, video: null });
+        /*
+         * הפריימים מחולצים בדפדפן ונשלחים לבדיקה. כשסומן רגע, נדגם
+         * רק החלון סביבו — אחרת שמונה פריימים נמרחים על קו שלם
+         * והבדיקה מתייחסת לטריק אחר.
+         */
+        const frames = await Media.extractFrames(bagForm.video || bagForm.videoId,
+                                                 { at: bagForm.at });
+        await Store.addToBag(bagForm.name.trim(), bagForm.videoId, frames, bagForm.at);
+
+        // הטופס נשאר פתוח על אותו סרטון: בקו של כמה טריקים מוסיפים
+        // אותם ברצף, וסגירה בכל פעם הייתה מכריחה לבחור סרטון מחדש
+        bagForm.name = '';
+        bagForm.at = null;
       } catch (err) {
         errors.bag = err.message;
       } finally {

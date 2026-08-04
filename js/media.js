@@ -84,8 +84,13 @@ const Media = (() => {
    * מחלץ פריימים מסרטון שכבר הועלה, לבדיקת ה-AI.
    * נעשה בדפדפן כי הוא כבר יודע לפענח וידאו — ככה אין צורך בכלי המרה בשרת.
    * מחזיר מערך של מחרוזות base64 (בלי הקידומת של data URL).
+   *
+   * המודל לא מקבל קובץ וידאו, רק תמונות — "לראות את הסרטון" פירושו
+   * לדגום ממנו פריימים. `at` מצמצם את הדגימה לחלון של ±`window` שניות
+   * סביב רגע מסוים, וזה מה שמאפשר לבדוק טריק אחד מתוך קו של כמה:
+   * בלעדיו שמונה פריימים נמרחים על כל הסרטון ומפספסים את הרגע.
    */
-  async function extractFrames(source, count = 6, maxSide = 512) {
+  async function extractFrames(source, { count = 8, at = null, window = 2, maxSide = 512 } = {}) {
     const video = document.createElement('video');
     video.src = videoUrl(source);
     video.muted = true;
@@ -110,11 +115,22 @@ const Media = (() => {
       canvas.height = Math.round(video.videoHeight * scale);
       const ctx = canvas.getContext('2d');
 
+      // חלון סביב רגע מסוים, או כל הסרטון כשלא סומן רגע
+      const marked = Number.isFinite(at) && at !== null;
+
+      const from = marked ? Math.max(0, at - window) : 0;
+      const to = marked ? Math.min(duration, at + window) : duration;
+      const span = Math.max(to - from, 0.1);
+
+      // בערך ארבעה פריימים לשנייה לכל היותר — בקליפ של חצי שנייה אין
+      // שמונה תמונות שונות, ורק היו נדגמות אותן תמונות שוב ושוב
+      const total = Math.max(2, Math.min(count, Math.round(span * 4)));
+
       const frames = [];
-      for (let i = 0; i < count; i += 1) {
+      for (let i = 0; i < total; i += 1) {
         // דוגמים בפריסה אחידה, בלי ממש בהתחלה ובסוף
-        const at = duration * ((i + 0.5) / count);
-        await seek(video, at);
+        const moment = from + span * ((i + 0.5) / total);
+        await seek(video, moment);
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
         frames.push(canvas.toDataURL('image/jpeg', 0.7).split(',')[1]);
       }
@@ -127,10 +143,18 @@ const Media = (() => {
     }
   }
 
+  /*
+   * דילוג לנקודה בסרטון. שתי מלכודות:
+   * • כשכבר עומדים כמעט בדיוק שם, הדפדפן לא יורה seeked בכלל — ואז
+   *   ההמתנה נגמרת רק בפסק הזמן. בסרטון קצר זה קרה כמעט בכל פריים,
+   *   והחילוץ נמשך עשרות שניות במקום להיגמר מיד.
+   * • גם אחרת עדיף פסק זמן קצר: פריים אחד שלא נטען לא שווה המתנה.
+   */
   const seek = (video, time) => new Promise((resolve) => {
+    if (Math.abs(video.currentTime - time) < 0.04) return resolve();
     video.onseeked = resolve;
     video.currentTime = time;
-    setTimeout(resolve, 3000);   // לא נתקעים על פריים בודד
+    setTimeout(resolve, 1200);
   });
 
   return { videoUrl, thumbUrl, shrinkImage, canDecode, putVideo, putThumb, extractFrames };

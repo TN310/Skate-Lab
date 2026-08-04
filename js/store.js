@@ -197,6 +197,9 @@ const Store = (() => {
 
   const getUser = (id) => api(`/users/${id}`).catch(() => null);
 
+  /** הטריקים שכדאי ללמוד עכשיו. נכשל בשקט — זה מקטע עזר, לא תוכן המסך. */
+  const getNextTricks = () => api('/next-tricks').catch(() => []);
+
   const listCoaches = ({ region, style, query, onlyFollowed } = {}) =>
     api('/coaches', { params: { region, style, query, onlyFollowed: onlyFollowed || '' } });
 
@@ -230,6 +233,17 @@ const Store = (() => {
   });
 
   const deleteVideo = (id) => api(`/videos/${id}`, { method: 'DELETE' }).then(() => true, () => false);
+
+  /* ---------- קישור צפייה ציבורי ---------- */
+
+  /** מפעיל קישור לסרטון ומחזיר את הכתובת המלאה לשליחה. */
+  const shareVideo = (id) => api(`/videos/${id}/share`, { method: 'POST' })
+    .then((r) => shareUrl(r.token));
+
+  const unshareVideo = (id) => api(`/videos/${id}/share`, { method: 'DELETE' }).then(() => true);
+
+  /** הכתובת נבנית בצד-לקוח כדי שהשרת לא יצטרך לנחש את הדומיין שלו. */
+  const shareUrl = (token) => `${location.origin}/s/${token}`;
 
   const toggleLike = (id) => api(`/videos/${id}/like`, { method: 'POST' });
 
@@ -318,8 +332,8 @@ const Store = (() => {
     ageFrom, isRealDate,
     getDraft, saveDraft, clearDraft,
     register, login, logout, deleteAccount, currentUser, updateProfile, inviteRequired,
-    getUser, listCoaches, listPeople, toggleFollow,
-    listVideos, getVideo, addVideo, deleteVideo, toggleLike, countView, addComment, myVideoStats,
+    getUser, listCoaches, listPeople, toggleFollow, getNextTricks,
+    listVideos, getVideo, addVideo, deleteVideo, shareVideo, unshareVideo, shareUrl, toggleLike, countView, addComment, myVideoStats,
     listInbox, countWaiting,
     aiStatus, aiAsk, aiFeedback, getAchievements, getAiChat, sendToAi, clearAiChat,
     getBag, addToBag, removeFromBag, verifyBagEntry,

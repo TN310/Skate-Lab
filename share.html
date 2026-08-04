@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0b0b0d">
+  <meta name="robots" content="noindex, nofollow">
+  <!--
+    עמוד הצפייה הציבורי. נפתח בלי הרשמה, ומראה סרטון אחד בלבד.
+    אין כאן קישור לפרופיל, אזור, גיל, תגובות או חיפוש — מה שאין
+    בעמוד אי אפשר לאסוף ממנו, ומדובר בסרטונים של ילדים.
+  -->
+  <title>Skate Lab</title>
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛹</text></svg>">
+  <style>
+    .sharepage { max-width: 480px; margin: 0 auto; padding: 24px var(--pad) 40px; }
+    .sharepage__brand {
+      display: flex; align-items: center; gap: 8px;
+      font-weight: 800; letter-spacing: -.02em; margin-bottom: 18px;
+    }
+    .sharepage__author {
+      display: flex; align-items: center; gap: 10px; margin: 16px 0 8px;
+    }
+    .sharepage__cta {
+      margin-top: 26px; padding: 20px; text-align: center;
+      border-radius: var(--r-md);
+      border: 1px solid rgba(215, 255, 62, .28);
+      background: linear-gradient(180deg, rgba(215, 255, 62, .08), var(--surface));
+    }
+    .sharepage__cta p { color: var(--muted); margin: 6px 0 14px; font-size: 14px; }
+    .sharepage__cta .btn { text-decoration: none; }
+  </style>
+</head>
+<body>
+  <div class="sharepage" id="page">
+    <p class="muted">טוען…</p>
+  </div>
+
+  <script>
+    const esc = (s) => String(s ?? '').replace(/[&<>"']/g,
+      (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+    const page = document.getElementById('page');
+    const token = location.pathname.split('/').filter(Boolean).pop();
+
+    const shell = (inner) => `
+      <div class="sharepage__brand">🛹 Skate Lab</div>
+      ${inner}
+      <div class="sharepage__cta">
+        <b>גם אתם רוכבים?</b>
+        <p>Skate Lab היא קהילה של סקייטרים בישראל — שיעורים, פידבק על טריקים ותיק אישי.</p>
+        <a class="btn btn--primary" href="/">לאפליקציה</a>
+      </div>`;
+
+    (async () => {
+      let data;
+      try {
+        const res = await fetch(`/api/share/${encodeURIComponent(token)}`);
+        if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || 'שגיאה');
+        data = await res.json();
+      } catch (err) {
+        page.innerHTML = shell(`
+          <div class="empty">
+            <span class="empty__icon">🔗</span>
+            <b>${esc(err.message)}</b>
+            <p class="muted">ייתכן שהבעלים ביטל את הקישור.</p>
+          </div>`);
+        return;
+      }
+
+      document.title = `${data.title} · Skate Lab`;
+
+      const player = data.hasFile && data.videoUrl
+        ? `<video class="player" controls playsinline preload="metadata"
+                  src="${esc(data.videoUrl)}"
+                  ${data.thumbUrl ? `poster="${esc(data.thumbUrl)}"` : ''}></video>`
+        : `<div class="player player--poster">
+             <span class="player__emoji">${esc(data.poster || '🛹')}</span>
+             <span class="player__note">הועלה בלי קובץ וידאו</span>
+           </div>`;
+
+      page.innerHTML = shell(`
+        ${player}
+        <h2 style="margin-top:16px">${esc(data.title)}</h2>
+        <div class="sharepage__author">
+          <span class="mini-avatar mini-avatar--lg">${esc(data.author.avatar)}</span>
+          <b>${esc(data.author.name)}</b>
+        </div>
+        ${data.desc ? `<p class="lead">${esc(data.desc)}</p>` : ''}
+        <span class="tag">${data.kind === 'lesson' ? '🎓 שיעור' : '⭐️ טריק'}</span>`);
+    })();
+  </script>
+</body>
+</html>

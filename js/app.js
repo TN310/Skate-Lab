@@ -83,6 +83,64 @@ function emptyVideos({ kind, onlyFollowed, region }) {
    פיד
    ========================================================================== */
 
+/*
+ * "הבא בתור" — המסלול האישי, בראש הפיד.
+ *
+ * פיד של קהילה שרק נולדה הוא חדר ריק, ומסך ריק הוא הסיבה הראשונה לא
+ * לחזור. הקטע הזה נותן לרוכב יחיד מה לעשות מחר בפארק, גם כשאין אף
+ * סרטון בעולם: מה ללמוד, שיעורים לטריק, וכפתור להעלות ניסיון.
+ */
+function nextUpBlock(tricks) {
+  if (!tricks?.length) return '';
+
+  const card = (t) => `
+    <article class="nextcard">
+      <span class="nextcard__icon">${t.icon}</span>
+      <div class="nextcard__body">
+        <b class="nextcard__title">${esc(t.title)}</b>
+        <span class="pill pill--quiet">${esc(t.level)}</span>
+        <p class="nextcard__desc">${esc(t.desc)}</p>
+        ${t.after.length
+          ? `<p class="nextcard__after">בא אחרי ${esc(t.after.join(', '))}</p>`
+          : ''}
+      </div>
+      <div class="nextcard__actions">
+        <button class="btn btn--ghost btn--sm" data-next-lessons="${esc(t.title)}">שיעורים</button>
+        <button class="btn btn--ghost btn--sm" data-next-try="${esc(t.title)}">העליתי ניסיון</button>
+      </div>
+    </article>`;
+
+  return `
+    <section class="nextup">
+      <h3 class="nextup__head">
+        הבא בתור
+        <span class="small muted">לפי מה שכבר בתיק ${gt('שלך','שלך','שלכם')}</span>
+      </h3>
+      <div class="nextup__list">${tricks.map(card).join('')}</div>
+    </section>`;
+}
+
+/** הכפתורים של "הבא בתור". מחוברים מכל מסך שמציג את הקטע. */
+function bindNextUp() {
+  $$('[data-next-lessons]').forEach((btn) => {
+    btn.onclick = () => {
+      search.query = btn.dataset.nextLessons;
+      search.tab = 'videos';
+      search.kind = 'lesson';
+      navigate('search');
+    };
+  });
+
+  $$('[data-next-try]').forEach((btn) => {
+    btn.onclick = () => {
+      // הטופס נפתח מוכן: טריק לפידבק, עם שם הטריק ככותרת
+      upload.kind = 'clip';
+      upload.title = btn.dataset.nextTry;
+      navigate('upload');
+    };
+  });
+}
+
 Screens.feed = {
   async html() {
     const videos = await Store.listVideos({
@@ -90,6 +148,8 @@ Screens.feed = {
       kind: feedFilter.kind,
       onlyFollowed: feedFilter.onlyFollowed,
     });
+
+    const nextUp = ME ? nextUpBlock(await Store.getNextTricks()) : '';
 
     const list = videos.length
       ? videos.map(videoCard).join('')
@@ -100,6 +160,8 @@ Screens.feed = {
         ${header('הפיד שלי', {
           action: '<button class="iconbtn" data-goto-search aria-label="חיפוש">🔍</button>',
         })}
+
+        ${nextUp}
 
         <div class="segmented">
           <button class="seg ${!feedFilter.onlyFollowed ? 'is-on' : ''}" data-scope="all">הכל</button>
@@ -139,6 +201,7 @@ Screens.feed = {
       };
     });
 
+    bindNextUp();
     bindCards();
   },
 };
@@ -501,6 +564,8 @@ Screens.video = {
           ${mine ? '<button class="vaction vaction--btn" data-delete>🗑 מחיקה</button>' : ''}
         </div>
 
+        ${mine ? shareBox(v) : ''}
+
         ${ME ? `
           <section class="ai ${aiOn ? '' : 'ai--off'}" id="ai">
             <div class="ai__head">🤖 ${mine && v.kind !== 'lesson' ? 'עוזר הפידבק' : gt('שאל את העוזר','שאלי את העוזר','שאלו את העוזר')}</div>
@@ -706,6 +771,52 @@ Screens.video = {
         send();
       }
     };
+
+    const shareOn = $('[data-share-on]');
+    if (shareOn) {
+      shareOn.onclick = async () => {
+        shareOn.disabled = true;
+        try {
+          await Store.shareVideo(shareOn.dataset.shareOn);
+          rerender();
+        } catch (err) {
+          shareOn.disabled = false;
+          alert(err.message);
+        }
+      };
+    }
+
+    const shareOff = $('[data-share-off]');
+    if (shareOff) {
+      shareOff.onclick = async () => {
+        if (!confirm('לבטל את הקישור? מי שכבר קיבל אותו לא יוכל לפתוח יותר.')) return;
+        await Store.unshareVideo(shareOff.dataset.shareOff);
+        rerender();
+      };
+    }
+
+    const shareSend = $('[data-share-send]');
+    if (shareSend) {
+      shareSend.onclick = async () => {
+        const url = $('#share-url').value;
+
+        /* בטלפון זה פותח את תפריט השיתוף של המערכת — ומשם ישר לוואטסאפ.
+           במחשב אין תפריט כזה, אז נופלים להעתקה. */
+        try {
+          if (navigator.share) return await navigator.share({ url });
+        } catch {
+          return;   // המשתמש ביטל את התפריט — לא שגיאה
+        }
+
+        try {
+          await navigator.clipboard.writeText(url);
+          shareSend.textContent = 'הועתק ✓';
+          setTimeout(() => { shareSend.textContent = 'שליחה'; }, 1800);
+        } catch {
+          $('#share-url').select();   // דפדפן ישן: לפחות מסומן להעתקה ידנית
+        }
+      };
+    }
 
     const del = $('[data-delete]');
     if (del) {
@@ -1378,6 +1489,36 @@ const TRUST = {
   none:      { icon: '○',  cls: 'meh',  label: () => 'טרם נבדק' },
   stolen:    { icon: '🚩', cls: 'bad',  label: (e) => `הסרטון הועלה קודם על ידי ${e.stolenFrom}` },
 };
+
+/*
+ * קישור הצפייה — מוצג רק לבעלים של הסרטון.
+ *
+ * זו הדרך היחידה להראות משהו למי שאין לו חשבון, ולכן היא גם הדרך
+ * שבה חברים מגיעים לאפליקציה. הניסוח לא מרכך: מי שיש לו את הקישור
+ * רואה את הסרטון, נקודה. ההפעלה ידנית לכל סרטון בנפרד.
+ */
+function shareBox(v) {
+  if (!v.shareToken) {
+    return `
+      <div class="sharebox">
+        <button class="btn btn--ghost btn--sm" data-share-on="${esc(v.id)}">🔗 יצירת קישור לשיתוף</button>
+        <p class="field__hint">
+          קישור שנפתח בלי הרשמה, ומראה את הסרטון הזה בלבד — כותרת, שם ואווטאר.
+          בלי אזור, בלי גיל ובלי תגובות. אפשר לבטל בכל רגע.
+        </p>
+      </div>`;
+  }
+
+  return `
+    <div class="sharebox is-on">
+      <div class="sharebox__row">
+        <input class="input" id="share-url" readonly value="${esc(Store.shareUrl(v.shareToken))}">
+        <button class="btn btn--primary btn--sm" data-share-send>שליחה</button>
+      </div>
+      <p class="field__hint">כל מי שיש לו את הקישור רואה את הסרטון, בלי חשבון.</p>
+      <button class="btn--text" data-share-off="${esc(v.id)}">ביטול הקישור</button>
+    </div>`;
+}
 
 /**
  * כרטיס טריק בתיק. הסרטון הוא ההוכחה, ולכן הוא תמיד לחיץ —

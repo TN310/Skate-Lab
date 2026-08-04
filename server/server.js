@@ -6,7 +6,7 @@
 import './env.mjs';   // חייב לרוץ ראשון — טוען server/.env לפני שai.js קורא ממנו
 
 import express from 'express';
-import { createHash } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
 import { stat } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -18,7 +18,7 @@ import { hashPassword, verifyPassword, createSession, destroySession,
          attachUser, requireUser, cookies, setSessionCookie, clearSessionCookie } from './auth.js';
 import { seedIfEmpty, greetNewUser, DEMO_GREETINGS } from './seed.js';
 import { aiAvailable, askCoach, draftFeedback, guessFromThumb, checkAttempt, chatReply } from './ai.js';
-import { achievementsFor } from './achievements.js';
+import { achievementsFor, nextTricksFor } from './achievements.js';
 import { rateLimit, aiQuotaExceeded, inviteRequired, inviteOk } from './guard.js';
 import { adminEnabled, checkPassword, createAdminSession, destroyAdminSession,
          isAdmin, requireAdmin, setAdminCookie, clearAdminCookie } from './admin.js';
@@ -808,6 +808,10 @@ app.get('/api/achievements/:id', route(async (req, res) => {
   res.json(await achievementsFor(req.params.id));
 }));
 
+/** מה כדאי ללמוד עכשיו — המסלול האישי, שעובד גם בלי אף חבר באפליקציה. */
+app.get('/api/next-tricks', requireUser,
+  route(async (req, res) => res.json(await nextTricksFor(req.user.id))));
+
 /* ==========================================================================
    בקשות חברות
    ========================================================================== */
@@ -1038,6 +1042,80 @@ app.delete('/api/admin/videos/:id', requireAdmin, route(async (req, res) => {
   await removeFiles(row.id);
   res.json({ ok: true });
 }));
+
+/* ==========================================================================
+   קישור צפייה ציבורי
+
+   ילד שנחת קיקפליפ רוצה לשלוח את זה לקבוצה בוואטסאפ, וקוד ההזמנה
+   חוסם את זה לגמרי. הקישור הזה פותח סרטון *אחד* בלי הרשמה.
+
+   שלושה כללים שמרניים, כי מדובר בקטינים:
+   • כבוי כברירת מחדל, והבעלים מפעיל כל סרטון בנפרד.
+   • העמוד מראה כותרת, אימוג׳י, שם ואווטאר — בלי אזור, גיל, עיר,
+     תגובות או קישור לפרופיל. מה שאין בעמוד אי אפשר לאסוף ממנו.
+   • אפשר לבטל בכל רגע, והקישור מת מיד.
+   ========================================================================== */
+
+/** צורת הסרטון בעמוד הציבורי — מכוונת למינימום ההכרחי. */
+const sharedShape = (row, author) => ({
+  title: row.title,
+  desc: row.descr || null,
+  kind: row.kind,
+  poster: row.poster,
+  videoUrl: row.video_url || null,
+  thumbUrl: row.thumb_url || null,
+  hasFile: !!row.has_file,
+  createdAt: row.created_at,
+  author: { name: author?.name || 'רוכב', avatar: author?.avatar || '🛹' },
+});
+
+app.post('/api/videos/:id/share', requireUser, route(async (req, res) => {
+  const row = await db.prepare('SELECT * FROM videos WHERE id = ?').get(req.params.id);
+  if (!row) return bad(res, 'הסרטון לא נמצא', 404);
+  if (row.author_id !== req.user.id) return bad(res, 'זה לא הסרטון שלכם', 403);
+
+  // טוקן קיים נשמר: יצירה חוזרת הייתה שוברת קישור שכבר נשלח למישהו
+  const token = row.share_token || randomBytes(16).toString('hex');
+  if (!row.share_token) {
+    await db.prepare('UPDATE videos SET share_token = ? WHERE id = ?').run(token, row.id);
+  }
+  res.json({ token });
+}));
+
+app.delete('/api/videos/:id/share', requireUser, route(async (req, res) => {
+  const row = await db.prepare('SELECT author_id FROM videos WHERE id = ?').get(req.params.id);
+  if (!row) return bad(res, 'הסרטון לא נמצא', 404);
+  if (row.author_id !== req.user.id) return bad(res, 'זה לא הסרטון שלכם', 403);
+
+  await db.prepare('UPDATE videos SET share_token = NULL WHERE id = ?').run(req.params.id);
+  res.json({ ok: true });
+}));
+
+/*
+ * הנתיב הציבורי היחיד שמחזיר תוכן של משתמש בלי סשן.
+ * מגבלת הקצב היא נגד סריקה סיטונית; הטוקן עצמו (128 ביט אקראיים)
+ * לא ניתן לניחוש, אז אין כאן מה למנות.
+ */
+app.get('/api/share/:token',
+  rateLimit({ max: 120, windowMs: 900_000, envKey: 'SHARE_LIMIT_QUARTER',
+              message: 'יותר מדי בקשות.' }),
+  route(async (req, res) => {
+  const row = await db.prepare('SELECT * FROM videos WHERE share_token = ?').get(req.params.token);
+  if (!row) return bad(res, 'הקישור לא קיים או שבוטל', 404);
+
+  res.setHeader('X-Robots-Tag', 'noindex, nofollow');
+  res.json(sharedShape(row, await getUserRow(row.author_id)));
+}));
+
+/** העמוד עצמו. הוא מושך את הנתונים מהכתובת שמעל. */
+app.get('/s/:token', (req, res) => {
+  res.setHeader('X-Robots-Tag', 'noindex, nofollow');
+  res.sendFile(join(ROOT, 'share.html'));
+});
+
+/* הקישורים לא אמורים להתגלגל לגוגל — גם בלי זה יש noindex, וזו שכבה שנייה */
+app.get('/robots.txt', (req, res) =>
+  res.type('text/plain').send('User-agent: *\nDisallow: /s/\nDisallow: /admin.html\n'));
 
 /* ==========================================================================
    קבצי מדיה והצד-לקוח

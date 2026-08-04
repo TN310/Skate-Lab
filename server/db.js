@@ -231,6 +231,13 @@ await db.exec(`
   ALTER TABLE bag ADD COLUMN IF NOT EXISTS ai_match TEXT;
 
   /*
+   * טוקן צפייה ציבורי לסרטון בודד. NULL = לא משותף, וזו ברירת המחדל
+   * לכל סרטון. הטוקן אקראי ולא ניתן לניחוש, ומחיקתו מבטלת את הקישור.
+   */
+  ALTER TABLE videos ADD COLUMN IF NOT EXISTS share_token TEXT;
+  CREATE UNIQUE INDEX IF NOT EXISTS idx_videos_share ON videos (share_token);
+
+  /*
    * ייחודיות ללא תלות ברישיות, ורק על מי שמילא — כתובת ריקה היא NULL,
    * ו-Postgres לא סופר NULL כהתנגשות. בלי זה שני חשבונות היו יכולים
    * להירשם עם אותו מייל וכל שחזור סיסמה עתידי היה נשבר.
@@ -368,6 +375,11 @@ export async function publicVideo(row, viewerId) {
     createdAt: row.created_at,
     likedBy,
     liked: !!viewerId && likedBy.includes(viewerId),
+    /*
+     * הטוקן הוא הקישור עצמו, ולכן הוא נשלח רק לבעלים. צופה אחר לא
+     * אמור לדעת אם סרטון משותף, בוודאי לא להפיץ את הקישור בעצמו.
+     */
+    shareToken: viewerId && viewerId === row.author_id ? (row.share_token || null) : undefined,
     // התגובות מוחזרות כעץ בעומק אחד: שאלה, ומתחתיה התשובות עליה
     comments: nestComments(comments),
     commentCount: comments.length,

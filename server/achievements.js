@@ -40,6 +40,8 @@ export const ACHIEVEMENTS = (() => {
       desc: t.desc,
       discipline: t.discipline,
       level: t.level,
+      // סדר הלימוד המומלץ מהקטלוג — הבסיס להצעת "הבא בתור"
+      after: t.after,
       // כל הצורות שמזוהות כטריק הזה
       keys: [normalize(t.baseName), normalize(alias)].filter(Boolean),
     });
@@ -112,4 +114,81 @@ export async function achievementsFor(userId) {
     // כמה מהם אושרו על ידי מאמן — הדרגה שהכי שווה להתגאות בה
     verified: [...landed.values()].filter((p) => p === 'coach').length,
   };
+}
+
+/* ==========================================================================
+   הבא בתור
+   ========================================================================== */
+
+/** סדר הרמות כפי שהן מופיעות בקטלוג ובפרופיל. */
+const LEVEL_ORDER = ['מתחיל', 'יודע קצת', 'בינוני', 'מתקדם', 'מקצוען'];
+
+/** שם התצוגה של טריק לפי מזהה בסיס, לצורך "אחרי שנחתת ...". */
+const TITLE_BY_ID = new Map(ACHIEVEMENTS.map((a) => [a.id, a.title]));
+const BY_ID = new Map(ACHIEVEMENTS.map((a) => [a.id, a]));
+
+/**
+ * מה כדאי ללמוד עכשיו.
+ *
+ * הקטלוג כבר נושא סדר לימוד מומלץ (`after`), אז אין כאן ניחוש —
+ * הדירוג הוא לפי כמה טריקים חסרים עד לטריק הזה, כולל הוא עצמו.
+ * "1" פירושו שהכול מוכן והוא הצעד הבא ממש.
+ *
+ * הספירה לא עוצרת על מה שמוכן, כי בתחילת העץ יש בדיוק טריק אחד בלי
+ * דרישות — ורוכב חדש היה מקבל כרטיס בודד. שני הבאים אחריו מראים
+ * לאן זה הולך, וזה כל ההבדל בין רשימה למסלול.
+ *
+ * לתיק ריק מוחזרים היסודות, וזה בדיוק העניין: משתמש ראשון, בלי חברים
+ * ובלי פיד, עדיין מקבל מסלול להתקדם בו לבד.
+ *
+ * מי שהצהיר על רמה לא יראה טריקים שנמוכים ממנה בשתי דרגות, אלא אם
+ * בלעדיהם אין מספיק הצעות. אף טריק לא נחסם — זו המלצה, לא שער.
+ */
+export async function nextTricksFor(userId, limit = 3) {
+  const user = await db.prepare('SELECT level FROM users WHERE id = ?').get(userId);
+  const rows = await db.prepare('SELECT name FROM bag WHERE user_id = ?').all(userId);
+
+  const done = new Set(rows.map((r) => KEY_TO_ID.get(normalize(r.name))).filter(Boolean));
+
+  /* כמה טריקים חסרים עד שהטריק הזה בהישג יד, כולל הוא עצמו.
+     0 = כבר בתיק, 1 = הצעד הבא, 2 ומעלה = יש מה ללמוד לפניו. */
+  const cache = new Map();
+  const distance = (id) => {
+    if (done.has(id)) return 0;
+    if (cache.has(id)) return cache.get(id);
+
+    // הקטלוג נבדק מפני מעגלים בטעינה, אבל ערך זמני שומר על הרקורסיה
+    // סופית גם אם מישהו יוסיף תלות מעגלית בעתיד
+    cache.set(id, Number.MAX_SAFE_INTEGER);
+    const trick = BY_ID.get(id);
+    const cost = 1 + (trick?.after || []).reduce((sum, need) => sum + distance(need), 0);
+    cache.set(id, cost);
+    return cost;
+  };
+
+  const open = ACHIEVEMENTS.filter((a) => !done.has(a.id));
+
+  const userLevel = LEVEL_ORDER.indexOf(user?.level);
+  const atLevel = userLevel > 0
+    ? open.filter((a) => LEVEL_ORDER.indexOf(a.level) >= userLevel - 1)
+    : open;
+
+  // סדר הרשימה הוא סדר הקטלוג, שהוא סדר לימוד מסודר. sort יציב שומר עליו.
+  return (atLevel.length >= limit ? atLevel : open)
+    .toSorted((a, b) => distance(a.id) - distance(b.id)
+                     || LEVEL_ORDER.indexOf(a.level) - LEVEL_ORDER.indexOf(b.level))
+    .slice(0, limit)
+    .map((a) => ({
+      id: a.id,
+      title: a.title,
+      alias: a.alias,
+      desc: a.desc,
+      level: a.level,
+      // האייקון והשם של הדיסציפלינה נשלחים מוכנים, כדי שהכרטיס בפיד
+      // לא יצטרך למשוך את כל טבלת ההישגים רק בשביל אימוג׳י
+      icon: DISCIPLINES.find((d) => d.id === a.discipline)?.icon || '🛹',
+      discipline: a.discipline,
+      // על מה הוא נשען, בשמות — כדי שהכרטיס יסביר למה דווקא עכשיו
+      after: a.after.map((id) => TITLE_BY_ID.get(id)).filter(Boolean),
+    }));
 }

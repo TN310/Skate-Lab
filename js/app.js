@@ -29,7 +29,8 @@ function resetScreenState() {
   Object.assign(feedFilter, { region: null, kind: null, onlyFollowed: false });
   Object.assign(coachFilter, { region: null, style: null, query: '', onlyFollowed: false });
   Object.assign(search, { query: '', region: null, kind: null, tab: 'videos' });
-  Object.assign(upload, { kind: undefined, title: '', desc: '', level: null, region: undefined, styles: [], poster: '🛹' });
+  Object.assign(upload, { kind: undefined, title: '', desc: '', level: null, region: undefined,
+                          styles: [], poster: '🛹', trickIds: [], trickQuery: '' });
 }
 
 /** שורת צ'יפים לסינון לפי אזור. */
@@ -547,6 +548,9 @@ Screens.video = {
         </button>
 
         <div class="chips" style="margin-top:12px">
+          ${(v.trickIds || []).map((id) => TRICK_INDEX.get(id))
+            .filter(Boolean)
+            .map((x) => `<span class="tag tag--trick">🛹 ${esc(x.name)}</span>`).join('')}
           ${v.region ? `<span class="tag">📍 ${esc(v.region)}</span>` : ''}
           ${v.level ? `<span class="tag">${esc(v.level)}</span>` : ''}
           ${v.styles.map((s) => `<span class="tag">${esc(s)}</span>`).join('')}
@@ -953,7 +957,75 @@ Screens.myvideos = {
    העלאת סרטון
    ========================================================================== */
 
-const upload = { kind: undefined, title: '', desc: '', level: null, region: undefined, styles: [], poster: '🛹' };
+/*
+ * בוחר הטריקים בהעלאה — ההצהרה מה יש בסרטון.
+ *
+ * זה מה שקושר סרטון לתג: אפשר לתבוע בתיק רק את מה שהוצהר כאן, וכל
+ * טריק פעם אחת. בלי זה קליפ בודד של אוליי היה יכול לפתוח תג אחרי
+ * תג, פשוט על ידי הוספה חוזרת עם שם אחר.
+ *
+ * ההצהרה נקבעת בהעלאה ואי אפשר לשנות אותה אחר כך — אחרת אפשר היה
+ * לקחת תג, להחליף הצהרה, ולקחת עוד אחד מאותו סרטון.
+ */
+function trickPicker() {
+  const chosen = upload.trickIds
+    .map((id) => TRICK_INDEX.get(id))
+    .filter(Boolean);
+
+  const q = upload.trickQuery.trim().toLowerCase();
+  const matches = !q ? [] : TRICK_LIST
+    .filter((x) => !upload.trickIds.includes(x.id))
+    .filter((x) => x.name.toLowerCase().includes(q) || x.alias.toLowerCase().includes(q))
+    .slice(0, 8);
+
+  return `
+    <div class="field">
+      <label class="field__label" for="up-trick">
+        אילו טריקים בסרטון?
+        <span class="muted">${upload.kind === 'lesson' ? '(לא חובה)' : '(בלי זה לא ייפתח תג)'}</span>
+      </label>
+
+      ${chosen.length ? `
+        <div class="chips" style="margin-bottom:10px">
+          ${chosen.map((x) => `
+            <button type="button" class="chip is-on" data-up-untrick="${esc(x.id)}">
+              ${esc(x.name)} ✕
+            </button>`).join('')}
+        </div>` : ''}
+
+      ${upload.trickIds.length >= 5 ? '' : `
+        <input id="up-trick" class="input" autocomplete="off"
+               value="${esc(upload.trickQuery)}" placeholder="חיפוש טריק — קיקפליפ, מניואל…">
+        ${matches.length ? `
+          <div class="trickmatch">
+            ${matches.map((x) => `
+              <button type="button" class="trickmatch__opt" data-up-trick="${esc(x.id)}">
+                <b>${esc(x.name)}</b>
+                <span class="muted">${esc(x.alias)} · ${esc(x.level)}</span>
+              </button>`).join('')}
+          </div>` : ''}`}
+
+      <p class="field__hint">
+        רק הטריקים שמצהירים כאן יוכלו להיכנס לתיק מהסרטון הזה, כל אחד פעם אחת.
+        בקו של כמה טריקים ${gt('בחר','בחרי','בחרו')} את כולם (עד 5).
+        אי אפשר לשנות את ההצהרה אחרי ההעלאה.
+      </p>
+    </div>`;
+}
+
+/* הקטלוג נטען פעם אחת ונשמר כאן, כדי שהרינדור יישאר סינכרוני */
+let TRICK_LIST = [];
+let TRICK_INDEX = new Map();
+
+Store.listTricks().then((list) => {
+  TRICK_LIST = list;
+  TRICK_INDEX = new Map(list.map((x) => [x.id, x]));
+});
+
+const upload = { kind: undefined, title: '', desc: '', level: null, region: undefined,
+                 styles: [], poster: '🛹',
+                 // הטריקים שמצהירים שיש בסרטון. רק מהם אפשר יהיה לתבוע תג
+                 trickIds: [], trickQuery: '' };
 
 Screens.upload = {
   async html() {
@@ -1032,6 +1104,8 @@ Screens.upload = {
             <textarea id="up-desc" class="input input--area" maxlength="400" rows="3"
                       placeholder="${isLesson ? 'מה לומדים בסרטון?' : gt('על מה תרצה פידבק?','על מה תרצי פידבק?','על מה תרצו פידבק?')}">${esc(upload.desc)}</textarea>
           </div>
+
+          ${trickPicker()}
 
           <div class="field">
             <label class="field__label" for="up-region">אזור</label>
@@ -1165,6 +1239,32 @@ Screens.upload = {
     const region = $('#up-region');
     region.onchange = () => { upload.region = region.value || null; };
 
+    const trickBox = $('#up-trick');
+    if (trickBox) {
+      trickBox.oninput = () => {
+        upload.trickQuery = trickBox.value;
+        rerender();
+        // הרינדור בונה שדה חדש, אז מחזירים את הפוקוס ואת הסמן לסוף
+        const again = $('#up-trick');
+        if (again) { again.focus(); again.setSelectionRange(again.value.length, again.value.length); }
+      };
+    }
+
+    $$('[data-up-trick]').forEach((btn) => {
+      btn.onclick = () => {
+        upload.trickIds = [...new Set([...upload.trickIds, btn.dataset.upTrick])].slice(0, 5);
+        upload.trickQuery = '';
+        rerender();
+      };
+    });
+
+    $$('[data-up-untrick]').forEach((btn) => {
+      btn.onclick = () => {
+        upload.trickIds = upload.trickIds.filter((id) => id !== btn.dataset.upUntrick);
+        rerender();
+      };
+    });
+
     $$('[data-up-level]').forEach((btn) => {
       btn.onclick = () => {
         upload.level = btn.dataset.upLevel;
@@ -1227,7 +1327,8 @@ Screens.upload = {
       // איפוס הטופס לקראת ההעלאה הבאה
       clearPendingThumb();
       pendingFile = null;
-      Object.assign(upload, { title: '', desc: '', level: null, styles: [], poster: '🛹' });
+      Object.assign(upload, { title: '', desc: '', level: null, styles: [], poster: '🛹',
+                             trickIds: [], trickQuery: '' });
 
       // המסך הקודם הוא "הסרטונים שלי", כדי שחזרה מהסרטון תנחת שם ולא בטופס
       trail.pop();
@@ -1480,7 +1581,9 @@ const bagForm = { open: false, name: '', videoId: null, busy: false,
                  // הרגע בסרטון שסומן, בשניות. null = נבדק כל הסרטון
                  at: null, video: null,
                  // תוצאת הסריקה: הרגעים שה-AI ראה בהם ניסיון
-                 scan: null, scanning: false, scanError: null };
+                 scan: null, scanning: false, scanError: null,
+                 // הצהרה בהמתנה, לסרטון שעדיין אין לו אחת
+                 declare: [] };
 
 /** סולם האמון, מהגבוה לנמוך. הסרטון הוא תמיד ההוכחה — זה מה שמעליו. */
 /*
@@ -1635,12 +1738,44 @@ function bagAdder() {
 
   return `
     <div class="bagadd">
-      <div class="field" style="margin-bottom:12px">
-        <label class="field__label" for="bag-name">איזה טריק נחתת?</label>
-        <input id="bag-name" class="input" maxlength="60" value="${esc(bagForm.name)}"
-               placeholder="${gt('כתוב איך שאתה קורא','כתבי איך שאת קוראת','כתבו איך שאתם קוראים')} לזה" list="bag-suggest" autocomplete="off">
-        <datalist id="bag-suggest"></datalist>
-      </div>
+      ${!bagForm.video ? '' : bagDeclared().length ? `
+        <div class="field" style="margin-bottom:12px">
+          <label class="field__label">איזה מהטריקים בסרטון?</label>
+          <div class="chips">
+            ${bagDeclared().map((x) => `
+              <button type="button" class="chip" data-bag-trick="${esc(x.id)}"
+                      aria-pressed="${bagForm.name === x.name}">${esc(x.name)}</button>`).join('')}
+          </div>
+          <p class="field__hint">
+            אלה הטריקים שהוצהרו על הסרטון בהעלאה. כל אחד נכנס לתיק פעם אחת.
+          </p>
+        </div>` : `
+        <div class="field" style="margin-bottom:12px">
+          <label class="field__label">מה יש בסרטון הזה?</label>
+          <div class="chips" style="margin-bottom:10px">
+            ${bagForm.declare.map((id) => TRICK_INDEX.get(id)).filter(Boolean).map((x) => `
+              <button type="button" class="chip is-on" data-bag-undeclare="${esc(x.id)}">
+                ${esc(x.name)} ✕
+              </button>`).join('')}
+          </div>
+
+          ${bagForm.declare.length >= 5 ? '' : `
+            <input id="bag-name" class="input" autocomplete="off" value="${esc(bagForm.name)}"
+                   placeholder="חיפוש טריק — קיקפליפ, מניואל…">
+            ${bagMatches().length ? `
+              <div class="trickmatch">
+                ${bagMatches().map((x) => `
+                  <button type="button" class="trickmatch__opt" data-bag-declare="${esc(x.id)}">
+                    <b>${esc(x.name)}</b>
+                    <span class="muted">${esc(x.alias)} · ${esc(x.level)}</span>
+                  </button>`).join('')}
+              </div>` : ''}`}
+
+          <p class="field__hint">
+            לסרטון הזה עוד לא הוצהר מה יש בו. ${gt('בחר','בחרי','בחרו')} את הטריקים שבו —
+            <b>אפשר לקבוע פעם אחת בלבד</b>, ורק מהם אפשר יהיה לפתוח תגים.
+          </p>
+        </div>`}
 
       <div class="field" style="margin-bottom:12px">
         <label class="field__label">איזה סרטון מוכיח את זה?</label>
@@ -1732,6 +1867,20 @@ function scanBlock() {
     </div>`;
 }
 
+/** הטריקים שהוצהרו על הסרטון שנבחר בטופס התיק. ריק = צריך להצהיר. */
+const bagDeclared = () =>
+  (bagForm.video?.trickIds || []).map((id) => TRICK_INDEX.get(id)).filter(Boolean);
+
+/** תוצאות החיפוש בהצהרה מתוך טופס התיק. */
+const bagMatches = () => {
+  const q = bagForm.name.trim().toLowerCase();
+  if (!q) return [];
+  return TRICK_LIST
+    .filter((x) => !bagForm.declare.includes(x.id))
+    .filter((x) => x.name.toLowerCase().includes(q) || x.alias.toLowerCase().includes(q))
+    .slice(0, 8);
+};
+
 /** חיווט טופס התיק והפעולות עליו. */
 function bindBag(userId, refresh) {
   const open = $('[data-open-bag]');
@@ -1741,28 +1890,57 @@ function bindBag(userId, refresh) {
   if (cancel) {
     cancel.onclick = () => {
       Object.assign(bagForm, { open: false, name: '', videoId: null, video: null,
-                               at: null, scan: null, scanError: null });
+                               at: null, scan: null, scanError: null, declare: [] });
       errors = {};
       rerender();
     };
   }
 
+  $$('[data-bag-trick]').forEach((b) => {
+    b.onclick = () => {
+      const trick = TRICK_INDEX.get(b.dataset.bagTrick);
+      // השם הוא מה שנשלח, והשרת מתרגם אותו חזרה למזהה מול ההצהרה
+      bagForm.name = bagForm.name === trick?.name ? '' : (trick?.name || '');
+      $$('[data-bag-trick]').forEach((x) => x.setAttribute('aria-pressed',
+        String(TRICK_INDEX.get(x.dataset.bagTrick)?.name === bagForm.name)));
+    };
+  });
+
+  $$('[data-bag-declare]').forEach((b) => {
+    b.onclick = () => {
+      bagForm.declare = [...new Set([...bagForm.declare, b.dataset.bagDeclare])].slice(0, 5);
+      bagForm.name = '';
+      rerender();
+    };
+  });
+
+  $$('[data-bag-undeclare]').forEach((b) => {
+    b.onclick = () => {
+      bagForm.declare = bagForm.declare.filter((id) => id !== b.dataset.bagUndeclare);
+      rerender();
+    };
+  });
+
   const nameInput = $('#bag-name');
   if (nameInput) {
-    nameInput.oninput = () => { bagForm.name = nameInput.value; };
+    // בסרטון בלי הצהרה השדה הוא חיפוש בקטלוג, וכל הקלדה מרעננת את התוצאות
+    const declaring = !bagDeclared().length;
+    nameInput.oninput = () => {
+      bagForm.name = nameInput.value;
+      if (!declaring) return;
+      rerender();
+      const again = $('#bag-name');
+      if (again) { again.focus(); again.setSelectionRange(again.value.length, again.value.length); }
+    };
 
-    // הקטלוג הישן חוזר כאן בתור הצעות בלבד — הוא לא מגביל את מה שאפשר לכתוב
-    fetch('/tricks.json').then((r) => r.json()).then((data) => {
-      const seen = new Set();
-      const names = data.tricks.map((x) => x.baseName).filter((n) => {
-        if (seen.has(n)) return false;
-        seen.add(n);
-        return true;
-      });
-      const dl = $('#bag-suggest');
-      if (dl) dl.innerHTML = names.map((n) => `<option value="${esc(n)}">`).join('');
-    }).catch(() => {});
+  }
 
+  /*
+   * רשימת הסרטונים נטענת תמיד, ולא רק כששדה השם קיים: בסרטון עם
+   * הצהרה אין שדה שם בכלל, וכשהקוד הזה ישב בתוך התנאי הרשימה נשארה
+   * ריקה — כלומר אי אפשר היה לבחור סרטון ולהוסיף כלום.
+   */
+  if ($('#bag-videos')) {
     // רק סרטונים שלי שיש להם קובץ — בלי קובץ אין מה לאמת
     Store.listVideos({ authorId: userId }).then((videos) => {
       const usable = videos.filter((v) => v.hasFile);
@@ -1785,6 +1963,8 @@ function bindBag(userId, refresh) {
           // והוא כבר לא בהכרח יושב על השרת שלנו
           bagForm.video = usable.find((v) => v.id === bagForm.videoId) || null;
           bagForm.at = null;   // סרטון אחר, רגע אחר
+          bagForm.name = '';   // ולרשימה סגורה אחרת
+          bagForm.declare = [];
           bagForm.scan = null;
           bagForm.scanError = null;
           rerender();          // כדי שנגן הסימון ייבנה לסרטון שנבחר
@@ -1847,13 +2027,31 @@ function bindBag(userId, refresh) {
       if (bagForm.busy) return;
 
       errors = {};
-      if (bagForm.name.trim().length < 2) errors.bag = `${gt('כתוב','כתבי','כתבו')} את שם הטריק`;
-      else if (!bagForm.videoId) errors.bag = `${gt('בחר','בחרי','בחרו')} סרטון — הוא ההוכחה`;
+      const needsDeclare = bagForm.videoId && !bagDeclared().length;
+
+      if (!bagForm.videoId) errors.bag = `${gt('בחר','בחרי','בחרו')} סרטון — הוא ההוכחה`;
+      else if (needsDeclare && !bagForm.declare.length) {
+        errors.bag = `${gt('בחר','בחרי','בחרו')} מהרשימה איזה טריק יש בסרטון`;
+      } else if (!needsDeclare && bagForm.name.trim().length < 2) {
+        errors.bag = `${gt('בחר','בחרי','בחרו')} את הטריק`;
+      }
       if (errors.bag) return rerender();
 
       bagForm.busy = true;
       rerender();
       try {
+        /*
+         * סרטון בלי הצהרה מקבל אותה עכשיו, פעם אחת ולתמיד. הטריק
+         * הראשון ברשימה הוא זה שנכנס לתיק בהוספה הזאת; השאר נשמרים
+         * כהצהרה ואפשר להוסיף אותם אחר כך.
+         */
+        if (needsDeclare) {
+          const updated = await Store.declareTricks(bagForm.videoId, bagForm.declare);
+          bagForm.video = updated;
+          bagForm.name = TRICK_INDEX.get(bagForm.declare[0])?.name || '';
+          bagForm.declare = [];
+        }
+
         /*
          * הפריימים מחולצים בדפדפן ונשלחים לבדיקה. כשסומן רגע, נדגם
          * רק החלון סביבו — אחרת שמונה פריימים נמרחים על קו שלם

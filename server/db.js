@@ -250,6 +250,16 @@ await db.exec(`
    * המגבלה הישנה — סרטון אחד = שורה אחת בתיק — חסמה בדיוק את זה, אז
    * היא יורדת. במקומה: אותו *טריק* מאותו סרטון לא ייכנס פעמיים.
    */
+  /*
+   * הטריקים שהמעלה הצהיר שיש בסרטון, כמערך JSON של מזהי קטלוג.
+   * מ-'[]' (סרטון בלי הצהרה) התיק מתנהג כמו קודם — טקסט חופשי.
+   * כשיש הצהרה, רק מה שברשימה יכול להיתבע, וכל טריק פעם אחת.
+   */
+  ALTER TABLE videos ADD COLUMN IF NOT EXISTS trick_ids TEXT NOT NULL DEFAULT '[]';
+
+  /* מזהה הטריק שהשורה תובעת, כשהוא נגזר מהצהרה ולא מטקסט חופשי */
+  ALTER TABLE bag ADD COLUMN IF NOT EXISTS trick_id TEXT;
+
   ALTER TABLE bag DROP CONSTRAINT IF EXISTS bag_user_id_video_id_key;
   ALTER TABLE bag ADD COLUMN IF NOT EXISTS at_seconds REAL;
   CREATE UNIQUE INDEX IF NOT EXISTS idx_bag_trick_once
@@ -384,6 +394,8 @@ export async function publicVideo(row, viewerId) {
     styles: JSON.parse(row.styles || '[]'),
     poster: row.poster,
     trickId: row.trick_id || null,
+    // הטריקים שהוצהרו על הסרטון — מהם ורק מהם אפשר לתבוע תג
+    trickIds: JSON.parse(row.trick_ids || '[]'),
     videoUrl: row.video_url || null,
     thumbUrl: row.thumb_url || null,
     hasFile: !!row.has_file,

@@ -200,6 +200,31 @@ const Store = (() => {
   /** הטריקים שכדאי ללמוד עכשיו. נכשל בשקט — זה מקטע עזר, לא תוכן המסך. */
   const getNextTricks = () => api('/next-tricks').catch(() => []);
 
+  /*
+   * קטלוג הטריקים לצד-לקוח, טריק בסיס אחד לכל שורה (בלי כפילות
+   * פרונטסייד/בקסייד). נטען פעם אחת לכל טעינת דף — הוא קובץ סטטי
+   * שלא משתנה, ומסך ההעלאה והתיק שניהם צריכים אותו.
+   */
+  let tricksPromise = null;
+  const listTricks = () => {
+    tricksPromise ??= fetch('/tricks.json')
+      .then((r) => r.json())
+      .then((data) => {
+        const seen = new Set();
+        return data.tricks.filter((x) => {
+          if (seen.has(x.baseId)) return false;
+          seen.add(x.baseId);
+          return true;
+        }).map((x) => ({
+          id: x.baseId, name: x.baseName,
+          alias: (x.alias || '').replace(/^(FS|BS)\s+/, ''),
+          level: x.level, discipline: x.discipline,
+        }));
+      })
+      .catch(() => []);
+    return tricksPromise;
+  };
+
   const listCoaches = ({ region, style, query, onlyFollowed } = {}) =>
     api('/coaches', { params: { region, style, query, onlyFollowed: onlyFollowed || '' } });
 
@@ -229,10 +254,15 @@ const Store = (() => {
       styles: data.styles,
       poster: data.poster,
       kind: data.kind,
+      trickIds: data.trickIds || [],
     },
   });
 
   const deleteVideo = (id) => api(`/videos/${id}`, { method: 'DELETE' }).then(() => true, () => false);
+
+  /** הצהרת הטריקים לסרטון שאין לו אחת. אפשר פעם אחת בלבד. */
+  const declareTricks = (id, trickIds) =>
+    api(`/videos/${id}/tricks`, { method: 'POST', body: { trickIds } });
 
   /* ---------- קישור צפייה ציבורי ---------- */
 
@@ -340,8 +370,8 @@ const Store = (() => {
     ageFrom, isRealDate,
     getDraft, saveDraft, clearDraft,
     register, login, logout, deleteAccount, currentUser, updateProfile, inviteRequired,
-    getUser, listCoaches, listPeople, toggleFollow, getNextTricks,
-    listVideos, getVideo, addVideo, deleteVideo, shareVideo, unshareVideo, shareUrl, toggleLike, countView, addComment, myVideoStats,
+    getUser, listCoaches, listPeople, toggleFollow, getNextTricks, listTricks,
+    listVideos, getVideo, addVideo, deleteVideo, declareTricks, shareVideo, unshareVideo, shareUrl, toggleLike, countView, addComment, myVideoStats,
     listInbox, countWaiting,
     aiStatus, aiAsk, aiFeedback, aiScan, getAchievements, getAiChat, sendToAi, clearAiChat,
     getBag, addToBag, removeFromBag, verifyBagEntry,

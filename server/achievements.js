@@ -50,6 +50,10 @@ export const ACHIEVEMENTS = (() => {
   return [...byBase.values()];
 })();
 
+/** מיפוי מהיר: מזהה -> ההישג המלא, ומזהה -> שם תצוגה. */
+const BY_ID = new Map(ACHIEVEMENTS.map((a) => [a.id, a]));
+const TITLE_BY_ID = new Map(ACHIEVEMENTS.map((a) => [a.id, a.title]));
+
 /** מיפוי מהיר: צורה מנורמלת -> מזהה הטריק. */
 const KEY_TO_ID = (() => {
   const map = new Map();
@@ -66,14 +70,18 @@ const KEY_TO_ID = (() => {
  */
 export async function achievementsFor(userId) {
   const rows = await db.prepare(`
-    SELECT name, verified_by, ai_verdict, ai_match FROM bag WHERE user_id = ?`).all(userId);
+    SELECT name, trick_id, verified_by, ai_verdict, ai_match FROM bag WHERE user_id = ?`)
+    .all(userId);
 
   /** מזהה טריק -> איך הוא הוכח (הדרגה הגבוהה ביותר שנמצאה). */
   const landed = new Map();
   const unmatched = [];
 
   for (const row of rows) {
-    const id = KEY_TO_ID.get(normalize(row.name));
+    // מזהה שנקבע מהצהרת הסרטון גובר על זיהוי מהשם החופשי
+    const id = row.trick_id && BY_ID.has(row.trick_id)
+      ? row.trick_id
+      : KEY_TO_ID.get(normalize(row.name));
     if (!id) {
       unmatched.push(row.name);
       continue;
@@ -116,6 +124,15 @@ export async function achievementsFor(userId) {
   };
 }
 
+/** מזהה הטריק בקטלוג לפי שם חופשי, או null אם לא זוהה. */
+export const trickIdFor = (name) => KEY_TO_ID.get(normalize(name)) || null;
+
+/** האם המזהה הוא טריק אמיתי בקטלוג (מזהה בסיס, כמו בהישגים). */
+export const isTrickId = (id) => BY_ID.has(id);
+
+/** שם התצוגה של טריק לפי מזהה. */
+export const trickTitle = (id) => BY_ID.get(id)?.title || id;
+
 /**
  * האם שני שמות הם אותו טריק.
  *
@@ -139,10 +156,6 @@ export function sameTrick(a, b) {
 /** סדר הרמות כפי שהן מופיעות בקטלוג ובפרופיל. */
 const LEVEL_ORDER = ['מתחיל', 'יודע קצת', 'בינוני', 'מתקדם', 'מקצוען'];
 
-/** שם התצוגה של טריק לפי מזהה בסיס, לצורך "אחרי שנחתת ...". */
-const TITLE_BY_ID = new Map(ACHIEVEMENTS.map((a) => [a.id, a.title]));
-const BY_ID = new Map(ACHIEVEMENTS.map((a) => [a.id, a]));
-
 /**
  * מה כדאי ללמוד עכשיו.
  *
@@ -162,9 +175,11 @@ const BY_ID = new Map(ACHIEVEMENTS.map((a) => [a.id, a]));
  */
 export async function nextTricksFor(userId, limit = 3) {
   const user = await db.prepare('SELECT level FROM users WHERE id = ?').get(userId);
-  const rows = await db.prepare('SELECT name FROM bag WHERE user_id = ?').all(userId);
+  const rows = await db.prepare('SELECT name, trick_id FROM bag WHERE user_id = ?').all(userId);
 
-  const done = new Set(rows.map((r) => KEY_TO_ID.get(normalize(r.name))).filter(Boolean));
+  const done = new Set(rows
+    .map((r) => (r.trick_id && BY_ID.has(r.trick_id) ? r.trick_id : KEY_TO_ID.get(normalize(r.name))))
+    .filter(Boolean));
 
   /* כמה טריקים חסרים עד שהטריק הזה בהישג יד, כולל הוא עצמו.
      0 = כבר בתיק, 1 = הצעד הבא, 2 ומעלה = יש מה ללמוד לפניו. */

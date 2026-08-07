@@ -19,7 +19,8 @@ import { hashPassword, verifyPassword, createSession, destroySession,
 import { seedIfEmpty, greetNewUser, DEMO_GREETINGS } from './seed.js';
 import { aiAvailable, askCoach, draftFeedback, guessFromThumb, checkAttempt, chatReply,
          scanVideo } from './ai.js';
-import { achievementsFor, nextTricksFor, sameTrick } from './achievements.js';
+import { achievementsFor, nextTricksFor, sameTrick,
+         trickIdFor, isTrickId, trickTitle } from './achievements.js';
 import { rateLimit, aiQuotaExceeded, inviteRequired, inviteOk } from './guard.js';
 import { adminEnabled, checkPassword, createAdminSession, destroyAdminSession,
          isAdmin, requireAdmin, setAdminCookie, clearAdminCookie } from './admin.js';
@@ -400,6 +401,33 @@ app.get('/api/videos/:id', route(async (req, res) => {
   res.json(await publicVideo(row, req.user?.id));
 }));
 
+/*
+ * כמה טריקים מותר להצהיר על סרטון אחד.
+ * קו של חמישה טריקים הוא כבר סרטון ארוך; מעבר לזה זו הצהרה שנועדה
+ * לגרוף תגים, וסרטון אחד לא אמור להיות שווה עשרה הישגים.
+ */
+const MAX_DECLARED = 5;
+
+/**
+ * בודק את רשימת הטריקים שהוצהרה על הסרטון.
+ * מחזיר מערך מזהים נקי, או false כשיש בו משהו שאינו טריק בקטלוג.
+ */
+function cleanTrickIds(value) {
+  if (value === undefined || value === null) return [];
+  if (!Array.isArray(value)) return false;
+
+  /*
+   * פריט ריק או פסול פוסל את כל ההצהרה, ולא מסונן בשקט: הצהרה של
+   * [""] הייתה מתכווצת ל-[] ומחזירה את הסרטון למצב "בלי הצהרה" —
+   * כלומר בדיוק העקיפה שההצהרה נועדה למנוע.
+   */
+  const ids = value.map((id) => (typeof id === 'string' ? id.trim() : ''));
+  if (ids.some((id) => !isTrickId(id))) return false;
+
+  const unique = [...new Set(ids)];
+  return unique.length && unique.length <= MAX_DECLARED ? unique : false;
+}
+
 app.post('/api/videos', requireUser, route(async (req, res) => {
   const { title, desc, level, region, styles, poster, kind } = req.body || {};
 
@@ -411,14 +439,27 @@ app.post('/api/videos', requireUser, route(async (req, res) => {
   // לא נגזרת מהתפקיד. בלי ולידציה כאן, ערך שרירותי היה נשמר כ-kind.
   if (!['lesson', 'clip'].includes(kind)) return bad(res, 'בחרו סוג סרטון');
 
+  /*
+   * הטריקים מוצהרים כאן, פעם אחת, ואין נתיב לשנות אותם אחר כך. זה
+   * לא במקרה: אם אפשר היה לערוך את ההצהרה, סרטון אחד היה יכול לפתוח
+   * תג אחרי תג — מצהירים אוליי, לוקחים את התג, מחליפים לקיקפליפ.
+   */
+  const declaring = req.body?.trickIds !== undefined &&
+                    (!Array.isArray(req.body.trickIds) || req.body.trickIds.length > 0);
+  const trickIds = declaring ? cleanTrickIds(req.body.trickIds) : [];
+  if (trickIds === false) {
+    return bad(res, `בחרו בין טריק אחד ל-${MAX_DECLARED} מהרשימה`);
+  }
+
   const id = newId('v');
   await db.prepare(`
     INSERT INTO videos (id, author_id, kind, title, descr, level, region, styles,
-                        poster, trick_id, has_file, has_thumb, is_demo, views, created_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 0, 0, ?)`)
+                        poster, trick_id, trick_ids, has_file, has_thumb, is_demo, views, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 0, 0, ?)`)
     .run(id, req.user.id, kind,
          title.trim(), (desc || '').trim(), level, region,
-         JSON.stringify(styles), safeEmoji(poster), null, now());
+         JSON.stringify(styles), safeEmoji(poster),
+         trickIds[0] || null, JSON.stringify(trickIds), now());
 
   res.json(await publicVideo(await db.prepare('SELECT * FROM videos WHERE id = ?').get(id), req.user.id));
 }));
@@ -460,6 +501,37 @@ function uploadHandler(kindOfFile) {
     res.json({ ok: true, bytes: req.body.length, duplicate });
   })];
 }
+
+/**
+ * הצהרת הטריקים לסרטון שעדיין אין לו אחת.
+ *
+ * קיים כדי שסרטון ישן, מלפני שהיה שדה כזה, לא יישאר לנצח בלי אפשרות
+ * לפתוח תג. אפשר לקבוע פעם אחת בלבד: מרגע שיש הצהרה היא קפואה, ולכן
+ * אי אפשר לקחת תג, להחליף הצהרה, ולקחת עוד אחד מאותו סרטון.
+ */
+app.post('/api/videos/:id/tricks', requireUser, route(async (req, res) => {
+  const row = await db.prepare('SELECT author_id, trick_ids FROM videos WHERE id = ?')
+    .get(req.params.id);
+  if (!row) return bad(res, 'הסרטון לא נמצא', 404);
+  if (row.author_id !== req.user.id) return bad(res, 'זה לא הסרטון שלכם', 403);
+
+  if (JSON.parse(row.trick_ids || '[]').length) {
+    return bad(res, 'כבר הוצהר מה יש בסרטון הזה, ואי אפשר לשנות');
+  }
+
+  /* כאן, בניגוד ליצירה, הצהרה ריקה היא לא "בלי הצהרה" אלא בקשה חסרת
+     תוכן — היא הייתה נכתבת כ-[] ומשאירה את הסרטון בדיוק כמו שהיה */
+  const trickIds = cleanTrickIds(req.body?.trickIds);
+  if (trickIds === false || !trickIds.length) {
+    return bad(res, `בחרו בין טריק אחד ל-${MAX_DECLARED} מהרשימה`);
+  }
+
+  await db.prepare('UPDATE videos SET trick_ids = ?, trick_id = ? WHERE id = ?')
+    .run(JSON.stringify(trickIds), trickIds[0], req.params.id);
+
+  res.json(await publicVideo(await db.prepare('SELECT * FROM videos WHERE id = ?')
+    .get(req.params.id), req.user.id));
+}));
 
 app.post('/api/videos/:id/file', ...uploadHandler('video'));
 app.post('/api/videos/:id/thumb', ...uploadHandler('thumb'));
@@ -794,15 +866,42 @@ app.post('/api/bag', requireUser, route(async (req, res) => {
   if (!video.has_file) return bad(res, 'לסרטון הזה אין קובץ וידאו, אז אי אפשר לאמת אותו');
 
   /*
+   * הסרטון מצהיר בהעלאה אילו טריקים יש בו, והתיק כפוף להצהרה: אפשר
+   * לתבוע רק מה שהוצהר, וכל טריק פעם אחת. בלי זה קליפ אחד של אוליי
+   * היה יכול לפתוח את כל 266 ההישגים, שורה אחרי שורה.
+   *
+   * סרטון בלי הצהרה (כל מה שהועלה לפני השינוי) ממשיך לעבוד בטקסט
+   * חופשי — לא הוגן לנעול בדיעבד תיק שכבר נבנה.
+   */
+  const declared = JSON.parse(video.trick_ids || '[]');
+  const claimed = trickIdFor(name);
+
+  /*
+   * בלי הצהרה אין תג. אחרת ההגנה כולה הייתה אופציונלית — מי שרוצה
+   * לגרוף תגים פשוט לא היה מצהיר, וממשיך לתבוע טקסט חופשי בלי סוף.
+   */
+  if (!declared.length) {
+    return bad(res, 'קודם צריך להצהיר איזה טריק יש בסרטון. אפשר לקבוע את זה פעם אחת.');
+  }
+
+  if (!declared.includes(claimed)) {
+    return bad(res, `בסרטון הזה הוצהר: ${declared.map(trickTitle).join(', ')}. ` +
+                    'אפשר לתבוע רק מהם.');
+  }
+
+  /*
    * אותו סרטון יכול להיכנס כמה פעמים — קו של שלושה טריקים הוא שלושה
    * הישגים. מה שנחסם זה אותו טריק פעמיים מאותו סרטון, כולל כתיב אחר:
    * "קיקפליפ" ו-"kickflip" הם אותו הישג ולכן אותה שורה.
    */
-  const fromClip = await db.prepare('SELECT name FROM bag WHERE user_id = ? AND video_id = ?')
+  const fromClip = await db.prepare(
+    'SELECT name, trick_id FROM bag WHERE user_id = ? AND video_id = ?')
     .all(req.user.id, videoId);
-  if (fromClip.some((row) => sameTrick(row.name, name))) {
-    return bad(res, 'הטריק הזה כבר בתיק מהסרטון הזה');
-  }
+
+  const taken = fromClip.some((row) => (claimed && row.trick_id)
+    ? row.trick_id === claimed
+    : sameTrick(row.name, name));
+  if (taken) return bad(res, 'הטריק הזה כבר בתיק מהסרטון הזה');
 
   // הרגע בסרטון, אם הרוכב סימן אותו. מחוץ לתחום הסביר נזרק בשקט.
   const at = Number(req.body?.at);
@@ -820,10 +919,10 @@ app.post('/api/bag', requireUser, route(async (req, res) => {
   }
 
   const id = newId('b');
-  await db.prepare(`INSERT INTO bag (id, user_id, name, video_id, at_seconds,
+  await db.prepare(`INSERT INTO bag (id, user_id, name, video_id, trick_id, at_seconds,
                                      ai_verdict, ai_match, ai_reason, created_at)
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-    .run(id, req.user.id, name.slice(0, 60), videoId, atSeconds,
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+    .run(id, req.user.id, name.slice(0, 60), videoId, claimed, atSeconds,
          ai?.verdict || null, ai?.match || null, ai?.reason || null, now());
 
   res.json(bagShape(await db.prepare(`${BAG_SELECT} WHERE b.id = ?`).get(id)));

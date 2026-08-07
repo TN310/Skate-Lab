@@ -1698,3 +1698,31 @@ button.mini-avatar { border: none; cursor: pointer; }
   align-self: flex-start;
   font-family: inherit; font-size: 13px; cursor: pointer; text-decoration: underline;
 }
+
+/* בוחר הטריקים בהעלאה */
+.trickmatch {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.trickmatch__opt {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 14px;
+  text-align: start;
+  cursor: pointer;
+}
+.trickmatch__opt:hover { border-color: var(--accent); }
+.trickmatch__opt .muted { font-size: 12px; }
+
+/* תג של טריק שהוצהר על הסרטון */
+.tag--trick { border-color: rgba(215, 255, 62, .4); color: var(--accent); }

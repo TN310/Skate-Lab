@@ -272,7 +272,27 @@ await db.exec(`
    */
   CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email ON users (LOWER(email));
 
+  /*
+   * ריצות של השופט. פרטי לחלוטין: שורה נקראת רק על ידי מי שיצר אותה,
+   * היא לא מופיעה בפיד, לא נספרת בהישגים ולא מאשרת שום טריק בתיק.
+   * זה ציון, לא הוכחה, ולכן הוא לא נוגע בשרשרת האמון.
+   *
+   * הטריקים נשמרים כ-JSON ולא כטבלה משלהם: אף שאילתה לא מחפשת בתוכם,
+   * הם תמיד נקראים יחד עם הריצה, וטבלה שנייה הייתה רק עוד JOIN.
+   */
+  CREATE TABLE IF NOT EXISTS judge_runs (
+    id         TEXT PRIMARY KEY,
+    user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    flow       REAL NOT NULL,
+    control    REAL NOT NULL,
+    impact     REAL NOT NULL,
+    total      REAL NOT NULL,
+    tricks     TEXT NOT NULL,
+    created_at TEXT NOT NULL
+  );
+
   CREATE INDEX IF NOT EXISTS idx_bag_user          ON bag(user_id);
+  CREATE INDEX IF NOT EXISTS idx_judge_user       ON judge_runs(user_id);
   CREATE INDEX IF NOT EXISTS idx_ai_messages_user  ON ai_messages(user_id);
   CREATE INDEX IF NOT EXISTS idx_videos_author     ON videos(author_id);
   CREATE INDEX IF NOT EXISTS idx_videos_hash       ON videos(file_hash);

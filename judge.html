@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0b0b0d">
+  <title>השופט — Skate Lab</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛹</text></svg>">
+<style>
+/* השופט — העיצוב יושב על הטוקנים של styles.css, ומוסיף רק את לוח התוצאות */
+.jwrap{max-width:560px;margin:0 auto;padding:16px;padding-bottom:120px}
+.jhead{display:flex;align-items:center;gap:10px;margin-bottom:4px}
+.jhead h1{font-size:26px;margin:0}
+.jsub{opacity:.7;font-size:14px;margin:4px 0 18px}
+.jcard{border:1px solid rgba(128,128,128,.28);border-radius:14px;padding:15px;margin-bottom:14px}
+.jrow{display:flex;gap:10px;flex-wrap:wrap}
+.jrow>div{flex:1;min-width:150px}
+.jlabel{display:block;font-size:13px;opacity:.7;margin-bottom:5px}
+.jwrap input,.jwrap select{width:100%;padding:10px 12px;border-radius:10px;
+  border:1px solid rgba(128,128,128,.35);background:rgba(128,128,128,.12);
+  color:inherit;font:inherit;font-size:15px}
+.jbtn{display:block;width:100%;padding:15px;border:0;border-radius:12px;
+  background:#f5c518;color:#17150a;font-weight:800;font-size:17px;cursor:pointer}
+.jbtn.ghost{background:rgba(128,128,128,.18);color:inherit;
+  border:1px solid rgba(128,128,128,.35);font-size:15px}
+.jbtn:disabled{opacity:.5;cursor:default}
+.jactions{position:fixed;inset-inline:0;bottom:0;padding:12px 16px;
+  padding-bottom:calc(12px + env(safe-area-inset-bottom,0px));
+  background:var(--bg,#0b0b0d);border-top:1px solid rgba(128,128,128,.28);z-index:5}
+.jactions .in{max-width:560px;margin:0 auto;display:flex;gap:10px}
+.jactions .jbtn{flex:1}
+.jwrap video{width:100%;border-radius:12px;background:#000;display:block}
+.jbar{height:8px;border-radius:99px;background:rgba(128,128,128,.25);overflow:hidden;margin-top:9px}
+.jbar i{display:block;height:100%;width:0;background:#f5c518;transition:width .2s}
+.jstage{font-size:14px;opacity:.75;margin-top:8px}
+input[type=file].jfile{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+
+/* לוח התוצאות בסגנון SLS */
+.board{border:2px solid #f5c518;border-radius:16px;overflow:hidden;margin-bottom:16px}
+.board__total{display:flex;align-items:baseline;justify-content:space-between;
+  gap:12px;padding:15px;background:rgba(245,197,24,.12)}
+.board__total b{font-size:46px;line-height:1;font-variant-numeric:tabular-nums}
+.board__total span{font-size:15px;opacity:.75}
+.board__parts{display:grid;grid-template-columns:repeat(3,1fr)}
+.part{padding:12px;text-align:center;border-top:1px solid rgba(128,128,128,.28)}
+.part+.part{border-inline-start:1px solid rgba(128,128,128,.28)}
+.part b{display:block;font-size:24px;font-variant-numeric:tabular-nums}
+.part span{font-size:12px;opacity:.7;letter-spacing:.04em}
+.part em{display:block;font-size:11px;opacity:.55;font-style:normal;margin-top:2px}
+
+.trick{border:1px solid rgba(128,128,128,.28);border-radius:14px;padding:13px;margin-bottom:11px}
+.trick__top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.trick__name{font-weight:800;font-size:17px}
+.trick__meta{font-size:12.5px;opacity:.7;margin-top:3px}
+.trick__score{font-size:32px;line-height:1;font-variant-numeric:tabular-nums;color:#f5c518;font-weight:800}
+.panel{display:flex;gap:6px;flex-wrap:wrap;margin-top:9px;font-size:12px}
+.seat{padding:3px 9px;border-radius:99px;background:rgba(128,128,128,.18);
+  font-variant-numeric:tabular-nums}
+.seat.out{opacity:.45;text-decoration:line-through}
+.jnote{font-size:13px;opacity:.78;margin-top:9px;padding-top:9px;
+  border-top:1px dashed rgba(128,128,128,.3)}
+.combo{border:2px solid rgba(245,197,24,.6);border-radius:16px;padding:11px;margin-bottom:12px}
+.combo__head{font-weight:800;margin-bottom:9px;font-size:15px}
+.jpill{display:inline-block;padding:2px 8px;border-radius:99px;font-size:11.5px;
+  background:rgba(128,128,128,.2)}
+.jpill--warn{background:rgba(214,64,31,.2);color:#ff7a5c}
+.jmini{display:grid;grid-template-columns:7em 1fr 3.6em;gap:8px;align-items:center;
+  font-size:12.5px;margin-top:5px}
+.jmini i{display:block;height:6px;border-radius:99px;background:currentColor;opacity:.7}
+.jmini u{display:block;height:6px;border-radius:99px;background:rgba(128,128,128,.25)}
+.jmini span:last-child{text-align:left;font-variant-numeric:tabular-nums;opacity:.7}
+
+/* מסך ההקלטה: שעון הרן מעל התצוגה החיה */
+.rec{position:fixed;inset:0;z-index:40;background:#000;display:flex;
+  flex-direction:column;align-items:stretch}
+.rec[hidden]{display:none!important}
+.rec video{flex:1;width:100%;object-fit:cover;background:#000;min-height:0}
+.rec__clock{position:absolute;inset-inline:0;top:0;padding:14px 16px;
+  padding-top:calc(14px + env(safe-area-inset-top,0px));
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  background:linear-gradient(to bottom,rgba(0,0,0,.72),transparent);color:#fff}
+.rec__time{font-size:46px;font-weight:800;line-height:1;font-variant-numeric:tabular-nums;
+  text-shadow:0 2px 8px rgba(0,0,0,.6)}
+.rec__time.warn{color:#ffd34d}
+.rec__time.last{color:#ff5b38}
+.rec__dot{width:13px;height:13px;border-radius:50%;background:#ff3b30;
+  animation:recblink 1s steps(2,end) infinite}
+@keyframes recblink{50%{opacity:.15}}
+@media (prefers-reduced-motion:reduce){.rec__dot{animation:none}}
+.rec__track{position:absolute;inset-inline:0;bottom:calc(96px + env(safe-area-inset-bottom,0px));
+  height:5px;background:rgba(255,255,255,.22)}
+.rec__track i{display:block;height:100%;background:#f5c518;width:100%}
+.rec__bar{position:absolute;inset-inline:0;bottom:0;padding:16px;
+  padding-bottom:calc(16px + env(safe-area-inset-bottom,0px));display:flex;gap:10px}
+.rec__bar button{flex:1;padding:16px;border:0;border-radius:12px;font:inherit;
+  font-weight:800;font-size:17px;cursor:pointer}
+.rec__stop{background:#f5c518;color:#17150a}
+.rec__cancel{background:rgba(255,255,255,.16);color:#fff}
+.rec__hint{position:absolute;inset-inline:0;top:50%;transform:translateY(-50%);
+  text-align:center;color:#fff;font-size:17px;padding:0 24px;opacity:.9}
+.jname{width:100%;margin-top:4px;padding:9px 10px;border-radius:9px;
+  border:1px solid rgba(128,128,128,.35);background:rgba(128,128,128,.12);
+  color:inherit;font:inherit;font-size:14px}
+.hist{font-size:13.5px;display:flex;justify-content:space-between;gap:10px;
+  padding:9px 0;border-bottom:1px solid rgba(128,128,128,.2)}
+.hist b{font-variant-numeric:tabular-nums}
+</style>
+</head>
+<body>
+<div class="jwrap">
+  <div class="jhead">
+    <a href="/" class="jpill" style="text-decoration:none">→ חזרה</a>
+    <h1>השופט</h1>
+  </div>
+  <p class="jsub">מצלמים רן, הדפדפן מודד כל טריק, ופאנל שופטים נותן ציון בסגנון
+    Street League: Flow על הרן, Control על ארבעת הטריקים הטובים, ו-Impact על הגדול שבהם.</p>
+
+  <div class="jcard">
+    <div class="jrow">
+      <div>
+        <label class="jlabel" for="h">גובה (ס"מ, לא חובה)</label>
+        <input type="number" id="h" placeholder="אפשר להשאיר ריק" min="80" max="220" step="1">
+      </div>
+      <div>
+        <label class="jlabel" for="runlen">אורך הרן</label>
+        <select id="runlen">
+          <option value="60" selected>דקה</option>
+          <option value="45">45 שניות (כמו ב-SLS)</option>
+          <option value="30">30 שניות</option>
+        </select>
+      </div>
+      <div>
+        <label class="jlabel" for="fps">מצב צילום</label>
+        <select id="fps">
+          <option value="1">רגיל</option>
+          <option value="4">סלואו מושן ×4</option>
+          <option value="8">סלואו מושן ×8</option>
+        </select>
+      </div>
+    </div>
+    <p class="jsub" style="margin:10px 0 0">גם ב-SLS אף אחד לא מודד סנטימטרים, רק מסתכלים ונותנים ציון, אז הגובה הוא רשות.
+      ממלאים אותו רק אם רוצים מרחק במטרים ומדידת גובה שנייה. זמן האוויר וגובה הקפיצה עובדים בלעדיו.
+      קרקע ומעקה מזוהים לבד, וסלואו מושן הוא השיפור הכי גדול לזיהוי הטריק.</p>
+  </div>
+
+  <div class="jcard" id="tips">
+    <b>איך לצלם</b>
+    <ul style="margin:8px 0 0;padding-inline-start:20px;font-size:13.5px;opacity:.8">
+      <li>אפשר ללכת, לרעוד וללוות את הרוכב. תנועת המצלמה מנוכה אוטומטית. רק זום תוך כדי צילום באמת מפריע.</li>
+      <li>כל זווית עובדת. מהצד מקבלים גם מרחק, מלפנים או מאחור רואים טוב יותר את סיבוב הלוח.</li>
+      <li>כל הגוף בפריים גם בשיא הקפיצה.</li>
+      <li>שנייה אחת בלי לזוז בהתחלה, זה מכייל את הסרגל.</li>
+      <li>הרן מוגבל בזמן: שעון סופר אחורה למעלה, ובסוף ההקלטה נעצרת לבד. אפשר לסיים קודם.</li>
+    </ul>
+  </div>
+
+  <div class="jcard" id="player" hidden>
+    <video id="vid" playsinline muted preload="auto"></video>
+    <div class="jbar" id="progwrap" hidden><i id="prog"></i></div>
+    <div class="jstage" id="stage"></div>
+  </div>
+
+  <div id="results"></div>
+  <div class="jcard" id="histbox" hidden><b>הריצות שלי</b><div id="hist"></div></div>
+</div>
+
+<div class="jactions">
+  <div class="in">
+    <button class="jbtn" id="shoot">צלם רן</button>
+    <button class="jbtn ghost" id="pick">העלה סרטון</button>
+  </div>
+</div>
+
+<div class="rec" id="rec" hidden>
+  <video id="preview" playsinline muted autoplay></video>
+  <div class="rec__clock">
+    <div class="rec__time" id="clock">1:00</div>
+    <span class="rec__dot" id="dot" aria-label="מקליט"></span>
+  </div>
+  <div class="rec__hint" id="recHint" hidden></div>
+  <div class="rec__track"><i id="recBar"></i></div>
+  <div class="rec__bar">
+    <button class="rec__stop" id="recStop">סיים רן</button>
+    <button class="rec__cancel" id="recCancel">ביטול</button>
+  </div>
+</div>
+
+<input type="file" class="jfile" id="fileShoot" accept="video/*" capture="environment">
+<input type="file" class="jfile" id="filePick" accept="video/*">
+
+<script src="js/judge-tricks.js"></script>
+<script src="js/judge.js"></script>
+<script src="js/judge-ui.js"></script>
+</body>
+</html>

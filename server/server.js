@@ -21,6 +21,7 @@ import { aiAvailable, askCoach, draftFeedback, guessFromThumb, checkAttempt, cha
          scanVideo } from './ai.js';
 import { achievementsFor, nextTricksFor, sameTrick,
          trickIdFor, isTrickId, trickTitle } from './achievements.js';
+import { judgeTrick, judgeFlow, slsTotal } from './judge.js';
 import { rateLimit, aiQuotaExceeded, inviteRequired, inviteOk } from './guard.js';
 import { adminEnabled, checkPassword, createAdminSession, destroyAdminSession,
          isAdmin, requireAdmin, setAdminCookie, clearAdminCookie } from './admin.js';
@@ -49,6 +50,7 @@ app.use('/api/bag', express.json({ limit: '12mb' }));
 app.use('/api/ai/feedback', express.json({ limit: '12mb' }));
 app.use('/api/ai/scan', express.json({ limit: '12mb' }));
 
+app.use('/api/judge', express.json({ limit: '12mb' }));
 app.use(express.json({ limit: '1mb' }));
 app.use(cookies);
 app.use(attachUser);
@@ -792,6 +794,108 @@ app.post('/api/ai/scan/:videoId', requireUser, needsAi, route(async (req, res) =
   } catch (err) {
     return bad(res, err.message, 502);
   }
+}));
+
+/* ==========================================================================
+   השופט — ציון בסגנון SLS
+
+   הדף /judge.html עושה את כל המדידה בדפדפן ושולח לכאן רק תמונות
+   ומספרים. השרת לא נוגע בווידאו: הוא מחזיק את מפתח ה-AI, מפעיל את
+   הפאנל, ושומר את התוצאה לבעליה בלבד.
+   ========================================================================== */
+
+/** גיליון פריימים אחד, מקודד base64. הגבול הוא כדי שגוף הבקשה לא יתפח. */
+const sheetsFrom = (value) => (Array.isArray(value) ? value : [])
+  .filter((x) => typeof x === 'string' && x.length > 100 && x.length < 4_000_000)
+  .slice(0, 8);
+
+app.post('/api/judge/trick', requireUser, needsAi, route(async (req, res) => {
+  const sheets = sheetsFrom(req.body?.sheets);
+  if (!sheets.length) return bad(res, 'לא הגיעו פריימים מהסרטון');
+
+  const m = req.body?.measure;
+  if (!m || !Number.isFinite(Number(m.air))) return bad(res, 'חסרות המדידות של הטריק');
+
+  const overview = typeof req.body?.overview === 'string'
+    && req.body.overview.length < 4_000_000 ? req.body.overview : null;
+
+  try {
+    res.json(await judgeTrick(sheets, m, {
+      overview,
+      combo: String(req.body?.combo || '').slice(0, 200),
+      claimed: String(req.body?.claimed || '').slice(0, 60),
+    }));
+  } catch (err) {
+    return bad(res, err.message, 502);
+  }
+}));
+
+app.post('/api/judge/flow', requireUser, needsAi, route(async (req, res) => {
+  const overview = req.body?.overview;
+  if (typeof overview !== 'string' || overview.length < 100 || overview.length > 4_000_000) {
+    return bad(res, 'לא הצלחנו לקרוא את הסרטון בדפדפן');
+  }
+  const duration = Number(req.body?.duration);
+  if (!Number.isFinite(duration)) return bad(res, 'חסרים נתונים על הסרטון');
+
+  try {
+    res.json(await judgeFlow(overview, {
+      duration,
+      tricks: Math.max(0, Math.round(Number(req.body?.tricks) || 0)),
+      landed: Math.max(0, Math.round(Number(req.body?.landed) || 0)),
+    }));
+  } catch (err) {
+    return bad(res, err.message, 502);
+  }
+}));
+
+/*
+ * שמירת ריצה. הציונים מחושבים כאן מחדש מתוך ציוני הטריקים ולא
+ * מתקבלים מהלקוח: סכום שמגיע מהדפדפן הוא סכום שאפשר להמציא, וגם אם
+ * הטבלה פרטית אין סיבה לשמור מספר שהשרת לא חישב בעצמו.
+ */
+app.post('/api/judge/run', requireUser, route(async (req, res) => {
+  const tricks = (Array.isArray(req.body?.tricks) ? req.body.tricks : []).slice(0, 12)
+    .map((t) => ({
+      trick: String(t.trick || 'לא ברור').slice(0, 60),
+      score: Math.max(0, Math.min(10, Number(t.score) || 0)),
+      landed: t.landed !== false,
+      surface: t.surface === 'rail' ? 'rail' : 'flat',
+      air: Number(t.air) || 0,
+      height: Number(t.height) || 0,
+      note: String(t.note || '').slice(0, 300),
+    }));
+  if (!tricks.length) return bad(res, 'אין טריקים לשמור');
+
+  const flow = Math.max(0, Math.min(10, Number(req.body?.flow) || 0));
+  const sls = slsTotal(tricks.map((t) => t.score), flow);
+  const id = newId('judge');
+
+  await db.prepare(`INSERT INTO judge_runs (id, user_id, flow, control, impact, total,
+                                            tricks, created_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
+    .run(id, req.user.id, sls.flow, sls.control, sls.impact, sls.total,
+         JSON.stringify(tricks), now());
+
+  res.json({ id, ...sls });
+}));
+
+app.get('/api/judge/history', requireUser, route(async (req, res) => {
+  const rows = await db.prepare(`SELECT id, flow, control, impact, total, tricks, created_at
+                                 FROM judge_runs WHERE user_id = ?
+                                 ORDER BY created_at DESC LIMIT 20`).all(req.user.id);
+  res.json({
+    runs: rows.map((r) => ({
+      id: r.id, flow: r.flow, control: r.control, impact: r.impact, total: r.total,
+      tricks: JSON.parse(r.tricks || '[]'), createdAt: r.created_at,
+    })),
+  });
+}));
+
+app.delete('/api/judge/:id', requireUser, route(async (req, res) => {
+  await db.prepare('DELETE FROM judge_runs WHERE id = ? AND user_id = ?')
+    .run(req.params.id, req.user.id);
+  res.json({ ok: true });
 }));
 
 /* ==========================================================================

@@ -4,7 +4,12 @@
 import { readFile } from 'node:fs/promises';
 import vm from 'node:vm';
 
-const FILES = ['js/store.js', 'js/media.js', 'js/ui.js', 'js/onboarding.js', 'js/app.js'];
+/* שני דפים, שני הקשרים: דף השופט נטען לבד ולא יחד עם האפליקציה, ושניהם
+   מגדירים TRICK_LIST. בהקשר אחד זה נכשל על הגדרה כפולה שלא קורית בדפדפן. */
+const PAGES = [
+  ['js/store.js', 'js/media.js', 'js/ui.js', 'js/onboarding.js', 'js/app.js'],
+  ['js/judge-tricks.js', 'js/judge.js', 'js/judge-ui.js'],
+];
 
 const noop = () => {};
 const el = new Proxy(function () {}, {
@@ -14,30 +19,39 @@ const el = new Proxy(function () {}, {
   apply: () => el,
 });
 
-const sandbox = {
-  console, JSON, Math, Date, Promise, URL, Set, Map, Object, Array, String, Number, Boolean, RegExp,
-  setTimeout: noop, clearTimeout: noop, fetch: () => new Promise(noop),
-  localStorage: { getItem: () => null, setItem: noop, removeItem: noop },
-  location: { origin: 'http://localhost:3000' },
-  indexedDB: { open: () => el },
-  document: { getElementById: () => el, querySelector: () => el, querySelectorAll: () => [],
-              createElement: () => el, body: el },
-  window: {}, navigator: {},
+const makeSandbox = () => {
+  const sandbox = {
+    console, JSON, Math, Date, Promise, URL, Set, Map, Object, Array, String, Number, Boolean, RegExp,
+    setTimeout: noop, clearTimeout: noop, fetch: () => new Promise(noop),
+    localStorage: { getItem: () => null, setItem: noop, removeItem: noop },
+    location: { origin: 'http://localhost:3000' },
+    indexedDB: { open: () => el },
+    document: { getElementById: () => el, querySelector: () => el, querySelectorAll: () => [],
+                createElement: () => el, body: el },
+    window: {}, navigator: {},
+  };
+  sandbox.window = sandbox;
+  sandbox.globalThis = sandbox;
+  vm.createContext(sandbox);
+  return sandbox;
 };
-sandbox.window = sandbox;
-sandbox.globalThis = sandbox;
-vm.createContext(sandbox);
 
 let failed = false;
-for (const f of FILES) {
-  try {
-    vm.runInContext(await readFile(f, 'utf8'), sandbox, { filename: f });
-    console.log(`  ✓ ${f}`);
-  } catch (err) {
-    failed = true;
-    console.error(`  ✗ ${f} — ${err.message}`);
+const contexts = [];
+for (const files of PAGES) {
+  const sandbox = makeSandbox();
+  contexts.push(sandbox);
+  for (const f of files) {
+    try {
+      vm.runInContext(await readFile(f, 'utf8'), sandbox, { filename: f });
+      console.log(`  ✓ ${f}`);
+    } catch (err) {
+      failed = true;
+      console.error(`  ✗ ${f} — ${err.message}`);
+    }
   }
 }
+const sandbox = contexts[0];
 
 // בדיקה שה-API שהמסכים משתמשים בו באמת קיים ב-Store
 const used = (await readFile('js/app.js', 'utf8') + await readFile('js/onboarding.js', 'utf8'))

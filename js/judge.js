@@ -26,6 +26,7 @@ const Judge = (() => {
 
   let personH = null;        // מטרים, או null כשלא נמסר סרגל
   let slowmo = 1;            // פי כמה הסרטון הואט בצילום
+  let autoSlow = false;      // לזהות הילוך איטי לכל קפיצה בנפרד, מהפיזיקה
   let capDt = 1 / 30;        // משך פריים בקובץ, נמדד בפועל
 
   /*
@@ -40,7 +41,8 @@ const Judge = (() => {
   const setRider = (heightCm, slowFactor) => {
     const cm = Number(heightCm);
     personH = (cm >= 80 && cm <= 220) ? cm / 100 : null;
-    slowmo = Number(slowFactor) || 1;
+    autoSlow = slowFactor === 'auto';
+    slowmo = autoSlow ? 1 : (Number(slowFactor) || 1);
   };
 
   /* ---------- קריאת הפריימים ---------- */
@@ -142,31 +144,63 @@ const Judge = (() => {
    * הרוכב: אם היינו מודדים על כל הפריים, התנועה של הרוכב עצמו הייתה
    * נמשכת פנימה לתוך ההערכה והמצלמה "הייתה רודפת" אחריו.
    *
-   * מה שזה פותר: הליכה, רעד יד, פאן אחרי הרוכב. מה שזה לא פותר: זום
-   * תוך כדי וסיבוב של המצלמה, כי שניהם אינם הזזה.
+   * מה שזה פותר: הליכה, רעד יד, פאן אחרי הרוכב, וזום תוך כדי צילום.
+   * מה שלא: סיבוב של הטלפון סביב העדשה (גלגול), שהוא לא הזזה ולא זום.
    *
-   * המוסכמה: ההזזה (dx,dy) היא כזו ש-a[x+dx] ≈ b[x], כלומר התוכן זז
-   * ב-+dx בין הפריימים. המצלמה עצמה זזה בכיוון ההפוך.
+   * המוסכמה: ההתאמה היא a[c + s·(x−c) + d] ≈ b[x], כאשר c מרכז הפריים,
+   * s הזום בין הפריימים ו-d ההזזה. בלי זום s=1 וזה פשוט a[x+d] ≈ b[x].
    */
   const SEARCH = 7;           // פיקסלים לכל כיוון, ברזולוציית העבודה
+  /* זום בין שני פריימים עוקבים. צביטה מהירה בטלפון היא כ-2% לפריים
+   * ב-30fps; 4% מכסה גם זום מהיר במיוחד. */
+  const ZOOMS = [0.96, 0.98, 0.99, 1.01, 1.02, 1.04];
   const EDGE_K = 0.5;         // קיזוז ההפרש לפי עוצמת הקצה; ראו ב-track
 
-  function cameraShift(a, b, w, h) {
+  /* נקודות הדגימה של השוליים, פעם אחת לכל גודל פריים ולא בכל קריאה */
+  let border = null;
+  function borderPts(w, h) {
+    if (border && border.w === w && border.h === h) return border;
     const band = Math.max(3, Math.round(h * 0.22));
-    const inBorder = (x, y) => y < band || y >= h - band
-                            || x < band || x >= w - band;
-
-    const cost = (dx, dy) => {
-      let sum = 0, n = 0;
-      for (let y = SEARCH; y < h - SEARCH; y += 2) {
-        for (let x = SEARCH; x < w - SEARCH; x += 2) {
-          if (!inBorder(x, y)) continue;
-          let d = a[(y + dy) * w + (x + dx)] - b[y * w + x];
-          if (d < 0) d = -d;
-          sum += d; n += 1;
-        }
+    const xs = [], ys = [];
+    for (let y = SEARCH; y < h - SEARCH; y += 2) {
+      for (let x = SEARCH; x < w - SEARCH; x += 2) {
+        if (y < band || y >= h - band || x < band || x >= w - band) { xs.push(x); ys.push(y); }
       }
-      return n ? sum / n : Infinity;
+    }
+    border = { w, h, xs: Int16Array.from(xs), ys: Int16Array.from(ys),
+               at: Int32Array.from(xs.map((x, i) => ys[i] * w + x)) };
+    return border;
+  }
+
+  function cameraShift(a, b, w, h) {
+    const { xs, ys, at } = borderPts(w, h);
+    const N = at.length;
+    const mx = w / 2, my = h / 2;
+
+    const cost = (dx, dy, s = 1) => {
+      let sum = 0, n = 0;
+      if (s === 1) {
+        const off = dy * w + dx;
+        for (let i = 0; i < N; i += 1) {
+          let d = a[at[i] + off] - b[at[i]];
+          if (d < 0) d = -d;
+          sum += d;
+        }
+        return N ? sum / N : Infinity;
+      }
+      /* בזום הדגימה בילינארית: בזום של 1% לפריים רוב השוליים זזים פחות
+       * מחצי פיקסל, ועיגול לפיקסל הקרוב היה מוחק את הזום כולו. */
+      for (let i = 0; i < N; i += 1) {
+        const X = mx + s * (xs[i] - mx) + dx, Y = my + s * (ys[i] - my) + dy;
+        const ix = Math.floor(X), iy = Math.floor(Y);
+        if (ix < 0 || ix >= w - 1 || iy < 0 || iy >= h - 1) continue;
+        const u = X - ix, v = Y - iy, j = iy * w + ix;
+        let d = (a[j] * (1 - u) + a[j + 1] * u) * (1 - v)
+              + (a[j + w] * (1 - u) + a[j + w + 1] * u) * v - b[at[i]];
+        if (d < 0) d = -d;
+        sum += d; n += 1;
+      }
+      return n > 50 ? sum / n : Infinity;
     };
 
     /*
@@ -180,24 +214,77 @@ const Judge = (() => {
      * בעלת משמעות.
      */
     const still = cost(0, 0);
-    if (still < 2.0) return { dx: 0, dy: 0, fx: 0, fy: 0, c: still };
+    /* "המצלמה לא זזה" חוסם רק חיפוש הזזה. זום איטי ורציף נראה בדיוק
+     * כך — הפרש קטן בין כל שני פריימים — ואם גם הוא היה נחסם, הזום
+     * המצטבר לא היה נמדד לעולם. אז זום נבדק גם כאן, למטה. */
+    const calm = still < 2.0;
 
     let best = { dx: 0, dy: 0, c: still };
-    for (let dy = -SEARCH + 1; dy <= SEARCH - 1; dy += 3) {
-      for (let dx = -SEARCH + 1; dx <= SEARCH - 1; dx += 3) {
-        const c = cost(dx, dy);
-        if (c < best.c) best = { dx, dy, c };
+    if (!calm) {
+      for (let dy = -SEARCH + 1; dy <= SEARCH - 1; dy += 3) {
+        for (let dx = -SEARCH + 1; dx <= SEARCH - 1; dx += 3) {
+          const c = cost(dx, dy);
+          if (c < best.c) best = { dx, dy, c };
+        }
+      }
+      /*
+       * החיפוש העדין רץ סביב המנצח הגס, וגם סביב אפס. על מרקם עדין כמו
+       * אספלט או חצץ כל נקודות הרשת הגסה עולות כמעט אותו דבר, המנצח שלה
+       * מקרי, וחיפוש רק סביבו פספס הזזה של פיקסל אחד — המקרה הנפוץ ביותר
+       * ביד רועדת.
+       */
+      const c0 = { ...best };
+      const centers = (Math.abs(c0.dx) > 2 || Math.abs(c0.dy) > 2) ? [c0, { dx: 0, dy: 0 }] : [c0];
+      for (const cn of centers) {
+        for (let dy = cn.dy - 2; dy <= cn.dy + 2; dy += 1) {
+          for (let dx = cn.dx - 2; dx <= cn.dx + 2; dx += 1) {
+            if (Math.abs(dx) >= SEARCH || Math.abs(dy) >= SEARCH) continue;
+            const c = cost(dx, dy);
+            if (c < best.c) best = { dx, dy, c };
+          }
+        }
       }
     }
-    const c0 = { ...best };
-    for (let dy = c0.dy - 2; dy <= c0.dy + 2; dy += 1) {
-      for (let dx = c0.dx - 2; dx <= c0.dx + 2; dx += 1) {
-        if (Math.abs(dx) >= SEARCH || Math.abs(dy) >= SEARCH) continue;
-        const c = cost(dx, dy);
-        if (c < best.c) best = { dx, dy, c };
+    let pick = best.c < still * 0.67 ? best : { dx: 0, dy: 0, c: still };
+    pick.s = 1;
+
+    /*
+     * זום. בזום הקצוות זזים החוצה או פנימה ומרכז הפריים כמעט לא, ולכן
+     * הזזה לבדה לא מיישרת אותם — כל השוליים נשארים "בתנועה" והרוכב
+     * טובע. בודקים כמה דרגות זום סביב ההזזה שנמצאה, ומקבלים זום רק
+     * כשהוא משפר את ההתאמה בבירור. זום אמיתי משפר בהרבה; רעש לא.
+     */
+    let zb = pick;
+    /* בדיקה זולה קודם: שתי דרגות זום קטנות. בלי זום אף אחת מהן לא
+     * עוזרת, ואז מדלגים על החיפוש המלא — הוא הכפיל פי עשר את הזמן. */
+    const base = Math.min(pick.c, still);
+    const probe = Math.min(cost(pick.dx, pick.dy, 0.99), cost(pick.dx, pick.dy, 1.01));
+    if (probe < base * 0.97) {
+      // קודם דרגת הזום, בהזזה שכבר נמצאה; אחר כך ±1 פיקסל רק סביב המנצחת
+      for (const z of ZOOMS) {
+        const c = cost(pick.dx, pick.dy, z);
+        if (c < zb.c) zb = { dx: pick.dx, dy: pick.dy, s: z, c };
+      }
+      if (zb.s !== 1) {
+        const z0 = { ...zb };
+        for (let dy = z0.dy - 1; dy <= z0.dy + 1; dy += 1) {
+          for (let dx = z0.dx - 1; dx <= z0.dx + 1; dx += 1) {
+            if ((dx === z0.dx && dy === z0.dy) || Math.abs(dx) >= SEARCH || Math.abs(dy) >= SEARCH) continue;
+            const c = cost(dx, dy, z0.s);
+            if (c < zb.c) zb = { dx, dy, s: z0.s, c };
+          }
+        }
       }
     }
-    const pick = best.c < still * 0.67 ? best : { dx: 0, dy: 0, c: still };
+    if (zb.s !== 1 && zb.c < Math.min(pick.c, still) * 0.85) {
+      // קודקוד הפרבולה בין שלוש דרגות זום, כמו בתת-הפיקסל למטה
+      const st = 0.005;
+      const c1 = cost(zb.dx, zb.dy, zb.s - st), c3 = cost(zb.dx, zb.dy, zb.s + st);
+      const den = c1 - 2 * zb.c + c3;
+      const ds = den > 0 ? Math.max(-0.5, Math.min(0.5, (c1 - c3) / (2 * den))) * st : 0;
+      pick = { ...zb, s: zb.s + ds, c: zb.c };
+    }
+    if (calm && pick.s === 1) return { dx: 0, dy: 0, fx: 0, fy: 0, s: 1, c: still };
 
     /*
      * תת-פיקסל. בלי זה הפיצוי כמעט חסר תועלת ביד רועדת: מצלמה שזזה
@@ -206,15 +293,15 @@ const Judge = (() => {
      * המחיר מגדירות פרבולה, והקודקוד שלה הוא ההזזה האמיתית.
      */
     const sub = (axis) => {
-      const at = (d) => (axis === 'x' ? cost(pick.dx + d, pick.dy)
-                                      : cost(pick.dx, pick.dy + d));
+      const at = (d) => (axis === 'x' ? cost(pick.dx + d, pick.dy, pick.s)
+                                      : cost(pick.dx, pick.dy + d, pick.s));
       const c1 = at(-1), c2 = pick.c, c3 = at(1);
       const den = c1 - 2 * c2 + c3;
       if (!(den > 0)) return 0;
       return Math.max(-0.5, Math.min(0.5, (c1 - c3) / (2 * den)));
     };
 
-    return { dx: pick.dx, dy: pick.dy, fx: sub('x'), fy: sub('y'), c: pick.c };
+    return { dx: pick.dx, dy: pick.dy, fx: sub('x'), fy: sub('y'), s: pick.s, c: pick.c };
   }
 
   /**
@@ -232,7 +319,13 @@ const Judge = (() => {
   function track(cap) {
     const { frames: f, w, h } = cap;
     const out = [];
-    let camX = 0, camY = 0, moved = 0, loose = 0;
+    /*
+     * הטרנספורמציה מפריים k לקואורדינטות של הפריים הראשון ("העולם"):
+     * X = A·x + B. A הוא הזום המצטבר, B ההזזה המצטברת. בלי זום A=1
+     * וזה בדיוק X = x − C של הגרסה הקודמת.
+     */
+    let A = 1, Bx = 0, By = 0, moved = 0, loose = 0;
+    const mx = w / 2, my = h / 2;
 
     const diffs = new Uint8Array(w * h);
 
@@ -248,9 +341,16 @@ const Judge = (() => {
        * תנועת המצלמה במקום לבטל אותה. בסימולציה עם רעד של 3 פיקסלים
        * יצאו חמש קפיצות שלא היו, והקפיצה האמיתית לא זוהתה.
        */
-      const pX = camX, pY = camY;
-      camX += sh.dx + (sh.fx || 0); camY += sh.dy + (sh.fy || 0);
-      if (sh.dx || sh.dy || Math.abs(sh.fx || 0) > 0.15 || Math.abs(sh.fy || 0) > 0.15) moved += 1;
+      const pA = A, pBx = Bx, pBy = By;
+      const s = sh.s || 1;
+      const dX = sh.dx + (sh.fx || 0), dY = sh.dy + (sh.fy || 0);
+      // נקודה X בפריים k היא (X − c − d)/s + c בפריים הקודם; מרכיבים
+      Bx += A * (mx - (mx + dX) / s);
+      By += A * (my - (my + dY) / s);
+      A /= s;
+      if (sh.dx || sh.dy || Math.abs(sh.fx || 0) > 0.15 || Math.abs(sh.fy || 0) > 0.15
+          || Math.abs(s - 1) > 0.004) moved += 1;
+      const toWx = (x) => pA * x + pBx, toWy = (y) => pA * y + pBy;
 
       /*
        * שלב 2: ההפרשים עצמם, ומהם הסף.
@@ -261,10 +361,6 @@ const Judge = (() => {
        * "המצלמה זזה יותר מדי". ההזזה החלקית כבר חושבה; היא פשוט לא
        * הופעלה כאן.
        */
-      const fx = sh.fx || 0, fy = sh.fy || 0;
-      const ox = sh.dx + Math.floor(fx), oy = sh.dy + Math.floor(fy);
-      const u = fx - Math.floor(fx), v = fy - Math.floor(fy);
-      const w00 = (1 - u) * (1 - v), w10 = u * (1 - v), w01 = (1 - u) * v, w11 = u * v;
       /*
        * וגם אחרי זה נשאר יישור לא מושלם, בסדר גודל של עשירית פיקסל. על
        * קצה בניגודיות גבוהה זה מספיק כדי לעבור את הסף, והרקע "זז" כמו
@@ -273,10 +369,22 @@ const Judge = (() => {
        * משאיר רק תזוזה של יותר מחצי פיקסל — והרוכב זז כמה פיקסלים.
        */
       let sum = 0, cnt = 0;
+      // בלי זום ההזזה זהה לכל הפריים, אז המשקלים מחושבים פעם אחת
+      const fx0 = Math.floor(dX), fy0 = Math.floor(dY);
+      const u0 = dX - fx0, v0 = dY - fy0;
       for (let y = SEARCH; y < h - SEARCH; y += 1) {
+        const Y = s === 1 ? y + dY : my + s * (y - my) + dY;
+        const iy = s === 1 ? y + fy0 : Math.floor(Y), v = s === 1 ? v0 : Y - iy;
         for (let x = SEARCH; x < w - SEARCH; x += 1) {
-          const i = (y + oy) * w + (x + ox), j = y * w + x;
-          let d = (a[i] * w00 + a[i + 1] * w10 + a[i + w] * w01 + a[i + w + 1] * w11) - b[j];
+          const j = y * w + x;
+          let ix, u;
+          if (s === 1) { ix = x + fx0; u = u0; }
+          else { const X = mx + s * (x - mx) + dX; ix = Math.floor(X); u = X - ix; }
+          // בזום פנימה חלק מהפריים הקודם כבר מחוץ לתמונה — שם אין מה להשוות
+          if (ix < 0 || ix >= w - 1 || iy < 0 || iy >= h - 1) { diffs[j] = 0; continue; }
+          const i = iy * w + ix;
+          let d = (a[i] * (1 - u) + a[i + 1] * u) * (1 - v)
+                + (a[i + w] * (1 - u) + a[i + w + 1] * u) * v - b[j];
           if (d < 0) d = -d;
           let gx = b[j + 1] - b[j - 1], gy = b[j + w] - b[j - w];
           if (gx < 0) gx = -gx;
@@ -330,10 +438,12 @@ const Judge = (() => {
 
       out.push({
         t: (f[k].t + f[k - 1].t) / 2,
-        cx: sx / mass - pX, cy: sy / mass - pY, mass,
-        x0: pct(colIn, mass, 0.04) - pX, x1: pct(colIn, mass, 0.96) - pX,
-        y0: pct(rowIn, mass, 0.04) - pY, y1: pct(rowIn, mass, 0.96) - pY,
-        camX: pX, camY: pY,
+        // המסה היא שטח, אז היא גדלה בריבוע הזום; מנרמלים כדי שהרעד אחרי
+        // הנחיתה יושווה לפני הפופ באותן יחידות
+        cx: toWx(sx / mass), cy: toWy(sy / mass), mass: mass * pA * pA,
+        x0: toWx(pct(colIn, mass, 0.04)), x1: toWx(pct(colIn, mass, 0.96)),
+        y0: toWy(pct(rowIn, mass, 0.04)), y1: toWy(pct(rowIn, mass, 0.96)),
+        A: pA, Bx: pBx, By: pBy,
         /* הגוף נחתך בצד או למעלה. בתחתית לא בודקים — רגליים על קצה
          * הפריים זה צילום טלפון רגיל, ושיא הקפיצה נמצא למעלה. */
         cut: pct(colIn, mass, 0.04) <= SEARCH + 1 || pct(colIn, mass, 0.96) >= w - SEARCH - 2
@@ -371,7 +481,8 @@ const Judge = (() => {
   return { setRider, capture, track, pct, pctl, median, smooth,
            get capDt() { return capDt; },
            get personH() { return personH; },
-           get slowmo() { return slowmo; } };
+           get slowmo() { return slowmo; },
+           get autoSlow() { return autoSlow; } };
 })();
 
 /* ==========================================================================
@@ -390,8 +501,10 @@ const Analyse = (() => {
    * מתאפסת והמכשול נעלם מהמדידה. הרוכב נמצא נמוך רוב הזמן, ולכן
    * האחוזון ה-30 של חלון רחב הוא הקרקע גם כשיש עליו קטע ארוך גבוה.
    */
+  /* במצב אוטומטי החלון רחב כמו של ×4: קפיצה בהילוך איטי נמשכת שניות
+   * בזמן המדיה, ובחלון צר היא עצמה הייתה הופכת ל"קרקע". */
   function groundLine(up, t) {
-    const W = 1.6 * Judge.slowmo;
+    const W = 1.6 * (Judge.autoSlow ? 4 : Judge.slowmo);
     // t ממוין, אז החלון הוא שני מצביעים ולא סריקה של כל הרן לכל נקודה
     let lo = 0, hi = 0;
     return up.map((_, i) => {
@@ -405,12 +518,18 @@ const Analyse = (() => {
     const cameraMoved = !!tr.cameraMoved;
     const tooShaky = !!tr.tooShaky;
     const pts = tr.filter(Boolean);
-    if (tooShaky) {
+    /*
+     * מצלמה שזזה מדי בחלק מהסרטון כבר לא מפילה את כולו. קודם, כשיותר
+     * משליש מהפריימים לא נמדדו, הדף ויתר על הכל — גם על קפיצות שצולמו
+     * יפה בשאר הזמן. עכשיו מחפשים בכל מה שכן נמדד, וההסבר על המצלמה
+     * מוצג רק כשבאמת לא נמצא כלום.
+     */
+    const SHAKY = 'המצלמה זזה יותר מדי מכדי להפריד בין הרוכב לרקע. '
+                + 'אפשר ללכת, לרעוד ולעשות זום, אבל לא להסתובב מהר או לגלגל את הטלפון';
+    if (pts.length < 8) {
       return { tricks: [], cameraMoved, tooShaky,
-               why: 'המצלמה זזה יותר מדי מכדי להפריד בין הרוכב לרקע. '
-                  + 'אפשר ללכת ולרעוד, אבל לא לעשות זום תוך כדי ולא להסתובב מהר' };
+               why: tooShaky ? SHAKY : 'כמעט ולא זוהתה תנועה בסרטון' };
     }
-    if (pts.length < 8) return { tricks: [], why: 'כמעט ולא זוהתה תנועה בסרטון' };
 
     const bodyH = Judge.median(pts.map((p) => p.y1 - p.y0));
     const bodyW = Judge.median(pts.map((p) => p.x1 - p.x0));
@@ -529,10 +648,10 @@ const Analyse = (() => {
       // היחס נבדק בזמן המדיה, לפני ההמרה לשניות אמיתיות. אחרת בסלואו
       // מושן ×4 הגריינד חולק בארבע ו-span לא, ושום מעקה לא זוהה.
       const longFlat = grind > span * 0.45;
-      grind /= Judge.slowmo;
-
-      const surface = (grind > 0.3 && grindLen > 0.25 && longFlat) ? 'rail' : 'flat';
-      if (surface !== 'rail') { grind = 0; grindLen = 0; }
+      // באוטומטי עוד לא ידוע פי כמה הואט; ×1 הוא המינימום, אז 0.3 בזמן מדיה
+      const grindMedia = grind;
+      const surface = (grindMedia / (Judge.autoSlow ? 1 : Judge.slowmo) > 0.3
+                       && grindLen > 0.25 && longFlat) ? 'rail' : 'flat';
 
       /*
        * אורך המעוף, מתוקן לפי צורת הפרבולה.
@@ -593,9 +712,45 @@ const Analyse = (() => {
       const tk_rise = peak / bodyH;                  // העלייה ביחידות גובה-גוף
       const cut = Math.max(rise[a], rise[b]);
       const shape = Math.sqrt(Math.max(0.2, Math.min(1, 1 - cut / peak)));
-      const air = (surface === 'rail' ? span : span / shape) / Judge.slowmo;
-      // מתחת ל-0.18 שניות אין טריק, יש רעידה
-      if (air < 0.18 || air > 2.5) { why = why || 'זוהתה תנועה אבל לא קפיצה ברורה'; return; }
+      const airMedia = surface === 'rail' ? span : span / shape;
+
+      /*
+       * פי כמה הואט *הקטע הזה*. בטלפון הילוך איטי יכול להתחיל באמצע
+       * הסרטון, ואז מקדם אחד לכל הסרטון טועה בחצי ממנו: הקפיצות הרגילות
+       * יוצאות קצרות מדי, והאיטיות "ארוכות מכדי להיות קפיצה".
+       *
+       * הפיזיקה פותרת את זה. בנפילה חופשית זמן האוויר קובע את הגובה
+       * (h=g·t²/8), והעלייה ביחידות גוף נמדדת מהתמונה. היחס ביניהם הוא
+       * גובה הרוכב — ובהאטה של פי f הוא יוצא פי f² גדול מדי. אז בוחרים
+       * את f מתוך 1, 2, 4, 8 (המהירויות של מצלמות טלפון) שנותן אדם בגובה
+       * סביר. ההפרש בין המדרגות הוא פי 4 בגובה, כך שאין כמעט עמימות.
+       *
+       * מעקה אינו נפילה חופשית, אז שם בוחרים את ההאטה הקטנה שנותנת
+       * גריינד באורך סביר.
+       */
+      let slow = Judge.slowmo;
+      if (Judge.autoSlow) {
+        const H0 = Judge.personH || 1.3;            // הגוף בתיבה, לא בהכרח הרוכב עצמו
+        const options = [1, 2, 4, 8];
+        if (surface === 'rail') {
+          slow = options.find((f) => airMedia / f <= 2.0) || 8;
+        } else {
+          const miss = (f) => {
+            const at = airMedia / f;
+            const ih = tk_rise > 0 ? (9.81 * at * at / 8) / tk_rise : 0;
+            return Math.abs(Math.log((ih || 1e-6) / H0));
+          };
+          slow = options.reduce((bestF, f) => (miss(f) < miss(bestF) ? f : bestF), 1);
+          /* קטע איטי ש"נמצא" על עקומה רועשת הוא בדיוק איך שסחף מצלמה
+           * היה נראה, אז הוא דורש פרבולה נקייה יותר מקפיצה רגילה. */
+          if (slow > 1 && r2 < 0.8) { why = why || 'זוהתה תנועה שאינה נראית כמו קפיצה'; return; }
+        }
+      }
+      grind = surface === 'rail' ? grindMedia / slow : 0;
+      if (surface !== 'rail') grindLen = 0;
+      const air = airMedia / slow;
+      // מתחת ל-0.22 שניות (6 ס"מ) אין טריק, יש רעידה
+      if (air < 0.22 || air > 2.5) { why = why || 'זוהתה תנועה אבל לא קפיצה ברורה'; return; }
 
       /*
        * גובה: שתי מדידות בלתי תלויות, וההצגה אומרת איזו מהן יש.
@@ -645,7 +800,7 @@ const Analyse = (() => {
 
       /* ניקיון הנחיתה: כמה רעד יש מיד אחריה לעומת לפני הפופ */
       const after = [], before = [];
-      const sm = Judge.slowmo;           // החלונות בשניות אמיתיות, הזמנים בזמן מדיה
+      const sm = slow;                   // החלונות בשניות אמיתיות, הזמנים בזמן מדיה
       pts.forEach((p) => {
         if (p.t > t[b] + 0.05 * sm && p.t < t[b] + 0.55 * sm) after.push(p.mass);
         if (p.t < t[a] - 0.1 * sm && p.t > t[a] - 0.7 * sm) before.push(p.mass);
@@ -655,9 +810,10 @@ const Analyse = (() => {
 
       tricks.push({ t0: t[a], t1: t[b], air, height, unc, dist, surface, view,
                     grind, grindLen, wobble, hPix, hTime, r2,
-                    riseBodies: tk_rise, impliedH });
+                    riseBodies: tk_rise, impliedH, slow });
     });
 
+    if (!tricks.length && tooShaky) why = SHAKY;
     if (!tricks.length && !why) why = 'לא נמצאה עלייה ברורה של הגוף מעל גובה הנסיעה הרגיל';
     return { tricks, why, pxPerM, bodyH, pts, view, cameraMoved, tooShaky,
              scaled: !!pxPerM };
@@ -669,7 +825,8 @@ const Analyse = (() => {
     let cur = [];
     tricks.forEach((tk) => {
       if (!cur.length) { cur = [tk]; return; }
-      const gap = (tk.t0 - cur[cur.length - 1].t1) / Judge.slowmo;
+      const prev = cur[cur.length - 1];
+      const gap = (tk.t0 - prev.t1) / Math.max(prev.slow || 1, tk.slow || 1);
       if (gap < 0.9) cur.push(tk); else { groups.push(cur); cur = [tk]; }
     });
     if (cur.length) groups.push(cur);
@@ -739,10 +896,11 @@ const Sheets = (() => {
     });
 
     const sc = video.videoWidth / 192;
-    let size = Math.max(res.bodyH * (zoom ? 1.5 : 2.8), 30) * sc;
-    // המסלול נשמר בקואורדינטות עולם (X = x − C); לחיתוך מחזירים את המצלמה
-    const cx = ((best.x0 + best.x1) / 2 + best.camX) * sc;
-    const cy = ((best.y0 + best.y1) / 2 + best.camY + (zoom ? res.bodyH * 0.26 : 0)) * sc;
+    // המסלול נשמר בקואורדינטות עולם (X = A·x + B); לחיתוך מחזירים לתמונה
+    const A = best.A || 1;
+    let size = Math.max(res.bodyH * (zoom ? 1.5 : 2.8) / A, 30) * sc;
+    const cx = ((best.x0 + best.x1) / 2 - best.Bx) / A * sc;
+    const cy = ((best.y0 + best.y1) / 2 + (zoom ? res.bodyH * 0.26 : 0) - best.By) / A * sc;
     const sx = Math.max(0, Math.min(video.videoWidth - size, cx - size / 2));
     const sy = Math.max(0, Math.min(video.videoHeight - size, cy - size / 2));
     size = Math.min(size, video.videoWidth - sx, video.videoHeight - sy);

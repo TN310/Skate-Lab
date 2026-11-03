@@ -147,6 +147,7 @@ function measured(m) {
     dist != null ? `מרחק: ${dist.toFixed(2)} מטר` : '',
     rail ? `החלקה: ${(+m.grind).toFixed(2)} שניות` : '',
     m.cameraMoved ? 'המצלמה זזה בצילום, והתזוזה שלה נוכתה מהמדידות' : '',
+    Number(m.slow) > 1 ? `הקטע צולם בהילוך איטי ×${Number(m.slow)}, והזמנים כבר מומרים לשניות אמיתיות` : '',
   ].filter(Boolean).join(', ');
 }
 

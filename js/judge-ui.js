@@ -307,7 +307,7 @@
           combo: comboOf(tk),
           measure: {
             air: tk.air, height: tk.height, dist: tk.dist, view: tk.view,
-            surface: tk.surface, grind: tk.grind, grindLen: tk.grindLen,
+            surface: tk.surface, grind: tk.grind, grindLen: tk.grindLen, slow: tk.slow,
             scaled: state.res.scaled, cameraMoved: state.res.cameraMoved,
           },
         });
@@ -390,7 +390,7 @@
 
     if (!state.tricks.length) {
       const tip = state.res.cameraMoved
-        ? 'המצלמה זזה הרבה. תנועה רגילה מנוכה, אבל זום תוך כדי או סיבוב מהיר לא. נסה שוב בלי זום.'
+        ? 'המצלמה זזה הרבה. הליכה, רעד וזום מנוכים, אבל סיבוב מהיר של הטלפון לא.'
         : 'בדוק שכל הגוף בפריים, גם בשיא הקפיצה, ושהרוכב לא קטן מדי.';
       results.innerHTML = `<div class="jcard"><b>לא זוהה אף טריק</b>
         <p class="jsub" style="margin:8px 0 0">${esc(state.res.why)}. ${esc(tip)}</p></div>`;
@@ -399,7 +399,8 @@
 
     const judged = state.tricks.filter((t) => t.verdict).length;
     const notes = [];
-    if (state.res.cameraMoved) notes.push('המצלמה זזה בצילום. תנועת המצלמה חושבה ונוכתה, אבל זום תוך כדי הוא הדבר היחיד שאי אפשר לנכות.');
+    if (state.res.cameraMoved) notes.push('המצלמה זזה בצילום. התנועה והזום שלה חושבו ונוכו.');
+    if (state.res.tooShaky) notes.push('בחלק מהסרטון המצלמה זזה מהר מדי ולא נמדד שם כלום. ייתכן שטריק משם חסר.');
     if (state.res.view === 'front') notes.push('הצילום נראה מלפנים או מאחור, ולכן אין מרחק: מהזווית הזאת הוא לא נראה בכלל.');
     if (!state.res.scaled) notes.push('לא מילאת גובה, אז הגובה מחושב מזמן האוויר לפי הפיזיקה ואין מרחק במטרים. השיפוט עצמו לא תלוי בזה.');
     if (notes.length) {
@@ -530,6 +531,7 @@
           <div class="trick__name">${n}. ${esc(name)}</div>
           <div class="trick__meta">${tk.t0.toFixed(2)}s–${tk.t1.toFixed(2)}s ·
             <span class="jpill">${surf}</span>
+            ${tk.slow > 1 ? `<span class="jpill">הילוך איטי ×${tk.slow}</span>` : ''}
             ${who ? `<span class="jpill">${esc(who)}</span>` : ''}
             ${v && !v.landed ? '<span class="jpill jpill--warn">לא נראתה נחיתה</span>' : ''}
             ${v && !v.agreed ? '<span class="jpill jpill--warn">אין הסכמה על השם</span>' : ''}

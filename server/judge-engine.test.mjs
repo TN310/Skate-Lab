@@ -59,20 +59,23 @@ const at = (x, y) => {
        + bg[(iy + 1) * BG + ix] * (1 - u) * v + bg[(iy + 1) * BG + ix + 1] * u * v;
 };
 
-/** סרטון: `slow` הוא פי כמה הואט, `rail` הוא קטע שבו הרוכב נישא בגובה קבוע. */
+/**
+ * סרטון: `slow` הוא פי כמה הואט כולו, `slowFrom` הילוך איטי שמתחיל באמצע
+ * ({ at, f }), `zoom` פונקציה מזמן לזום, ו-`rail` קטע שבו הרוכב נישא בגובה קבוע.
+ */
 function clip({ pan = 0, shake = 0, jumps = [{ t: 2, air: 0.5 }], dur = 5, walk = 0.6,
-                slow = 1, rail = null, edges = false } = {}) {
+                slow = 1, slowFrom = null, zoom = null, rail = null, edges = false } = {}) {
   const bgAt = edges ? atSharp : at;
   const frames = [];
-  const bodyH = 40, pxPerM = bodyH / 1.6;
+  const bodyH = 40, pxPerM = bodyH / 1.6, mx = W / 2, my = H / 2;
   for (let k = 0; k < dur * FPS; k += 1) {
-    const tm = k / FPS, t = tm / slow;          // זמן מדיה מול זמן אמיתי
+    const tm = k / FPS;                          // זמן מדיה
+    const t = slowFrom                           // זמן אמיתי
+      ? (tm < slowFrom.at ? tm : slowFrom.at + (tm - slowFrom.at) / slowFrom.f)
+      : tm / slow;
     const cx = 200 + pan * tm + shake * Math.sin(tm * 9);
     const cy = 200 + shake * Math.cos(tm * 7);
-    const g = new Uint8Array(W * H);
-    for (let y = 0; y < H; y += 1) {
-      for (let x = 0; x < W; x += 1) g[y * W + x] = bgAt(cx + x, cy + y) + (rnd() - 0.5) * 6;
-    }
+    const Z = zoom ? zoom(tm) : 1;
     let lift = 0;
     for (const j of jumps) {
       if (t > j.t && t < j.t + j.air) { const s = t - j.t; lift = 0.5 * 9.81 * s * (j.air - s); }
@@ -84,10 +87,15 @@ function clip({ pan = 0, shake = 0, jumps = [{ t: 2, air: 0.5 }], dur = 5, walk 
       else if (t > t0 + up + len && t < t0 + 2 * up + len) lift = hgt * (1 - (t - t0 - up - len) / up);
     }
     const rx = 220 + walk * 40 * t, ry = 280 - lift * pxPerM;
-    for (let y = Math.round(ry - bodyH); y < ry; y += 1) {
-      for (let x = Math.round(rx); x < rx + 14; x += 1) {
-        const ix = Math.round(x - cx), iy = Math.round(y - cy);
-        if (ix >= 0 && ix < W && iy >= 0 && iy < H) g[iy * W + ix] = 250 - ((x + y) % 5) * 10;
+    // כל פיקסל בתמונה מחפש מה רואים בו בעולם — כך זום לא משאיר חורים
+    const g = new Uint8Array(W * H);
+    for (let y = 0; y < H; y += 1) {
+      const Y = cy + my + (y - my) / Z;
+      for (let x = 0; x < W; x += 1) {
+        const X = cx + mx + (x - mx) / Z;
+        const onRider = X >= rx && X < rx + 14 && Y >= ry - bodyH && Y < ry;
+        g[y * W + x] = onRider ? 250 - ((Math.floor(X) + Math.floor(Y)) % 5) * 10
+                               : bgAt(X, Y) + (rnd() - 0.5) * 6;
       }
     }
     frames.push({ t: tm, g });
@@ -96,7 +104,7 @@ function clip({ pan = 0, shake = 0, jumps = [{ t: 2, air: 0.5 }], dur = 5, walk 
 }
 
 const run = (opt = {}) => {
-  Judge.setRider('', opt.slow || 1);
+  Judge.setRider('', opt.mode || opt.slow || 1);
   return Analyse.findTricks(Judge.track(clip(opt)));
 };
 
@@ -128,6 +136,35 @@ test('פאן אחרי הרוכב ועוד רעד', () => {
 test('שתי קפיצות נפרדות', () => {
   const r = run({ jumps: [{ t: 1.2, air: 0.45 }, { t: 3.3, air: 0.55 }] });
   assert.equal(r.tricks.length, 2);
+});
+
+test('זום תוך כדי צילום, גם באמצע קפיצה', () => {
+  // זום פנימה פי 1.5 בין השנייה ה-1.5 ל-3: כ-1% לפריים, כמו צביטה בטלפון
+  const zoom = (tm) => 1 + 0.5 * Math.min(1, Math.max(0, (tm - 1.5) / 1.5));
+  const r = run({ zoom, shake: 1.5, jumps: [{ t: 1, air: 0.5 }, { t: 2.2, air: 0.5 }, { t: 4, air: 0.45 }] });
+  assert.equal(r.tooShaky, false);
+  assert.equal(r.tricks.length, 3, r.tricks.map((t) => t.t0.toFixed(2)).join(' ') || r.why);
+  r.tricks.forEach((tk, i) => assert.ok(Math.abs(tk.air - [0.5, 0.5, 0.45][i]) < 0.1, `air ${tk.air}`));
+});
+
+test('זום החוצה', () => {
+  const zoom = (tm) => 1.5 - 0.5 * Math.min(1, Math.max(0, (tm - 1) / 1.5));
+  const r = run({ zoom, jumps: [{ t: 2, air: 0.5 }] });
+  assert.equal(r.tricks.length, 1, r.why);
+});
+
+test('הילוך איטי שמתחיל באמצע: כל קפיצה מקבלת את ההאטה שלה', () => {
+  // קפיצה רגילה בשנייה 1, ואז מהשנייה 2 הכל פי 4 לאט, וקפיצה נוספת
+  const r = run({ mode: 'auto', slowFrom: { at: 2, f: 4 }, dur: 9, walk: 0.3,
+                  jumps: [{ t: 1, air: 0.5 }, { t: 2.8, air: 0.5 }] });
+  assert.equal(r.tricks.length, 2, r.tricks.map((t) => `${t.t0.toFixed(2)}×${t.slow}`).join(' ') || r.why);
+  assert.deepEqual(Array.from(r.tricks, (t) => t.slow), [1, 4]);
+  r.tricks.forEach((tk) => assert.ok(Math.abs(tk.air - 0.5) < 0.1, `air ${tk.air}`));
+});
+
+test('אוטומטי על סרטון רגיל לא ממציא הילוך איטי', () => {
+  const r = run({ mode: 'auto', jumps: [{ t: 1.2, air: 0.45 }, { t: 3.3, air: 0.55 }] });
+  assert.deepEqual(Array.from(r.tricks, (t) => t.slow), [1, 1]);
 });
 
 test('מעקה מזוהה כמעקה', () => {

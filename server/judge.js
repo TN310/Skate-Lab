@@ -21,7 +21,7 @@
    (ai → חיישן → קהילה → מאמן) נשארת כפי שהיא.
    ========================================================================== */
 
-import { TRICKS } from './tricks.js';
+import { TRICKS, SIDES } from './tricks.js';
 
 const apiKey = () => process.env.ANTHROPIC_API_KEY;
 const MODEL = () => process.env.SKATELAB_JUDGE_MODEL
@@ -53,7 +53,14 @@ const norm = (text) => String(text || '')
 TRICKS.forEach((t) => {
   [t.baseName, t.alias, t.name].forEach((n) => { if (norm(n)) KEY.set(norm(n), t.baseId); });
 });
-const trickKey = (name) => KEY.get(norm(name)) || norm(name);
+const sideOf = (name) => (/פרונטסייד|frontside|\bfs\b/i.test(name) ? 'fs'
+  : /בקסייד|backside|\bbs\b/i.test(name) ? 'bs' : '');
+/* פרונטסייד 180 ובקסייד 180 הם טריקים שונים, אז הכיוון חלק מהמפתח */
+const trickKey = (name) => {
+  const k = KEY.get(norm(name)) || norm(name);
+  const sd = sideOf(String(name || ''));
+  return sd ? `${k}|${sd}` : k;
+};
 
 const SYSTEM = `אתה שופט בתחרות סקייטבורד מקצועית, בסגנון Street League.
 אתה נותן ציון מספרי אחד לכל טריק, בין 0.0 ל-10.0, עם ספרה אחת אחרי הנקודה.
@@ -68,6 +75,28 @@ const names = () => TRICKS
   .filter((t) => !t.side || t.side === 'fs')
   .map((t) => t.baseName)
   .join(', ');
+
+/** הטריקים שיש להם כיוון — רק בהם השופט חייב לקבוע פרונטסייד או בקסייד. */
+const sidedNames = () => [...new Set(TRICKS.filter((t) => t.side).map((t) => t.baseName))].join(', ');
+
+const SIDE_LABEL = Object.fromEntries(SIDES.map((x) => [x.id, x.label]));
+
+/*
+ * פרונטסייד ובקסייד, בהגדרה שלא תלויה בזווית הצילום.
+ *
+ * הגדרה לפי "שעון" (נגד כיוון השעון לרגולר) נכונה רק במבט מלמעלה,
+ * והמצלמה כמעט אף פעם לא שם. לכן ההגדרה כאן היא לפי מה שהרוכב עצמו
+ * רואה: לאן פונה החזה. היא עובדת מכל זווית, וגם על מכשול וגם בסיבוב.
+ */
+const SIDE_RULES = 'פרונטסייד ובקסייד:\n'
+  + '• סיבוב (180, 360, האף קאב, אייר בבול): פרונטסייד כשהחזה נפתח קודם לכיוון הנסיעה '
+  + 'או לקופינג והרוכב רואה לאן הוא מסתובב; בקסייד כשהגב פונה קודם והסיבוב עיוור.\n'
+  + '• גריינד או סלייד: פרונטסייד כשהרוכב ניגש למכשול כשהחזה ואצבעות הרגליים פונות אליו; '
+  + 'בקסייד כשהגב והעקבים פונים אליו.\n'
+  + '• שאב-איט: פרונטסייד כשהזנב מסתובב מלפני הרוכב (צד הבהונות); בקסייד כשהוא עובר מאחוריו (צד העקבים).\n';
+
+const stanceText = (stance) => (stance === 'regular' ? 'רגולר (רגל שמאל קדימה)'
+  : stance === 'goofy' ? 'גופי (רגל ימין קדימה)' : '');
 
 async function ask(content, { maxTokens = 500 } = {}) {
   let res;
@@ -139,24 +168,28 @@ function measured(m) {
   const rail = m.surface === 'rail';
   const num = (v) => (Number.isFinite(Number(v)) ? Number(v) : null);
   const height = num(m.height), dist = num(m.dist);
+  // טריק שה-AI מצא או שהרוכב סימן: אין מדידות, רק הפריימים
+  if (m.source === 'ai' || m.source === 'manual') {
+    return 'אין מדידה אוטומטית לטריק הזה — הוא סומן לפי הפריימים בלבד. קבע הכל מהתמונות';
+  }
   return [
     `משטח: ${rail ? 'מעקה או קרב' : 'קרקע'}`,
     `זווית הצילום: ${m.view === 'front' ? 'מלפנים או מאחור' : 'מהצד'}`,
-    `${rail ? 'זמן על המכשול' : 'זמן אוויר'}: ${(+m.air).toFixed(2)} שניות`,
+    num(m.air) != null ? `${rail ? 'זמן על המכשול' : 'זמן אוויר'}: ${(+m.air).toFixed(2)} שניות` : '',
     height != null ? `גובה: ${height.toFixed(2)} מטר` : '',
     dist != null ? `מרחק: ${dist.toFixed(2)} מטר` : '',
-    rail ? `החלקה: ${(+m.grind).toFixed(2)} שניות` : '',
+    rail && num(m.grind) != null ? `החלקה: ${(+m.grind).toFixed(2)} שניות` : '',
     m.cameraMoved ? 'המצלמה זזה בצילום, והתזוזה שלה נוכתה מהמדידות' : '',
     Number(m.slow) > 1 ? `הקטע צולם בהילוך איטי ×${Number(m.slow)}, והזמנים כבר מומרים לשניות אמיתיות` : '',
   ].filter(Boolean).join(', ');
 }
 
-const SHAPE = '{"trick":"שם הטריק","landed":true,"score":7.4,"rotation":180,"grab":"",'
+const SHAPE = '{"trick":"שם הטריק בלי כיוון","side":"fs","landed":true,"score":7.4,"rotation":180,"grab":"",'
   + '"feet":"על הברגים","frames":"בפריימים 7 עד 11 הלוח משלים סיבוב סביב הציר הארוך",'
   + '"note":"משפט אחד בעברית עם טיפ מעשי"}';
 
 /** שופט אחד, קריאה אחת. `seat` רק כדי שהתשובות לא יהיו זהות לחלוטין. */
-async function oneJudge(sheets, m, { overview, combo, claimed, seat }) {
+async function oneJudge(sheets, m, { overview, combo, claimed, seat, stance }) {
   const text =
     `${overview ? 'התמונה הראשונה היא סקירה של כל הסרטון, פריימים פרושים על אורכו עם חותמת זמן, כדי שתראה את המקום ואת המכשול. שאר התמונות' : 'התמונות'} הן טריק אחד, מפורק לפריימים לפי הסדר, ממוספרים, משמאל למעלה לימין למטה, חתוכים סביב הרגליים והלוח.\n\n`
     + `מה שנמדד מהסרטון עצמו: ${measured(m)}.\n`
@@ -166,6 +199,11 @@ async function oneJudge(sheets, m, { overview, combo, claimed, seat }) {
     + 'סיבוב סביב הציר הקצר הוא שאב-איט, שילוב של שניהם הוא ואריאל או טרה פליפ, בלי סיבוב של הלוח זה אולי. '
     + 'על מכשול קבע לפי אילו טראקים נוגעים ובאיזו זווית הלוח למכשול.\n'
     + `קרא לטריק בשם מתוך הרשימה הזאת, ואם שום שם לא מתאים כתוב "לא ברור": ${names()}\n`
+    + `לטריקים האלה יש כיוון, ובהם חובה לקבוע side: ${sidedNames()}\n`
+    + SIDE_RULES
+    + (stanceText(stance) ? `הסטאנס של הרוכב: ${stanceText(stance)}. אם הוא רוכב פייקי או סוויץ׳, הכיוון נקבע לפי הגוף ולא לפי הסטאנס.\n` : '')
+    + 'בשדה side כתוב "fs" לפרונטסייד, "bs" לבקסייד, או "" כשלטריק אין כיוון או שאי אפשר לראות. '
+    + 'את הכיוון אל תכתוב בתוך trick — רק ב-side.\n'
     + 'תן ציון אחד בין 0.0 ל-10.0. ציון מתחת ל-3 שמור לטריק שלא נחת.\n'
     + 'קבע גם כמה מעלות הרוכב הסתובב סביב עצמו: 0, 180, 360 או 540. זה נקבע ממך ולא מהמדידות, '
     + 'כי רוחב הלוח מסתיר את הסיבוב בכל מדידה אוטומטית. אם אי אפשר לראות, החזר 0.\n'
@@ -183,8 +221,13 @@ async function oneJudge(sheets, m, { overview, combo, claimed, seat }) {
   ];
 
   const a = parseJson(await ask(content, { maxTokens: 500 }));
+  const side = a.side === 'fs' || a.side === 'bs' ? a.side : sideOf(String(a.trick || ''));
+  // אם המודל בכל זאת כתב את הכיוון בשם, מוציאים אותו משם כדי שלא יוכפל
+  const base = String(a.trick || 'לא ברור')
+    .replace(/^\s*(פרונטסייד|בקסייד|frontside|backside|fs|bs)\s+/i, '').slice(0, 60);
   return {
-    trick: String(a.trick || 'לא ברור').slice(0, 60),
+    trick: side ? `${SIDE_LABEL[side]} ${base}` : base,
+    side,
     landed: a.landed !== false,
     score: round1(clamp(a.score, 0, 10)),
     rotation: Math.min(540, Math.max(0, Math.round((Number(a.rotation) || 0) / 180) * 180)),
@@ -202,10 +245,11 @@ async function oneJudge(sheets, m, { overview, combo, claimed, seat }) {
  * מה שנאמר, כולל ציון שהושמט, כדי שהרוכב יראה שהיה ויכוח ולא יקבל
  * מספר אחד בלי הסבר.
  */
-export async function judgeTrick(sheets, m, { overview = null, combo = '', claimed = '' } = {}) {
+export async function judgeTrick(sheets, m, { overview = null, combo = '', claimed = '', stance = '' } = {}) {
+  const ctx = { overview, combo, claimed, stance };
   const [a, b] = await Promise.all([
-    oneJudge(sheets, m, { overview, combo, claimed, seat: 1 }),
-    oneJudge(sheets, m, { overview, combo, claimed, seat: 2 }),
+    oneJudge(sheets, m, { ...ctx, seat: 1 }),
+    oneJudge(sheets, m, { ...ctx, seat: 2 }),
   ]);
 
   const judges = [a, b];
@@ -216,7 +260,7 @@ export async function judgeTrick(sheets, m, { overview = null, combo = '', claim
   const split = Math.abs(a.score - b.score) > PANEL_SPLIT;
   const named = trickKey(a.trick) !== trickKey(b.trick);
   if (split || named) {
-    const c = await oneJudge(sheets, m, { overview, combo, claimed, seat: 3 });
+    const c = await oneJudge(sheets, m, { ...ctx, seat: 3 });
     judges.push(c);
     /* הגבוה והנמוך יורדים, מה שנשאר באמצע הוא הציון. ההשמטה נשמרת לפי
      * מושב ולא לפי ציון: עם 5, 5, 8 שני החמישיות היו מסומנות כמושמטות. */
@@ -253,6 +297,50 @@ export async function judgeTrick(sheets, m, { overview = null, combo = '', claim
     note: picked.note,
     judges: judges.map((j, i) => ({ score: j.score, trick: j.trick, out: out.has(i) })),
   };
+}
+
+/**
+ * מציאת הטריקים בסרטון כולו, מהתמונות בלבד.
+ *
+ * למה זה קיים לצד המדידה בדפדפן. המדידה עובדת מהפרש בין פריימים, וזה
+ * טוב לסרטון טלפון של רן ברחוב. על שידור תחרות — חיתוכים בין מצלמות,
+ * זום מקצועי, רוכב קטן בפריים ובול בלי "קרקע" — היא לא מוצאת כלום. כאן
+ * המודל מסתכל על גיליונות של פריימים לאורך כל הסרטון ומצביע על התאים
+ * שבהם קורה טריק.
+ *
+ * `times` הוא זמן כל תא, לפי הסדר על פני כל הגיליונות. המודל מחזיר
+ * מספרי תאים, והזמן נלקח מהטבלה — שעון שנקרא מפיקסלים הוא בדיוק מה
+ * שמודל טועה בו.
+ */
+export async function findMoments(sheets, times, per = 16) {
+  const PER = per;
+  const found = [];
+  // גיליון אחד לקריאה: כל גיליון שואל רק על 16 התאים שלו, ומספור התאים לא מתבלבל
+  await Promise.all(sheets.map(async (sheet, si) => {
+    const first = si * PER;
+    const cells = Math.min(PER, times.length - first);
+    if (cells <= 0) return;
+    const text =
+      `בתמונה ${cells} פריימים מסרטון סקייטבורד, לפי הסדר, ממוספרים 1 עד ${cells} משמאל למעלה לימין למטה `
+      + '(המספר בפינה של כל פריים).\n'
+      + 'מצא את הפריימים שבהם רוכב באמצע טריק: באוויר מעל הקרקע או מעל הקופינג, מחליק על מעקה או קופינג, '
+      + 'מסובב או מהפך את הלוח. רכיבה רגילה, עמידה, ראיונות, קהל וגרפיקה — לא.\n'
+      + 'לכל טריק שורה אחת בדיוק: מספר הפריים | ניחוש קצר של שם הטריק בעברית\n'
+      + 'אם אותו טריק נראה בכמה פריימים רצופים, כתוב רק את הפריים שבו הוא הכי ברור.\n'
+      + 'אם אין אף טריק, כתוב רק: NONE';
+    const raw = await ask([image(sheet), { type: 'text', text }], { maxTokens: 300 });
+    if (/^\s*NONE/i.test(raw)) return;
+    raw.split('\n').forEach((line) => {
+      const [cellPart, ...rest] = line.split('|');
+      const cell = Math.round(Number(String(cellPart).replace(/[^\d]/g, '')));
+      if (!Number.isFinite(cell) || cell < 1 || cell > cells) return;
+      const at = Number(times[first + cell - 1]);
+      if (Number.isFinite(at)) found.push({ at, guess: rest.join('|').trim().slice(0, 40) });
+    });
+  }));
+  // שני תאים קרובים מאוד הם אותו טריק שנראה פעמיים
+  found.sort((x, y) => x.at - y.at);
+  return found.filter((f, i) => i === 0 || f.at - found[i - 1].at > 1.2).slice(0, 24);
 }
 
 /**

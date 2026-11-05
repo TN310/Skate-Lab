@@ -21,7 +21,7 @@ import { aiAvailable, askCoach, draftFeedback, guessFromThumb, checkAttempt, cha
          scanVideo } from './ai.js';
 import { achievementsFor, nextTricksFor, sameTrick,
          trickIdFor, isTrickId, trickTitle } from './achievements.js';
-import { judgeTrick, judgeFlow, slsTotal } from './judge.js';
+import { judgeTrick, judgeFlow, slsTotal, findMoments } from './judge.js';
 import { rateLimit, aiQuotaExceeded, inviteRequired, inviteOk } from './guard.js';
 import { adminEnabled, checkPassword, createAdminSession, destroyAdminSession,
          isAdmin, requireAdmin, setAdminCookie, clearAdminCookie } from './admin.js';
@@ -814,7 +814,9 @@ app.post('/api/judge/trick', requireUser, needsAi, route(async (req, res) => {
   if (!sheets.length) return bad(res, 'לא הגיעו פריימים מהסרטון');
 
   const m = req.body?.measure;
-  if (!m || !Number.isFinite(Number(m.air))) return bad(res, 'חסרות המדידות של הטריק');
+  // טריק שה-AI מצא או שסומן ידנית מגיע בלי מדידות, וזה תקין
+  const unmeasured = m && (m.source === 'ai' || m.source === 'manual');
+  if (!m || (!unmeasured && !Number.isFinite(Number(m.air)))) return bad(res, 'חסרות המדידות של הטריק');
 
   const overview = typeof req.body?.overview === 'string'
     && req.body.overview.length < 4_000_000 ? req.body.overview : null;
@@ -824,7 +826,27 @@ app.post('/api/judge/trick', requireUser, needsAi, route(async (req, res) => {
       overview,
       combo: String(req.body?.combo || '').slice(0, 200),
       claimed: String(req.body?.claimed || '').slice(0, 60),
+      stance: req.user.stance,
     }));
+  } catch (err) {
+    return bad(res, err.message, 502);
+  }
+}));
+
+/*
+ * מציאת טריקים בסרטון כולו, כשהמדידה בדפדפן לא מצאה (או כדי להשלים
+ * אותה). עד 8 גיליונות, והזמן של כל תא מגיע מהדפדפן.
+ */
+app.post('/api/judge/scan', requireUser, needsAi, route(async (req, res) => {
+  const sheets = sheetsFrom(req.body?.sheets);
+  if (!sheets.length) return bad(res, 'לא הגיעו פריימים מהסרטון');
+  // כמה פריימים בכל גיליון; הדף שולח 25 (5×5)
+  const per = Math.max(1, Math.min(36, Math.round(Number(req.body?.per) || 16)));
+  const times = (Array.isArray(req.body?.times) ? req.body.times : [])
+    .slice(0, sheets.length * per).map(Number);
+  if (!times.length || times.some((t) => !Number.isFinite(t))) return bad(res, 'חסרים הזמנים של הפריימים');
+  try {
+    res.json({ moments: await findMoments(sheets, times, per) });
   } catch (err) {
     return bad(res, err.message, 502);
   }

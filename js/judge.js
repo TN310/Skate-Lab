@@ -889,7 +889,21 @@ const Sheets = (() => {
   const encode = (sh) => sh.c.toDataURL('image/jpeg', 0.86).split(',')[1];
 
   /** חיתוך סביב הרוכב לפי המסלול שנמדד, ולא סביב מרכז הפריים. */
-  function cell(sh, video, res, time, zoom, slot, label) {
+  function cell(sh, video, res, time, zoom, slot, label, whole = false) {
+    const col0 = (slot % GRID) * CELL, row0 = Math.floor(slot / GRID) * CELL;
+    /*
+     * פריים שלם, כשאין מסלול לחתוך סביבו: טריק שה-AI מצא או שסומן ידנית,
+     * או סרטון שהמדידה לא מצאה בו תנועה. חיתוך לפי מסלול שגוי היה מראה
+     * לשופטים קיר במקום רוכב.
+     */
+    if (whole || !res.pts?.length) {
+      const k = Math.min(CELL / video.videoWidth, CELL / video.videoHeight);
+      const dw = video.videoWidth * k, dh = video.videoHeight * k;
+      sh.x.imageSmoothingQuality = 'high';
+      sh.x.drawImage(video, col0 + (CELL - dw) / 2, row0 + (CELL - dh) / 2, dw, dh);
+      label && stamp(sh, col0, row0, label);
+      return;
+    }
     let best = res.pts[0];
     res.pts.forEach((p) => {
       if (Math.abs(p.t - time) < Math.abs(best.t - time)) best = p;
@@ -909,17 +923,26 @@ const Sheets = (() => {
     sh.x.imageSmoothingQuality = 'high';
     sh.x.drawImage(video, sx, sy, size, size, col * CELL, row * CELL, CELL, CELL);
 
+    stamp(sh, col * CELL, row * CELL, label);
+  }
+
+  function stamp(sh, x0, y0, label) {
     // הכיתוב באנגלית ובספרות בלבד — טקסט עברי על קנבס מתהפך בחלק מהדפדפנים
     sh.x.fillStyle = 'rgba(0,0,0,.72)';
-    sh.x.fillRect(col * CELL, row * CELL, 54, 20);
+    sh.x.fillRect(x0, y0, 54, 20);
     sh.x.fillStyle = '#fff';
     sh.x.font = 'bold 13px monospace';
     sh.x.textAlign = 'left';
-    sh.x.fillText(label, col * CELL + 6, row * CELL + 15);
+    sh.x.fillText(label, x0 + 6, y0 + 15);
     sh.x.strokeStyle = 'rgba(255,255,255,.35)';
     sh.x.lineWidth = 1;
-    sh.x.strokeRect(col * CELL + 0.5, row * CELL + 0.5, CELL - 1, CELL - 1);
+    sh.x.strokeRect(x0 + 0.5, y0 + 0.5, CELL - 1, CELL - 1);
   }
+
+  /* אורך הסרטון. המדידה קוראת רק 70 שניות, אז האורך שלה לא מתאים לחיתוך
+   * פריימים מטריק שנמצא אחר כך; אורך הקובץ קודם, כשהוא ידוע. */
+  const lengthOf = (video, res, fallback) => (Number.isFinite(video.duration) ? video.duration
+    : res.duration || fallback);
 
   const seek = (video, t) => new Promise((resolve) => {
     if (Math.abs(video.currentTime - t) < 0.01) return resolve();
@@ -931,7 +954,7 @@ const Sheets = (() => {
   /** סקירה של כל הסרטון — ההקשר: המקום, המכשול, הקו. */
   async function overview(video, res) {
     const sh = blank();
-    const D = res.duration || (Number.isFinite(video.duration) ? video.duration : 1);
+    const D = lengthOf(video, res, 1);
     for (let i = 0; i < PER; i += 1) {
       const at = Math.min(D - 0.01, D * (i + 0.5) / PER);
       await seek(video, at);
@@ -947,7 +970,7 @@ const Sheets = (() => {
   async function forTrick(video, res, tk, budget, onProgress) {
     const span = Math.max(0.05, tk.t1 - tk.t0);
     const from = Math.max(0, tk.t0 - span * 0.2);
-    const D = res.duration || (Number.isFinite(video.duration) ? video.duration : tk.t1 + 1);
+    const D = lengthOf(video, res, tk.t1 + 1);
     const to = Math.min(D - 0.01, tk.t1 + span * 0.25);
 
     const total = Math.max(1, Math.round((to - from) / Judge.capDt));
@@ -962,7 +985,7 @@ const Sheets = (() => {
       const at = Math.min(to, from + (i * every) * Judge.capDt);
       await seek(video, at);
       if (!sh) { sh = blank(); slot = 0; }
-      cell(sh, video, res, at, true, slot, String(i + 1));
+      cell(sh, video, res, at, true, slot, String(i + 1), !!tk.source);
       slot += 1;
       onProgress?.(i + 1, take);
       if (slot >= PER) { out.push(encode(sh)); sh = null; }
@@ -972,7 +995,51 @@ const Sheets = (() => {
     return { sheets: out, count: take, every, total };
   }
 
-  return { overview, forTrick, PER };
+  /**
+   * פריימים שלמים לאורך כל הסרטון, לחיפוש טריקים עם AI.
+   *
+   * התאים בצורת הסרטון ולא ריבועים: ריבוע מבזבז כ-40% מכל תא על פסים
+   * שחורים, והרוכב בשידור תחרות קטן ממילא. 5×5 תאים של 288×162 הם
+   * בדיוק תקציב התמונה של המודל. עד 8 גיליונות (200 פריימים): בסרטון של
+   * דקה פריים כל חצי שנייה, ובשידור של שמונה דקות פריים כל 2.4 שניות.
+   */
+  const SCAN_COLS = 5, SCAN_W = 288;
+  async function scan(video, onProgress, maxSheets = 8) {
+    const per = SCAN_COLS * SCAN_COLS;
+    const ratio = video.videoHeight / Math.max(1, video.videoWidth) || 9 / 16;
+    const cw = SCAN_W, ch = Math.round(SCAN_W * Math.min(1.8, ratio));
+    const D = Number.isFinite(video.duration) ? video.duration : 60;
+    const n = Math.max(1, Math.min(maxSheets * per, Math.floor(D / 0.5)));
+    const times = [], sheets = [];
+    let c = null, x = null;
+    for (let i = 0; i < n; i += 1) {
+      const at = Math.min(D - 0.05, D * (i + 0.5) / n);
+      await seek(video, at);
+      const slot = i % per;
+      if (!c) {
+        c = document.createElement('canvas');
+        c.width = cw * SCAN_COLS; c.height = ch * SCAN_COLS;
+        x = c.getContext('2d');
+        x.fillStyle = '#000'; x.fillRect(0, 0, c.width, c.height);
+      }
+      const x0 = (slot % SCAN_COLS) * cw, y0 = Math.floor(slot / SCAN_COLS) * ch;
+      x.imageSmoothingQuality = 'high';
+      x.drawImage(video, x0, y0, cw, ch);
+      // מספר התא, לא הזמן: המודל מצביע על מספר, והזמן נלקח מהטבלה
+      x.fillStyle = 'rgba(0,0,0,.72)'; x.fillRect(x0, y0, 30, 20);
+      x.fillStyle = '#fff'; x.font = 'bold 13px monospace'; x.textAlign = 'left';
+      x.fillText(String(slot + 1), x0 + 5, y0 + 15);
+      x.strokeStyle = 'rgba(255,255,255,.35)'; x.lineWidth = 1;
+      x.strokeRect(x0 + 0.5, y0 + 0.5, cw - 1, ch - 1);
+      times.push(Math.round(at * 100) / 100);
+      onProgress?.(i + 1, n);
+      if (slot === per - 1) { sheets.push(c.toDataURL('image/jpeg', 0.86).split(',')[1]); c = null; }
+    }
+    if (c) sheets.push(c.toDataURL('image/jpeg', 0.86).split(',')[1]);
+    return { sheets, times, per };
+  }
+
+  return { overview, forTrick, scan, PER };
 })();
 
 /* ==========================================================================
@@ -1006,6 +1073,7 @@ const JudgeApi = (() => {
     aiStatus: () => get('/api/ai/status'),
     trick: (body) => post('/api/judge/trick', body),
     flow: (body) => post('/api/judge/flow', body),
+    scan: (body) => post('/api/judge/scan', body),
     save: (body) => post('/api/judge/run', body),
     history: () => get('/api/judge/history'),
   };

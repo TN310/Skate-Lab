@@ -263,11 +263,73 @@
    * לא קיבל עליו ציון. עכשיו נבחרים ששת החזקים לפי המדידה, וזה מה
    * ש-Control ו-Impact סופרים ממילא.
    */
-  const MAX_JUDGED = 6;
+  const MAX_JUDGED = 8;
+  const measured = (tk) => tk.air != null;
+  /* מה שהרוכב סימן בעצמו קודם, אחריו מה שה-AI מצא, ואחריו המדידה לפי
+   * הציון המשוער. סימון ידני הוא הכי בטוח שבאמת יש שם טריק. */
+  const rank = (tk) => (tk.source === 'manual' ? 30 : tk.source === 'ai' ? 20
+    : Analyse.localScore(tk, chosenOf(tk)?.d ?? null).total);
   function toJudge() {
-    const est = (tk) => Analyse.localScore(tk, tk.chosen != null ? TRICKS[tk.chosen]?.d : null).total;
-    return state.tricks.slice().sort((x, y) => est(y) - est(x)).slice(0, MAX_JUDGED)
+    return state.tricks.slice().sort((x, y) => rank(y) - rank(x)).slice(0, MAX_JUDGED)
       .sort((x, y) => x.t0 - y.t0);
+  }
+
+  /* השם שהרוכב בחר, כולל הכיוון שבחר. null כשלא בחר. */
+  const chosenOf = (tk) => (tk.chosen != null ? TRICKS[tk.chosen] : null);
+  const SIDE_HE = { fs: 'פרונטסייד', bs: 'בקסייד' };
+  const SIDE_EN = { fs: 'FS', bs: 'BS' };
+  function chosenName(tk, sep = ' · ') {
+    const c = chosenOf(tk);
+    if (!c) return '';
+    const sd = tk.chosenSide;
+    return sd ? `${SIDE_HE[sd]} ${c.he}${sep}${SIDE_EN[sd]} ${c.en}` : `${c.he}${sep}${c.en}`;
+  }
+  const claimedOf = (tk) => (chosenOf(tk) ? chosenName(tk, ' (') + ')' : '');
+
+  /* ---------- טריקים שלא נמדדו: AI וסימון ידני ---------- */
+
+  /** טריק סביב רגע אחד, בלי מדידות. השופטים קובעים הכל מהפריימים. */
+  const pointTrick = (at, source, guess = '') => ({
+    t0: Math.max(0, at - 0.8), t1: at + 0.8, at, source, guess,
+    air: null, height: null, dist: null, surface: 'flat', grind: 0, grindLen: 0,
+  });
+
+  /* טריק חדש שקרוב לטריק שכבר ברשימה הוא אותו טריק — לא מוסיפים פעמיים */
+  function addTricks(list) {
+    let added = 0;
+    list.forEach((tk) => {
+      const near = state.tricks.some((o) => tk.at >= o.t0 - 0.5 && tk.at <= o.t1 + 0.5);
+      if (!near) { state.tricks.push(tk); added += 1; }
+    });
+    state.tricks.sort((x, y) => x.t0 - y.t0);
+    return added;
+  }
+
+  async function aiFind() {
+    if (busy || !state) return;
+    setBusy(true);
+    render();
+    try {
+      const scan = await Sheets.scan(vid, (k, n) => say(`מכין פריימים מכל הסרטון: ${k} מתוך ${n}`));
+      say(`ה-AI מחפש טריקים ב-${scan.sheets.length} גיליונות`);
+      const { moments } = await JudgeApi.scan({ sheets: scan.sheets, times: scan.times, per: scan.per });
+      const added = addTricks(moments.map((m) => pointTrick(m.at, 'ai', m.guess)));
+      state.aiScanned = true;
+      say(moments.length ? `ה-AI מצא ${moments.length} טריקים${added < moments.length ? `, ${added} מהם חדשים` : ''}`
+                         : 'ה-AI לא מצא טריקים. אפשר לסמן ידנית: עוצרים את הסרטון על הטריק ולוחצים "סמן טריק כאן"');
+    } catch (err) {
+      say(err.message);
+    }
+    setBusy(false);
+    render();
+  }
+
+  function markHere() {
+    if (!state) return;
+    const at = vid.currentTime || 0;
+    const added = addTricks([pointTrick(at, 'manual')]);
+    say(added ? `סומן טריק ב-${at.toFixed(1)} שניות` : 'כבר יש טריק ברגע הזה');
+    render();
   }
 
   async function judgeAll() {
@@ -277,7 +339,7 @@
     render();
 
     const tricks = toJudge();
-    const groups = Analyse.groupCombos(state.tricks);
+    const groups = Analyse.groupCombos(state.tricks.filter(measured));
     const comboOf = (tk) => {
       const g = groups.find((gr) => gr.length > 1 && gr.includes(tk));
       if (!g) return '';
@@ -292,20 +354,18 @@
 
       for (let i = 0; i < tricks.length; i += 1) {
         const tk = tricks[i];
-        const info = await Sheets.forTrick(vid, state.res, tk, 4, (k, n) => {
+        const info = await Sheets.forTrick(vid, state.res, tk, tk.source ? 2 : 4, (k, n) => {
           say(`טריק ${i + 1} מתוך ${tricks.length}: ${k} מתוך ${n} פריימים`);
         });
         say(`טריק ${i + 1} מתוך ${tricks.length}: הפאנל שופט ${info.count} פריימים`);
 
         tk.frames = info;
-        const claimed = tk.chosen != null && TRICKS[tk.chosen]
-          ? `${TRICKS[tk.chosen].he} (${TRICKS[tk.chosen].en})` : '';
         tk.verdict = await JudgeApi.trick({
-          claimed,
+          claimed: claimedOf(tk),
           sheets: info.sheets,
           overview: i === 0 ? overviewSheet : null,   // ההקשר נחוץ פעם אחת
           combo: comboOf(tk),
-          measure: {
+          measure: tk.source ? { source: tk.source } : {
             air: tk.air, height: tk.height, dist: tk.dist, view: tk.view,
             surface: tk.surface, grind: tk.grind, grindLen: tk.grindLen, slow: tk.slow,
             scaled: state.res.scaled, cameraMoved: state.res.cameraMoved,
@@ -342,8 +402,7 @@
        * בדיוק מה שנתפס בבדיקה: הכרטיס אמר קיקפליפ והשורה נשמרה כאוליי.
        */
       const tricks = state.tricks.filter((t) => t.verdict).map((t) => ({
-        trick: (t.chosen != null && TRICKS[t.chosen])
-          ? `${TRICKS[t.chosen].he} (${TRICKS[t.chosen].en})` : t.verdict.trick,
+        trick: claimedOf(t) || t.verdict.trick,
         score: t.verdict.score, landed: t.verdict.landed,
         surface: t.surface, air: t.air, height: t.height, note: t.verdict.note,
       }));
@@ -374,8 +433,8 @@
    * לכל טריק. Flow נשאר ריק: הוא שאלה על הרן כולו, ואין לו מדידה.
    */
   function localBoard() {
-    const scores = state.tricks.map((tk) =>
-      Analyse.localScore(tk, tk.chosen != null ? TRICKS[tk.chosen]?.d : null).total)
+    const scores = state.tricks.filter(measured).map((tk) =>
+      Analyse.localScore(tk, chosenOf(tk)?.d ?? null).total)
       .sort((a, b) => b - a);
     if (!scores.length) return null;
     const r1 = (n) => Math.round(n * 10) / 10;
@@ -388,12 +447,24 @@
     if (!state) return;
     results.innerHTML = '';
 
+    // כפתור השיפוט וכלי החיפוש, או מה שמונע מהם לרוץ
+    const blocked = OFFLINE
+      ? 'הקובץ הזה רץ בלי שרת, אז אין פאנל שופטים ואין חיפוש עם AI. המדידות והציון שנגזר מהן עובדים במלואם.'
+      : !signedIn ? 'צריך להיות מחובר ל-Skate Lab כדי להפעיל את ה-AI ואת הפאנל.'
+      : !aiReady ? 'השופט לא מוגדר בשרת (חסר ANTHROPIC_API_KEY).' : '';
+    const D = Number.isFinite(vid.duration) ? vid.duration : (state.res.duration || 0);
+
     if (!state.tricks.length) {
       const tip = state.res.cameraMoved
         ? 'המצלמה זזה הרבה. הליכה, רעד וזום מנוכים, אבל סיבוב מהיר של הטלפון לא.'
         : 'בדוק שכל הגוף בפריים, גם בשיא הקפיצה, ושהרוכב לא קטן מדי.';
-      results.innerHTML = `<div class="jcard"><b>לא זוהה אף טריק</b>
-        <p class="jsub" style="margin:8px 0 0">${esc(state.res.why)}. ${esc(tip)}</p></div>`;
+      results.innerHTML = `<div class="jcard"><b>המדידה האוטומטית לא מצאה טריקים</b>
+        <p class="jsub" style="margin:8px 0 0">${esc(state.res.why)}. ${esc(tip)}</p>
+        <p class="jsub" style="margin:8px 0 0">${blocked ? '' : state.aiScanned
+          ? 'גם ה-AI לא מצא. אפשר לעצור את הסרטון על הטריק ולסמן ידנית.'
+          : 'זה קורה בעיקר בסרטוני תחרויות ושידורים. ה-AI יכול לעבור על הסרטון ולמצוא את הטריקים בעצמו.'}</p></div>`;
+      results.insertAdjacentHTML('beforeend', tools(blocked, D));
+      bindTools();
       return;
     }
 
@@ -450,11 +521,8 @@
       }
     }
 
-    // כפתור השיפוט, או מה שמונע ממנו לרוץ
-    const blocked = OFFLINE
-      ? 'הקובץ הזה רץ בלי שרת, אז אין פאנל שופטים. המדידות והציון שנגזר מהן עובדים במלואם.'
-      : !signedIn ? 'צריך להיות מחובר ל-Skate Lab כדי להפעיל את הפאנל.'
-      : !aiReady ? 'השופט לא מוגדר בשרת (חסר ANTHROPIC_API_KEY).' : '';
+    results.insertAdjacentHTML('beforeend', tools(blocked, D));
+    bindTools();
     results.insertAdjacentHTML('beforeend', `
       <div class="jcard">
         <button class="jbtn" id="go" ${busy || blocked ? 'disabled' : ''}>
@@ -462,11 +530,13 @@
         <p class="jsub" style="margin:9px 0 0">${blocked ? esc(blocked)
           : 'כל טריק נשפט פעמיים בשתי קריאות נפרדות. כשהציונים רחוקים זה מזה, או שהשופטים ראו טריקים שונים, נקרא שופט שלישי והגבוה והנמוך יורדים.'}${
           !blocked && state.tricks.length > MAX_JUDGED
-            ? ` נמצאו ${state.tricks.length} טריקים, ונשלחים ${MAX_JUDGED} החזקים שבהם לפי המדידה.` : ''}</p>
+            ? ` יש ${state.tricks.length} טריקים, ונשלחים ${MAX_JUDGED}: קודם מה שסימנת, אחר כך מה שה-AI מצא, ואז החזקים לפי המדידה.` : ''}</p>
       </div>`);
     $('#go')?.addEventListener('click', judgeAll);
 
-    const groups = Analyse.groupCombos(state.tricks);
+    const groups = Analyse.groupCombos(state.tricks.filter(measured))
+      .concat(state.tricks.filter((t) => !measured(t)).map((t) => [t]))
+      .sort((x, y) => x[0].t0 - y[0].t0);
     let n = 0;
     groups.forEach((gr) => {
       let host = results;
@@ -480,6 +550,26 @@
       }
       gr.forEach((tk) => { n += 1; host.appendChild(card(tk, n)); });
     });
+  }
+
+  /** חיפוש עם AI וסימון ידני. */
+  function tools(blocked, D) {
+    if (blocked) return '';
+    const long = D > 70.5;
+    return `<div class="jcard">
+      <div class="jrow" style="gap:8px">
+        <button class="jbtn ghost" id="aifind" ${busy ? 'disabled' : ''}>${
+          state.aiScanned ? 'חפש שוב עם AI' : 'חפש טריקים עם AI'}</button>
+        <button class="jbtn ghost" id="markhere" ${busy ? 'disabled' : ''}>סמן טריק כאן</button>
+      </div>
+      <p class="jsub" style="margin:9px 0 0">${long
+        ? 'המדידה האוטומטית קוראת רק את 70 השניות הראשונות. ה-AI עובר על כל הסרטון. '
+        : ''}לסימון ידני: עוצרים את הסרטון למעלה בדיוק על הטריק ולוחצים "סמן טריק כאן".</p>
+    </div>`;
+  }
+  function bindTools() {
+    $('#aifind')?.addEventListener('click', aiFind);
+    $('#markhere')?.addEventListener('click', markHere);
   }
 
   /*
@@ -506,20 +596,35 @@
     return sel;
   }
 
+  /* פרונטסייד או בקסייד — בחירה נפרדת, כי הרשימה שומרת כל טריק פעם אחת */
+  function sideSelect(tk) {
+    const sel = document.createElement('select');
+    sel.className = 'jname';
+    sel.style.maxWidth = '9.5em';
+    sel.innerHTML = [['', 'בלי כיוון'], ['fs', 'פרונטסייד'], ['bs', 'בקסייד']]
+      .map(([v, t]) => `<option value="${v}"${(tk.chosenSide || '') === v ? ' selected' : ''}>${t}</option>`).join('');
+    sel.addEventListener('click', (e) => e.stopPropagation());
+    sel.addEventListener('change', function () { tk.chosenSide = this.value || null; render(); });
+    return sel;
+  }
+
   function card(tk, n) {
     const el = document.createElement('div');
     el.className = 'trick';
     const v = tk.verdict;
-    const chosen = tk.chosen != null ? TRICKS[tk.chosen] : null;
-    const local = Analyse.localScore(tk, chosen ? chosen.d : null);
-    const score = v ? v.score : local.total;
-    const name = chosen ? `${chosen.he} · ${chosen.en}`
+    const chosen = chosenOf(tk);
+    const isMeasured = measured(tk);
+    const local = isMeasured ? Analyse.localScore(tk, chosen ? chosen.d : null) : null;
+    const score = v ? v.score : local ? local.total : null;
+    const name = chosen ? chosenName(tk)
                : v ? v.trick
+               : tk.guess ? `${tk.guess}?`
                : 'עוד לא נקבע שם';
     const who = chosen ? 'אתה קבעת'
               : v ? (v.agreed ? 'השופטים הסכימו' : 'השופטים חלוקים')
               : (TRICKS.length ? 'אפשר לבחור למטה' : '');
-    const surf = tk.surface === 'rail' ? 'מעקה או קרב' : 'קרקע';
+    const surf = !isMeasured ? (tk.source === 'manual' ? 'סימנת ידנית' : 'ה-AI מצא')
+               : tk.surface === 'rail' ? 'מעקה או קרב' : 'קרקע';
 
     const bar = (label, val, txt) => `<div class="jmini"><span>${label}</span>
       <u><i style="width:${Math.max(0, Math.min(100, val * 10))}%"></i></u>
@@ -529,7 +634,7 @@
       <div class="trick__top">
         <div>
           <div class="trick__name">${n}. ${esc(name)}</div>
-          <div class="trick__meta">${tk.t0.toFixed(2)}s–${tk.t1.toFixed(2)}s ·
+          <div class="trick__meta">${isMeasured ? `${tk.t0.toFixed(2)}s–${tk.t1.toFixed(2)}s` : `${tk.at.toFixed(1)}s`} ·
             <span class="jpill">${surf}</span>
             ${tk.slow > 1 ? `<span class="jpill">הילוך איטי ×${tk.slow}</span>` : ''}
             ${who ? `<span class="jpill">${esc(who)}</span>` : ''}
@@ -537,24 +642,22 @@
             ${v && !v.agreed ? '<span class="jpill jpill--warn">אין הסכמה על השם</span>' : ''}
           </div>
         </div>
-        <div class="trick__score">${score.toFixed(1)}</div>
+        <div style="text-align:center">
+          <div class="trick__score">${score == null ? '—' : score.toFixed(1)}</div>
+          <button class="jpill" data-del style="border:0;margin-top:6px;cursor:pointer">הסר</button>
+        </div>
       </div>
-      ${bar(tk.surface === 'rail' ? 'זמן על המכשול' : 'זמן אוויר',
-            local.c.air, `${tk.air.toFixed(2)}s`)}
-      ${tk.height != null ? bar('גובה', local.c.height, `${tk.height.toFixed(2)}m`) : ''}
-      ${tk.dist != null ? bar('מרחק', local.c.dist, `${tk.dist.toFixed(2)}m`) : ''}
+      ${isMeasured ? measuredBars(tk, local, bar) : ''}
       ${v && v.rotation
         ? bar('סיבוב (לפי השופטים)', Math.min(10, v.rotation / 540 * 10), `${v.rotation}°`) : ''}
-      ${tk.surface === 'rail'
-        ? bar('אורך גריינד', Math.min(10, tk.grind / 1.5 * 10), `${tk.grind.toFixed(2)}s`) : ''}
-      ${bar('ניקיון נחיתה', local.c.clean, local.c.clean.toFixed(1))}
-      ${local.c.diff != null ? bar('קושי הטריק', local.c.diff, local.c.diff.toFixed(1)) : ''}
       ${v ? panel(v) : ''}
       ${v?.grab ? `<div class="jnote"><b>תפיסת הקרש:</b> ${esc(v.grab)}</div>` : ''}
       ${v?.feet ? `<div class="jnote"><b>נחיתה על הלוח:</b> ${esc(v.feet)}</div>` : ''}
       ${v?.frames ? `<div class="jnote"><b>על סמך:</b> ${esc(v.frames)}</div>` : ''}
       ${v?.note ? `<div class="jnote">${esc(v.note)}</div>` : ''}
-      <div class="jnote">${tk.surface === 'rail'
+      <div class="jnote">${!isMeasured
+        ? 'אין לטריק הזה מדידה אוטומטית. השופטים קובעים הכל מהפריימים.'
+        : tk.surface === 'rail'
         ? (tk.height == null
             ? 'על מכשול אין נפילה חופשית, ולכן בלי סרגל אין דרך למדוד את גובה המכשול.'
             : 'על מכשול הגובה נמדד מהפיקסלים בלבד, כי הגוף נישא ולא נופל.')
@@ -568,12 +671,32 @@
     if (TRICKS.length) {
       const wrap = document.createElement('div');
       wrap.className = 'jnote';
+      wrap.style.display = 'flex';
+      wrap.style.gap = '8px';
       wrap.appendChild(nameSelect(tk));
+      wrap.appendChild(sideSelect(tk));
       el.appendChild(wrap);
     }
 
+    el.querySelector('[data-del]').addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (busy) return;
+      state.tricks = state.tricks.filter((t) => t !== tk);
+      render();
+    });
     el.addEventListener('click', () => { vid.currentTime = Math.max(0, tk.t0 - 0.4); });
     return el;
+  }
+
+  /** הפסים של מה שנמדד — רק לטריק שהמנוע מדד בעצמו. */
+  function measuredBars(tk, local, bar) {
+    return `${bar(tk.surface === 'rail' ? 'זמן על המכשול' : 'זמן אוויר', local.c.air, `${tk.air.toFixed(2)}s`)}
+      ${tk.height != null ? bar('גובה', local.c.height, `${tk.height.toFixed(2)}m`) : ''}
+      ${tk.dist != null ? bar('מרחק', local.c.dist, `${tk.dist.toFixed(2)}m`) : ''}
+      ${tk.surface === 'rail'
+        ? bar('אורך גריינד', Math.min(10, tk.grind / 1.5 * 10), `${tk.grind.toFixed(2)}s`) : ''}
+      ${bar('ניקיון נחיתה', local.c.clean, local.c.clean.toFixed(1))}
+      ${local.c.diff != null ? bar('קושי הטריק', local.c.diff, local.c.diff.toFixed(1)) : ''}`;
   }
 
   /** מה כל שופט נתן, כולל ציון שהושמט — מספר בלי הסבר הוא לא שיפוט. */

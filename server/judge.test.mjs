@@ -14,7 +14,7 @@ globalThis.fetch = async () => {
   return { ok: true, json: async () => ({ content: [{ type: 'text', text: body }] }) };
 };
 
-const { judgeTrick, judgeFlow, slsTotal } = await import('./judge.js');
+const { judgeTrick, judgeFlow, slsTotal, findMoments } = await import('./judge.js');
 
 const reply = (trick, score, landed = true, rotation = 0) => JSON.stringify({
   trick, score, landed, rotation, grab: '', feet: 'על הברגים',
@@ -91,6 +91,30 @@ test('הפרטים נלקחים משופט שראה את הטריק שנבחר',
   assert.equal(r.rotation, 180);
 });
 
+test('הכיוון מגיע בשדה נפרד ומצטרף לשם', async () => {
+  const r1 = JSON.stringify({ trick: 'האף קאב', side: 'bs', landed: true, score: 7 });
+  const r2 = JSON.stringify({ trick: 'בקסייד האף קאב', side: 'bs', landed: true, score: 7.2 });
+  queue = [r1, r2];
+  const r = await judgeTrick(['x'], M, { stance: 'goofy' });
+  assert.equal(r.trick, 'בקסייד האף קאב');       // בלי כפילות של המילה
+  assert.equal(r.agreed, true);
+  assert.equal(r.judges.length, 2);
+});
+
+test('פרונטסייד מול בקסייד הם טריקים שונים, ומזמינים שופט שלישי', async () => {
+  const one = (side, score) => JSON.stringify({ trick: 'אוליי 180', side, landed: true, score });
+  queue = [one('fs', 6.0), one('bs', 6.2), one('bs', 6.1)];
+  const r = await judgeTrick(['x'], M);
+  assert.equal(r.judges.length, 3);
+  assert.equal(r.trick, 'בקסייד אוליי 180');
+});
+
+test('טריק בלי מדידה (סומן ידנית) עדיין נשפט', async () => {
+  queue = [reply('אולי', 6.0), reply('אולי', 6.4)];
+  const r = await judgeTrick(['x'], { source: 'manual' });
+  assert.equal(r.score, 6.2);
+});
+
 test('ציון מחוץ לטווח נחתך, ולא מתפוצץ', async () => {
   // 10 מול 0 הוא גם הפער הגדול ביותר שיש, ולכן נקרא שופט שלישי
   queue = [reply('אולי', 99), reply('אולי', -5), reply('אולי', 6.0)];
@@ -111,6 +135,20 @@ test('הסיבוב מגיע מהשופט ונעגל לחצאי סיבוב', asyn
   queue = [reply('פרונטסייד 180', 7.0, true, 170), reply('פרונטסייד 180', 7.2, true, 180)];
   const r = await judgeTrick(['x'], M);
   assert.equal(r.rotation, 180);
+});
+
+test('מציאת טריקים: מספר תא הופך לזמן מהטבלה, וכפילויות קרובות מתאחדות', async () => {
+  const times = Array.from({ length: 32 }, (_, i) => i * 0.5);   // שני גיליונות
+  queue = ['3 | אוליי\n4 | אוליי\n12 | קיקפליפ', 'NONE'];
+  const m = await findMoments(['a', 'b'], times);
+  assert.deepEqual(m.map((x) => x.at), [1.0, 5.5]);      // תא 3 ותא 12; תא 4 צמוד לתא 3
+  assert.equal(m[1].guess, 'קיקפליפ');
+});
+
+test('מציאת טריקים: תא מחוץ לטווח נזרק', async () => {
+  queue = ['99 | אוליי\nבלי מספר'];
+  const m = await findMoments(['a'], [0, 1, 2]);
+  assert.equal(m.length, 0);
 });
 
 test('Flow הוא ציון אחד בטווח', async () => {

@@ -14,7 +14,7 @@ globalThis.fetch = async () => {
   return { ok: true, json: async () => ({ content: [{ type: 'text', text: body }] }) };
 };
 
-const { judgeTrick, judgeFlow, slsTotal, findMoments } = await import('./judge.js');
+const { judgeTrick, judgeFlow, slsTotal, findMoments, nameTricks } = await import('./judge.js');
 
 const reply = (trick, score, landed = true, rotation = 0) => JSON.stringify({
   trick, score, landed, rotation, grab: '', feet: 'על הברגים',
@@ -149,6 +149,24 @@ test('מציאת טריקים: תא מחוץ לטווח נזרק', async () => {
   queue = ['99 | אוליי\nבלי מספר'];
   const m = await findMoments(['a'], [0, 1, 2]);
   assert.equal(m.length, 0);
+});
+
+test('שמות לכמה טריקים: שופט אחד לכל טריק, ו"אין טריק" מסומן', async () => {
+  queue = [JSON.stringify({ trick: 'קיקפליפ', side: '', landed: true, score: 7 }),
+           JSON.stringify({ trick: 'אין טריק', side: '', landed: false, score: 0 })];
+  const r = await nameTricks([{ sheets: ['a'] }, { sheets: ['b'] }]);
+  assert.equal(r.length, 2);
+  assert.equal(r[0].trick, 'קיקפליפ');
+  assert.equal(r[0].none, false);
+  assert.equal(r[1].none, true);
+  assert.equal(queue.length, 0);                 // שתי קריאות בדיוק, בלי שופט שני
+});
+
+test('שמות: כישלון בטריק אחד לא מפיל את השאר', async () => {
+  queue = ['זה לא JSON', JSON.stringify({ trick: 'אוליי', side: '', landed: true, score: 5 })];
+  const r = await nameTricks([{ sheets: ['a'] }, { sheets: ['b'] }]);
+  assert.ok(r[0].error);
+  assert.equal(r[1].trick, 'אוליי');
 });
 
 test('Flow הוא ציון אחד בטווח', async () => {

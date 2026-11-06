@@ -21,7 +21,7 @@ import { aiAvailable, askCoach, draftFeedback, guessFromThumb, checkAttempt, cha
          scanVideo } from './ai.js';
 import { achievementsFor, nextTricksFor, sameTrick,
          trickIdFor, isTrickId, trickTitle } from './achievements.js';
-import { judgeTrick, judgeFlow, slsTotal, findMoments } from './judge.js';
+import { judgeTrick, judgeFlow, slsTotal, findMoments, nameTricks } from './judge.js';
 import { rateLimit, aiQuotaExceeded, inviteRequired, inviteOk } from './guard.js';
 import { adminEnabled, checkPassword, createAdminSession, destroyAdminSession,
          isAdmin, requireAdmin, setAdminCookie, clearAdminCookie } from './admin.js';
@@ -851,6 +851,19 @@ app.post('/api/judge/scan', requireUser, needsAi, route(async (req, res) => {
   } catch (err) {
     return bad(res, err.message, 502);
   }
+}));
+
+/*
+ * שם ראשוני לעד שישה טריקים בבקשה אחת, שופט אחד לכל טריק. בקשה אחת
+ * לשישה טריקים ולא בקשה לכל טריק, כדי ששידור עם עשרות טריקים לא יגמור
+ * את מכסת השעה בריצה אחת.
+ */
+app.post('/api/judge/names', requireUser, needsAi, route(async (req, res) => {
+  const items = (Array.isArray(req.body?.items) ? req.body.items : []).slice(0, 6)
+    .map((it) => ({ sheets: sheetsFrom(it?.sheets).slice(0, 2) }))
+    .filter((it) => it.sheets.length);
+  if (!items.length) return bad(res, 'לא הגיעו פריימים מהסרטון');
+  res.json({ results: await nameTricks(items, { stance: req.user.stance }) });
 }));
 
 app.post('/api/judge/flow', requireUser, needsAi, route(async (req, res) => {

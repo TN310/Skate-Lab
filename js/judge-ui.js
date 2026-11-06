@@ -274,12 +274,61 @@
     : Array.from({ length: k }, (_, i) => list[Math.floor((i + 0.5) * list.length / k)]));
   function toJudge() {
     const all = state.tricks.slice().sort((x, y) => x.t0 - y.t0);
-    const est = (tk) => Analyse.localScore(tk, chosenOf(tk)?.d ?? null).total;
+    const est = (tk) => (tk.quick ? tk.quick.score
+      : measured(tk) ? Analyse.localScore(tk, chosenOf(tk)?.d ?? null).total : -1);
     let picked = all.filter((t) => t.source === 'manual').slice(0, MAX_JUDGED);
-    picked = picked.concat(spread(all.filter((t) => t.source === 'ai'), MAX_JUDGED - picked.length));
-    picked = picked.concat(all.filter(measured).sort((x, y) => est(y) - est(x))
-      .slice(0, Math.max(0, MAX_JUDGED - picked.length)));
+    /* אחרי שלב השמות לכל טריק יש ציון ראשוני, והפאנל מקבל את הטובים —
+     * בדיוק מה ש-Control ו-Impact סופרים. בלי ציון (השמות נכשלו) נשאר
+     * הפיזור על פני הסרטון. */
+    const scored = all.filter((t) => t.source !== 'manual' && est(t) >= 0)
+      .sort((x, y) => est(y) - est(x));
+    picked = picked.concat(scored.slice(0, MAX_JUDGED - picked.length));
+    picked = picked.concat(spread(all.filter((t) => !picked.includes(t) && t.source === 'ai'),
+                                  Math.max(0, MAX_JUDGED - picked.length)));
     return picked.sort((x, y) => x.t0 - y.t0);
+  }
+
+  /*
+   * שם ראשוני לכל טריק שעוד אין לו, משופט אחד. שישה טריקים בבקשה, ועד
+   * שתי בקשות במקביל; חיתוך הפריימים בתור כי יש וידאו אחד. מה שהשופט
+   * רואה שאינו טריק יורד מהרשימה — אלא אם הרוכב סימן אותו בעצמו.
+   */
+  async function namePass() {
+    const todo = state.tricks.filter((t) => !t.verdict && !t.quick);
+    if (!todo.length) return;
+    const BATCH = 6, PARALLEL = 2;
+    let done = 0, dropped = 0, fatal = null;
+    const running = new Set();
+    const progress = () => say(`נותן שם לכל טריק: ${done} מתוך ${todo.length}`);
+    progress();
+    for (let i = 0; i < todo.length && !fatal; i += BATCH) {
+      const batch = todo.slice(i, i + BATCH);
+      const items = [];
+      for (const tk of batch) {
+        const info = await Sheets.forTrick(vid, state.res, tk, 1);
+        items.push({ sheets: info.sheets });
+      }
+      if (running.size >= PARALLEL) await Promise.race(running);
+      if (fatal) break;
+      const job = JudgeApi.names({ items }).then(({ results }) => {
+        results.forEach((r, k) => {
+          const tk = batch[k];
+          if (!r || r.error) return;
+          if (r.none && tk.source !== 'manual') {
+            state.tricks = state.tricks.filter((t) => t !== tk);
+            dropped += 1;
+          } else {
+            tk.quick = r;
+          }
+        });
+      }).catch((err) => { fatal = fatal || err; })
+        .finally(() => { done += batch.length; progress(); render(); running.delete(job); });
+      running.add(job);
+    }
+    await Promise.all(running);
+    if (fatal) throw fatal;
+    say(`לכל טריק יש שם${dropped ? `, ו-${dropped} שלא היו טריק ירדו מהרשימה` : ''}. `
+      + 'הפאנל המלא שופט את הטובים שבהם.');
   }
 
   /* השם שהרוכב בחר, כולל הכיוון שבחר. null כשלא בחר. */
@@ -329,6 +378,8 @@
       state.aiScanned = true;
       say(moments.length ? `ה-AI מצא ${moments.length} טריקים${added < moments.length ? `, ${added} מהם חדשים` : ''}`
                          : 'ה-AI לא מצא טריקים. אפשר לסמן ידנית: עוצרים את הסרטון על הטריק ולוחצים "סמן טריק כאן"');
+      render();
+      if (moments.length) await namePass();
     } catch (err) {
       state.error = err.message;
       say('');
@@ -482,8 +533,9 @@
    * לכל טריק. Flow נשאר ריק: הוא שאלה על הרן כולו, ואין לו מדידה.
    */
   function localBoard() {
-    const scores = state.tricks.filter(measured).map((tk) =>
-      Analyse.localScore(tk, chosenOf(tk)?.d ?? null).total)
+    const scores = state.tricks.map((tk) => (tk.quick ? tk.quick.score
+      : measured(tk) ? Analyse.localScore(tk, chosenOf(tk)?.d ?? null).total : null))
+      .filter((n) => n != null)
       .sort((a, b) => b - a);
     if (!scores.length) return null;
     const r1 = (n) => Math.round(n * 10) / 10;
@@ -562,7 +614,8 @@
           <div class="board">
             <div class="board__total">
               <div><b>${est.total.toFixed(1)}</b> <span>/ 50</span>
-                <div class="trick__meta">הערכה מהמדידות · ${state.tricks.length} טריקים · בלי Flow</div></div>
+                <div class="trick__meta">${state.tricks.some((t) => t.quick) ? 'הערכה ראשונית, שופט אחד לכל טריק'
+                  : 'הערכה מהמדידות'} · ${state.tricks.length} טריקים · בלי Flow</div></div>
             </div>
             <div class="board__parts">
               <div class="part"><b>—</b><span>FLOW</span><em>רק מהפאנל</em></div>
@@ -669,13 +722,16 @@
     const chosen = chosenOf(tk);
     const isMeasured = measured(tk);
     const local = isMeasured ? Analyse.localScore(tk, chosen ? chosen.d : null) : null;
-    const score = v ? v.score : local ? local.total : null;
+    const q = tk.quick;
+    const score = v ? v.score : q ? q.score : local ? local.total : null;
     const name = chosen ? chosenName(tk)
                : v ? v.trick
+               : q ? q.trick
                : tk.guess ? `${tk.guess}?`
                : 'עוד לא נקבע שם';
     const who = chosen ? 'אתה קבעת'
               : v ? (v.agreed ? 'השופטים הסכימו' : 'השופטים חלוקים')
+              : q ? 'שופט אחד, עוד לא הפאנל'
               : (TRICKS.length ? 'אפשר לבחור למטה' : '');
     const surf = !isMeasured ? (tk.source === 'manual' ? 'סימנת ידנית' : 'ה-AI מצא')
                : tk.surface === 'rail' ? 'מעקה או קרב' : 'קרקע';
@@ -692,7 +748,7 @@
             <span class="jpill">${surf}</span>
             ${tk.slow > 1 ? `<span class="jpill">הילוך איטי ×${tk.slow}</span>` : ''}
             ${who ? `<span class="jpill">${esc(who)}</span>` : ''}
-            ${v && !v.landed ? '<span class="jpill jpill--warn">לא נראתה נחיתה</span>' : ''}
+            ${(v ? !v.landed : q ? !q.landed : false) ? '<span class="jpill jpill--warn">לא נראתה נחיתה</span>' : ''}
             ${v && !v.agreed ? '<span class="jpill jpill--warn">אין הסכמה על השם</span>' : ''}
             ${tk.error ? `<span class="jpill jpill--warn">השיפוט נכשל: ${esc(tk.error)}</span>` : ''}
           </div>

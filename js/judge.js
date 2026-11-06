@@ -1098,6 +1098,7 @@ const JudgeApi = (() => {
     trick: (body) => post('/api/judge/trick', body),
     flow: (body) => post('/api/judge/flow', body),
     scan: (body) => post('/api/judge/scan', body),
+    names: (body) => post('/api/judge/names', body),
     save: (body) => post('/api/judge/run', body),
     history: () => get('/api/judge/history'),
   };

@@ -202,9 +202,12 @@ const SHAPE = '{"trick":"שם הטריק בלי כיוון","side":"fs","landed"
   + '"note":"משפט אחד בעברית עם טיפ מעשי"}';
 
 /** שופט אחד, קריאה אחת. `seat` רק כדי שהתשובות לא יהיו זהות לחלוטין. */
-async function oneJudge(sheets, m, { overview, combo, claimed, seat, stance }) {
+async function oneJudge(sheets, m, { overview, combo, claimed, seat, stance, allowNone = false }) {
+  const whole = m.source === 'ai' || m.source === 'manual';
   const text =
-    `${overview ? 'התמונה הראשונה היא סקירה של כל הסרטון, פריימים פרושים על אורכו עם חותמת זמן, כדי שתראה את המקום ואת המכשול. שאר התמונות' : 'התמונות'} הן טריק אחד, מפורק לפריימים לפי הסדר, ממוספרים, משמאל למעלה לימין למטה, חתוכים סביב הרגליים והלוח.\n\n`
+    `${overview ? 'התמונה הראשונה היא סקירה של כל הסרטון, פריימים פרושים על אורכו עם חותמת זמן, כדי שתראה את המקום ואת המכשול. שאר התמונות' : 'התמונות'} הן טריק אחד, מפורק לפריימים לפי הסדר, ממוספרים, משמאל למעלה לימין למטה, `
+    + (whole ? 'פריימים שלמים מהסרטון. אם יש בהם כמה אנשים, שפוט את הרוכב שנמצא באמצע טריק.\n\n'
+             : 'חתוכים סביב הרגליים והלוח.\n\n')
     + `מה שנמדד מהסרטון עצמו: ${measured(m)}.\n`
     + (combo ? `${combo}\n` : '')
     + (claimed ? `הרוכב אומר שזה "${claimed}". בדוק את הטענה מול הפריימים: אם היא מתיישבת, השתמש בשם הזה; אם היא נסתרת, רשום את מה שאתה רואה והסבר ב-note מה לא מסתדר. אל תקבל את השם רק כי נאמר.\n` : '')
@@ -224,6 +227,8 @@ async function oneJudge(sheets, m, { overview, combo, claimed, seat, stance }) {
     + 'ואיפה הרגליים נחתו על הלוח.\n'
     + 'בשדה frames כתוב באילו מספרי פריימים ראית את מה שהכריע. אם הפריימים מטושטשים מכדי לקבוע, '
     + 'כתוב זאת ב-note ותן ציון שמרני במקום לנחש.\n'
+    + (allowNone ? 'אם בפריימים אין טריק בכלל — רק רכיבה רגילה, עמידה, הליכה, קהל או תקריב — '
+                 + 'כתוב בשדה trick בדיוק "אין טריק" ותן score 0.\n' : '')
     + `שופט מספר ${seat}. שפוט לפי מה שאתה רואה, בלי להתחשב בשופטים אחרים.\n`
     + `החזר רק אובייקט JSON יחיד, בדיוק בצורה הזאת: ${SHAPE}`;
 
@@ -310,6 +315,28 @@ export async function judgeTrick(sheets, m, { overview = null, combo = '', claim
     note: picked.note,
     judges: judges.map((j, i) => ({ score: j.score, trick: j.trick, out: out.has(i) })),
   };
+}
+
+/**
+ * מתן שם לכמה טריקים בבת אחת, שופט אחד לכל טריק.
+ *
+ * חיפוש ה-AI בשידור מוצא עשרות טריקים, והפאנל המלא (2–3 שופטים) על
+ * כל אחד מהם יקר ואיטי — לכן הוא רץ רק על שמונה. בלי השלב הזה רוב
+ * הטריקים נשארו עם ניחוש וסימן שאלה. כאן כל טריק מקבל שם מהקטלוג, כיוון,
+ * נחיתה וציון ראשוני משופט אחד, ומה שהשופט רואה שאינו טריק מסומן
+ * `none` ויורד מהרשימה. הפאנל המלא רץ אחר כך על הטובים לפי הציון הזה.
+ */
+export async function nameTricks(items, { stance = '' } = {}) {
+  return Promise.all(items.map(async ({ sheets }) => {
+    try {
+      const j = await oneJudge(sheets, { source: 'ai' }, { seat: 1, stance, allowNone: true });
+      const none = /^\s*אין טריק/.test(j.trick);
+      return { trick: none ? '' : j.trick, side: j.side, landed: j.landed,
+               score: none ? 0 : j.score, rotation: j.rotation, grab: j.grab, none };
+    } catch (err) {
+      return { error: err.message };
+    }
+  }));
 }
 
 /**

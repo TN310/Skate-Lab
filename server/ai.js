@@ -51,6 +51,17 @@ const VISION_SYSTEM = `אתה בודק פריימים מסרטוני סקייט�
 אתה לא מזהה איזה טריק זה — רק מה שרואים בתמונה.`;
 
 /** קריאה אחת ל-API. מחזירה טקסט, או זורקת שגיאה עם הודעה בעברית. */
+/*
+ * מקום למחשבה, מעבר לאורך התשובה.
+ *
+ * המודל חושב לפני שהוא עונה, והמחשבה נספרת בתוך max_tokens. עם תקרה
+ * של 500 קרה בפועל שהמחשבה לבדה מילאה את כל ה-500, והתשובה חזרה
+ * ריקה או חתוכה באמצע מילה: בחיפוש טריקים בשידור X Games ארבעה
+ * גיליונות מתוך שמונה חזרו בלי אף שורה. `maxTokens` נשאר אורך התשובה,
+ * והמקום למחשבה נוסף מעליו. משלמים רק על מה שנוצל בפועל.
+ */
+const THINKING_ROOM = 3000;
+
 async function ask(messages, { maxTokens = 400, system = SYSTEM } = {}) {
   const res = await fetch(ENDPOINT, {
     method: 'POST',
@@ -61,7 +72,7 @@ async function ask(messages, { maxTokens = 400, system = SYSTEM } = {}) {
     },
     body: JSON.stringify({
       model: MODEL(),
-      max_tokens: maxTokens,
+      max_tokens: maxTokens + THINKING_ROOM,
       system,
       messages,
     }),

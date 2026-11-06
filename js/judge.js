@@ -967,11 +967,44 @@ const Sheets = (() => {
    * טריק אחד, פריים אחרי פריים, מקורב לרגליים וללוח.
    * `budget` הוא כמה גיליונות מותר — מעבר לזה מדלגים על פריימים.
    */
+  /*
+   * גיליון בצורת הסרטון: תאים ברוחב `cw` ובגובה לפי יחס הסרטון. ריבוע
+   * מבזבז כ-40% מכל תא על פסים שחורים כשהפריים שלם ולא חתוך.
+   */
+  function aspectSheet(video, cols, cw) {
+    const ratio = video.videoHeight / Math.max(1, video.videoWidth) || 9 / 16;
+    const ch = Math.round(cw * Math.min(1.8, ratio));
+    const c = document.createElement('canvas');
+    c.width = cw * cols; c.height = ch * cols;
+    const x = c.getContext('2d');
+    x.fillStyle = '#000'; x.fillRect(0, 0, c.width, c.height);
+    return {
+      put(slot, label) {
+        const x0 = (slot % cols) * cw, y0 = Math.floor(slot / cols) * ch;
+        x.imageSmoothingQuality = 'high';
+        x.drawImage(video, x0, y0, cw, ch);
+        // מספר בלבד, באנגלית — טקסט עברי על קנבס מתהפך בחלק מהדפדפנים
+        x.fillStyle = 'rgba(0,0,0,.72)'; x.fillRect(x0, y0, 30, 20);
+        x.fillStyle = '#fff'; x.font = 'bold 13px monospace'; x.textAlign = 'left';
+        x.fillText(label, x0 + 5, y0 + 15);
+        x.strokeStyle = 'rgba(255,255,255,.35)'; x.lineWidth = 1;
+        x.strokeRect(x0 + 0.5, y0 + 0.5, cw - 1, ch - 1);
+      },
+      encode: () => c.toDataURL('image/jpeg', 0.86).split(',')[1],
+    };
+  }
+
   async function forTrick(video, res, tk, budget, onProgress) {
     const span = Math.max(0.05, tk.t1 - tk.t0);
-    const from = Math.max(0, tk.t0 - span * 0.2);
     const D = lengthOf(video, res, tk.t1 + 1);
-    const to = Math.min(D - 0.01, tk.t1 + span * 0.25);
+    /*
+     * טריק שה-AI מצא או שסומן ידנית מוכר רק ברגע אחד, והרגע הזה לא מדויק:
+     * החיפוש דוגם פריים כל כמה שניות. בבדיקה על שידור X Games חלון של
+     * ±0.8 שניות הראה 12 פריימים של רכיבה, והגריינד עצמו התחיל רק בארבעת
+     * האחרונים. ±1.5 שניות מכסה את הטריק גם כשהרגע זז.
+     */
+    const from = tk.source ? Math.max(0, tk.at - 1.5) : Math.max(0, tk.t0 - span * 0.2);
+    const to = tk.source ? Math.min(D - 0.01, tk.at + 1.5) : Math.min(D - 0.01, tk.t1 + span * 0.25);
 
     const total = Math.max(1, Math.round((to - from) / Judge.capDt));
     const cap = budget * PER;
@@ -980,17 +1013,22 @@ const Sheets = (() => {
 
     const out = [];
     let sh = null, slot = 0;
+    // בלי מסלול לחתוך סביבו — פריים שלם, בתאים בצורת הסרטון
+    const whole = !!tk.source || !res.pts?.length;
+    const fresh = () => (whole ? aspectSheet(video, GRID, 360) : blank());
+    const flush = () => out.push(whole ? sh.encode() : encode(sh));
 
     for (let i = 0; i < take; i += 1) {
       const at = Math.min(to, from + (i * every) * Judge.capDt);
       await seek(video, at);
-      if (!sh) { sh = blank(); slot = 0; }
-      cell(sh, video, res, at, true, slot, String(i + 1), !!tk.source);
+      if (!sh) { sh = fresh(); slot = 0; }
+      if (whole) sh.put(slot, String(i + 1));
+      else cell(sh, video, res, at, true, slot, String(i + 1));
       slot += 1;
       onProgress?.(i + 1, take);
-      if (slot >= PER) { out.push(encode(sh)); sh = null; }
+      if (slot >= PER) { flush(); sh = null; }
     }
-    if (sh && slot > 0) out.push(encode(sh));
+    if (sh && slot > 0) flush();
 
     return { sheets: out, count: take, every, total };
   }
@@ -1006,36 +1044,22 @@ const Sheets = (() => {
   const SCAN_COLS = 5, SCAN_W = 288;
   async function scan(video, onProgress, maxSheets = 8) {
     const per = SCAN_COLS * SCAN_COLS;
-    const ratio = video.videoHeight / Math.max(1, video.videoWidth) || 9 / 16;
-    const cw = SCAN_W, ch = Math.round(SCAN_W * Math.min(1.8, ratio));
     const D = Number.isFinite(video.duration) ? video.duration : 60;
     const n = Math.max(1, Math.min(maxSheets * per, Math.floor(D / 0.5)));
     const times = [], sheets = [];
-    let c = null, x = null;
+    let sh = null;
     for (let i = 0; i < n; i += 1) {
       const at = Math.min(D - 0.05, D * (i + 0.5) / n);
       await seek(video, at);
       const slot = i % per;
-      if (!c) {
-        c = document.createElement('canvas');
-        c.width = cw * SCAN_COLS; c.height = ch * SCAN_COLS;
-        x = c.getContext('2d');
-        x.fillStyle = '#000'; x.fillRect(0, 0, c.width, c.height);
-      }
-      const x0 = (slot % SCAN_COLS) * cw, y0 = Math.floor(slot / SCAN_COLS) * ch;
-      x.imageSmoothingQuality = 'high';
-      x.drawImage(video, x0, y0, cw, ch);
+      if (!sh) sh = aspectSheet(video, SCAN_COLS, SCAN_W);
       // מספר התא, לא הזמן: המודל מצביע על מספר, והזמן נלקח מהטבלה
-      x.fillStyle = 'rgba(0,0,0,.72)'; x.fillRect(x0, y0, 30, 20);
-      x.fillStyle = '#fff'; x.font = 'bold 13px monospace'; x.textAlign = 'left';
-      x.fillText(String(slot + 1), x0 + 5, y0 + 15);
-      x.strokeStyle = 'rgba(255,255,255,.35)'; x.lineWidth = 1;
-      x.strokeRect(x0 + 0.5, y0 + 0.5, cw - 1, ch - 1);
+      sh.put(slot, String(slot + 1));
       times.push(Math.round(at * 100) / 100);
       onProgress?.(i + 1, n);
-      if (slot === per - 1) { sheets.push(c.toDataURL('image/jpeg', 0.86).split(',')[1]); c = null; }
+      if (slot === per - 1) { sheets.push(sh.encode()); sh = null; }
     }
-    if (c) sheets.push(c.toDataURL('image/jpeg', 0.86).split(',')[1]);
+    if (sh) sheets.push(sh.encode());
     return { sheets, times, per };
   }
 

@@ -265,13 +265,21 @@
    */
   const MAX_JUDGED = 8;
   const measured = (tk) => tk.air != null;
-  /* מה שהרוכב סימן בעצמו קודם, אחריו מה שה-AI מצא, ואחריו המדידה לפי
-   * הציון המשוער. סימון ידני הוא הכי בטוח שבאמת יש שם טריק. */
-  const rank = (tk) => (tk.source === 'manual' ? 30 : tk.source === 'ai' ? 20
-    : Analyse.localScore(tk, chosenOf(tk)?.d ?? null).total);
+  /*
+   * מה נשלח לפאנל, כשיש יותר משמונה: קודם מה שהרוכב סימן בעצמו, אחריו
+   * מה שה-AI מצא — מפוזר על כל הסרטון ולא שמונה הראשונים, כי בשידור
+   * ארוך הוא מוצא עשרות — ואחריו המדידה לפי הציון המשוער.
+   */
+  const spread = (list, k) => (list.length <= k ? list
+    : Array.from({ length: k }, (_, i) => list[Math.floor((i + 0.5) * list.length / k)]));
   function toJudge() {
-    return state.tricks.slice().sort((x, y) => rank(y) - rank(x)).slice(0, MAX_JUDGED)
-      .sort((x, y) => x.t0 - y.t0);
+    const all = state.tricks.slice().sort((x, y) => x.t0 - y.t0);
+    const est = (tk) => Analyse.localScore(tk, chosenOf(tk)?.d ?? null).total;
+    let picked = all.filter((t) => t.source === 'manual').slice(0, MAX_JUDGED);
+    picked = picked.concat(spread(all.filter((t) => t.source === 'ai'), MAX_JUDGED - picked.length));
+    picked = picked.concat(all.filter(measured).sort((x, y) => est(y) - est(x))
+      .slice(0, Math.max(0, MAX_JUDGED - picked.length)));
+    return picked.sort((x, y) => x.t0 - y.t0);
   }
 
   /* השם שהרוכב בחר, כולל הכיוון שבחר. null כשלא בחר. */
@@ -530,7 +538,7 @@
         <p class="jsub" style="margin:9px 0 0">${blocked ? esc(blocked)
           : 'כל טריק נשפט פעמיים בשתי קריאות נפרדות. כשהציונים רחוקים זה מזה, או שהשופטים ראו טריקים שונים, נקרא שופט שלישי והגבוה והנמוך יורדים.'}${
           !blocked && state.tricks.length > MAX_JUDGED
-            ? ` יש ${state.tricks.length} טריקים, ונשלחים ${MAX_JUDGED}: קודם מה שסימנת, אחר כך מה שה-AI מצא, ואז החזקים לפי המדידה.` : ''}</p>
+            ? ` יש ${state.tricks.length} טריקים, ונשלחים ${MAX_JUDGED}: קודם מה שסימנת, אחר כך מה שה-AI מצא מפוזר על כל הסרטון, ואז החזקים לפי המדידה. כדי לבחור בעצמך, הסר טריקים שלא מעניינים אותך.` : ''}</p>
       </div>`);
     $('#go')?.addEventListener('click', judgeAll);
 

@@ -98,6 +98,17 @@ const SIDE_RULES = 'פרונטסייד ובקסייד:\n'
 const stanceText = (stance) => (stance === 'regular' ? 'רגולר (רגל שמאל קדימה)'
   : stance === 'goofy' ? 'גופי (רגל ימין קדימה)' : '');
 
+/*
+ * מקום למחשבה, מעבר לאורך התשובה.
+ *
+ * המודל חושב לפני שהוא עונה, והמחשבה נספרת בתוך max_tokens. עם תקרה
+ * של 500 קרה בפועל שהמחשבה לבדה מילאה את כל ה-500, והתשובה חזרה
+ * ריקה או חתוכה באמצע מילה: בחיפוש טריקים בשידור X Games ארבעה
+ * גיליונות מתוך שמונה חזרו בלי אף שורה. `maxTokens` נשאר אורך התשובה,
+ * והמקום למחשבה נוסף מעליו. משלמים רק על מה שנוצל בפועל.
+ */
+const THINKING_ROOM = 3000;
+
 async function ask(content, { maxTokens = 500 } = {}) {
   let res;
   try {
@@ -111,7 +122,7 @@ async function ask(content, { maxTokens = 500 } = {}) {
       },
       body: JSON.stringify({
         model: MODEL(),
-        max_tokens: maxTokens,
+        max_tokens: maxTokens + THINKING_ROOM,
         system: SYSTEM,
         messages: [{ role: 'user', content }],
       }),
@@ -322,25 +333,33 @@ export async function findMoments(sheets, times, per = 16) {
     if (cells <= 0) return;
     const text =
       `בתמונה ${cells} פריימים מסרטון סקייטבורד, לפי הסדר, ממוספרים 1 עד ${cells} משמאל למעלה לימין למטה `
-      + '(המספר בפינה של כל פריים).\n'
-      + 'מצא את הפריימים שבהם רוכב באמצע טריק: באוויר מעל הקרקע או מעל הקופינג, מחליק על מעקה או קופינג, '
-      + 'מסובב או מהפך את הלוח. רכיבה רגילה, עמידה, ראיונות, קהל וגרפיקה — לא.\n'
+      + '(המספר בפינה של כל פריים). זה יכול להיות סרטון טלפון של רן ברחוב, או שידור של תחרות בפארק או בבול.\n'
+      + 'מצא כל פריים שבו רוכב באמצע טריק. בפארק ובבול זה כולל:\n'
+      + '• אוויר: הלוח והרוכב מעל הקופינג או מעל קצה הרמפה, כולל אינוורט והנדפלנט כשהרוכב הפוך\n'
+      + '• גריינד, סלייד או סטול: הלוח על הקופינג, על מעקה, על שפה של קופסה או על לדג׳\n'
+      + '• פליפים וסיבובים של הלוח, וקפיצה מעל מכשול או מעל גאפ\n'
+      + 'לא טריק: רכיבה רגילה על הקיר או ברצפת הבול, עמידה, הליכה, תקריב של פנים, ראיון, קהל, גרפיקה.\n'
+      + 'כשיש ספק אם זה טריק — כלול אותו. הרוכב יכול למחוק טריק מיותר בלחיצה, אבל טריק שלא נמצא פשוט חסר.\n'
       + 'לכל טריק שורה אחת בדיוק: מספר הפריים | ניחוש קצר של שם הטריק בעברית\n'
-      + 'אם אותו טריק נראה בכמה פריימים רצופים, כתוב רק את הפריים שבו הוא הכי ברור.\n'
+      + 'אם אותו טריק נראה בכמה פריימים צמודים, כתוב רק את הפריים שבו הוא הכי ברור.\n'
       + 'אם אין אף טריק, כתוב רק: NONE';
-    const raw = await ask([image(sheet), { type: 'text', text }], { maxTokens: 300 });
+    const raw = await ask([image(sheet), { type: 'text', text }], { maxTokens: 500 });
     if (/^\s*NONE/i.test(raw)) return;
     raw.split('\n').forEach((line) => {
       const [cellPart, ...rest] = line.split('|');
       const cell = Math.round(Number(String(cellPart).replace(/[^\d]/g, '')));
       if (!Number.isFinite(cell) || cell < 1 || cell > cells) return;
       const at = Number(times[first + cell - 1]);
-      if (Number.isFinite(at)) found.push({ at, guess: rest.join('|').trim().slice(0, 40) });
+      const guess = rest.join('|').trim();
+      // המודל לפעמים מוסיף שורה ואז מסביר שזה לא טריק
+      if (/לא טריק|רכיבה רגילה|not a trick/i.test(guess)) return;
+      if (Number.isFinite(at)) found.push({ at, guess: guess.slice(0, 40) });
     });
   }));
   // שני תאים קרובים מאוד הם אותו טריק שנראה פעמיים
   found.sort((x, y) => x.at - y.at);
-  return found.filter((f, i) => i === 0 || f.at - found[i - 1].at > 1.2).slice(0, 24);
+  // התקרה גבוהה כדי ששידור ארוך לא ייחתך באמצע — הסדר הוא לפי זמן
+  return found.filter((f, i) => i === 0 || f.at - found[i - 1].at > 1.2).slice(0, 150);
 }
 
 /**

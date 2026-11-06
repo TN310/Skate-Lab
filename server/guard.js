@@ -67,12 +67,22 @@ export const rateLimit = ({ max, windowMs, message, envKey }) => (req, res, next
 const aiPerHour = () => Number(process.env.AI_LIMIT_HOUR) || 20;
 const aiPerDay = () => Number(process.env.AI_LIMIT_DAY) || 100;
 
-export function aiQuotaExceeded(userId) {
-  const perHour = aiPerHour();
-  const perDay = aiPerDay();
+/*
+ * לשופט מכסה נפרדת וגדולה יותר. ריצת שיפוט אחת היא כעשר בקשות (חיפוש,
+ * עד שמונה טריקים ו-Flow), ובמכסה המשותפת של 20 לשעה ניסיון שני או
+ * שלישי נחסם — וכל הטריקים חזרו בלי שם, עם שגיאת מכסה במקום. 60 לשעה
+ * הם כשש ריצות, ועדיין יש תקרה.
+ */
+const judgePerHour = () => Number(process.env.JUDGE_LIMIT_HOUR) || 60;
+const judgePerDay = () => Number(process.env.JUDGE_LIMIT_DAY) || 300;
 
-  const hour = tooMany(`ai:h:${userId}`, { max: perHour, windowMs: 3_600_000 });
-  const day = tooMany(`ai:d:${userId}`, { max: perDay, windowMs: 86_400_000 });
+export function aiQuotaExceeded(userId, kind = 'ai') {
+  const judge = kind === 'judge';
+  const perHour = judge ? judgePerHour() : aiPerHour();
+  const perDay = judge ? judgePerDay() : aiPerDay();
+
+  const hour = tooMany(`${kind}:h:${userId}`, { max: perHour, windowMs: 3_600_000 });
+  const day = tooMany(`${kind}:d:${userId}`, { max: perDay, windowMs: 86_400_000 });
 
   if (hour) return `הגעתם למכסת ה-AI לשעה (${perHour} שאלות).`;
   if (day) return `הגעתם למכסת ה-AI ליום (${perDay} שאלות).`;

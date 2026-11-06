@@ -306,8 +306,11 @@
   function addTricks(list) {
     let added = 0;
     list.forEach((tk) => {
-      const near = state.tricks.some((o) => tk.at >= o.t0 - 0.5 && tk.at <= o.t1 + 0.5);
-      if (!near) { state.tricks.push(tk); added += 1; }
+      const near = state.tricks.find((o) => tk.at >= o.t0 - 0.5 && tk.at <= o.t1 + 0.5);
+      if (!near) { state.tricks.push(tk); added += 1; return; }
+      /* טריק שכבר ברשימה (מהמדידה) מקבל את הניחוש של ה-AI כשם זמני.
+       * קודם הניחוש פשוט נזרק, והטריק נשאר "עוד לא נקבע שם". */
+      if (tk.guess && !near.guess) near.guess = tk.guess;
     });
     state.tricks.sort((x, y) => x.t0 - y.t0);
     return added;
@@ -315,6 +318,7 @@
 
   async function aiFind() {
     if (busy || !state) return;
+    state.error = '';
     setBusy(true);
     render();
     try {
@@ -326,7 +330,8 @@
       say(moments.length ? `ה-AI מצא ${moments.length} טריקים${added < moments.length ? `, ${added} מהם חדשים` : ''}`
                          : 'ה-AI לא מצא טריקים. אפשר לסמן ידנית: עוצרים את הסרטון על הטריק ולוחצים "סמן טריק כאן"');
     } catch (err) {
-      say(err.message);
+      state.error = err.message;
+      say('');
     }
     setBusy(false);
     render();
@@ -343,6 +348,7 @@
   async function judgeAll() {
     if (busy || !state) return;
     setBusy(true);
+    state.error = '';
     state.sls = null;               // שיפוט חוזר הוא ריצה חדשה, לא "נשמר"
     render();
 
@@ -360,27 +366,61 @@
         overviewSheet = await Sheets.overview(vid, state.res);
       }
 
-      for (let i = 0; i < tricks.length; i += 1) {
-        const tk = tricks[i];
-        const info = await Sheets.forTrick(vid, state.res, tk, tk.source ? 2 : 4, (k, n) => {
-          say(`טריק ${i + 1} מתוך ${tricks.length}: ${k} מתוך ${n} פריימים`);
-        });
-        say(`טריק ${i + 1} מתוך ${tricks.length}: הפאנל שופט ${info.count} פריימים`);
+      /*
+       * חיתוך הפריימים חייב לרוץ בתור — יש וידאו אחד, וכל טריק מדלג בו
+       * למקום אחר. אבל השיפוט עצמו (2–3 שופטים, כ-20–40 שניות לטריק)
+       * הוא רק המתנה לשרת. לכן בזמן שטריק אחד נשפט כבר חותכים את הבא,
+       * ועד שלושה טריקים נשפטים במקביל. שמונה טריקים ירדו מכחמש דקות
+       * לכשתיים.
+       */
+      const PARALLEL = 3;
+      const running = new Set();
+      let done = 0, fatal = null;
+      const progress = () => say(`הפאנל שופט: ${done} מתוך ${tricks.length} טריקים מוכנים`);
 
+      const judgeOne = async (tk, i, info) => {
         tk.frames = info;
-        tk.verdict = await JudgeApi.trick({
-          claimed: claimedOf(tk),
-          sheets: info.sheets,
-          overview: i === 0 ? overviewSheet : null,   // ההקשר נחוץ פעם אחת
-          combo: comboOf(tk),
-          measure: tk.source ? { source: tk.source } : {
-            air: tk.air, height: tk.height, dist: tk.dist, view: tk.view,
-            surface: tk.surface, grind: tk.grind, grindLen: tk.grindLen, slow: tk.slow,
-            scaled: state.res.scaled, cameraMoved: state.res.cameraMoved,
-          },
-        });
+        tk.error = '';
+        /*
+         * כישלון של טריק אחד לא עוצר את כל הפאנל. קודם שגיאה בטריק
+         * הראשון עצרה הכל, וההודעה הופיעה רק בשורה קטנה מעל התוצאות —
+         * מה שנראה כמו "הוא לא קובע שם לאף טריק". עכשיו השגיאה מוצגת
+         * על הכרטיס שלה, והשאר ממשיכים. שגיאת מפתח או מכסה עוצרת
+         * הכל, כי היא תחזור בכל טריק.
+         */
+        try {
+          tk.verdict = await JudgeApi.trick({
+            claimed: claimedOf(tk),
+            sheets: info.sheets,
+            overview: i === 0 ? overviewSheet : null,   // ההקשר נחוץ פעם אחת
+            combo: comboOf(tk),
+            measure: tk.source ? { source: tk.source } : {
+              air: tk.air, height: tk.height, dist: tk.dist, view: tk.view,
+              surface: tk.surface, grind: tk.grind, grindLen: tk.grindLen, slow: tk.slow,
+              scaled: state.res.scaled, cameraMoved: state.res.cameraMoved,
+            },
+          });
+        } catch (err) {
+          tk.error = err.message;
+          if (/מפתח|מכסה|עמוס|להתחבר/.test(err.message)) fatal = fatal || err;
+        }
+        done += 1;
+        progress();
         render();
+      };
+
+      for (let i = 0; i < tricks.length && !fatal; i += 1) {
+        const tk = tricks[i];
+        if (running.size >= PARALLEL) await Promise.race(running);
+        if (fatal) break;
+        say(`מכין פריימים לטריק ${i + 1} מתוך ${tricks.length} (${done} כבר נשפטו)`);
+        const info = await Sheets.forTrick(vid, state.res, tk, tk.source ? 2 : 4);
+        const job = judgeOne(tk, i, info).finally(() => running.delete(job));
+        running.add(job);
       }
+      await Promise.all(running);
+      if (fatal) throw fatal;
+      if (!tricks.some((t) => t.verdict)) throw new Error(tricks[0]?.error || 'הפאנל לא החזיר תשובה');
 
       say('ציון Flow לרן כולו');
       const landed = tricks.filter((t) => t.verdict?.landed).length;
@@ -397,7 +437,8 @@
       if (signedIn) save();
     } catch (err) {
       setBusy(false);
-      say(err.message);
+      state.error = err.message;
+      say('');
       render();
     }
   }
@@ -451,9 +492,14 @@
     return { control, impact, total: r1(control + impact), counted: Math.min(4, scores.length) };
   }
 
+  /* שגיאה של ה-AI או של הפאנל, בכרטיס בולט ולא בשורה קטנה מעל התוצאות */
+  const errorCard = () => (state.error ? `<div class="jcard" style="border-color:#ff7a5c">
+      <b style="color:#ff7a5c">משהו נכשל</b>
+      <p class="jsub" style="margin:6px 0 0">${esc(state.error)}</p></div>` : '');
+
   function render() {
     if (!state) return;
-    results.innerHTML = '';
+    results.innerHTML = errorCard();
 
     // כפתור השיפוט וכלי החיפוש, או מה שמונע מהם לרוץ
     const blocked = OFFLINE
@@ -466,7 +512,7 @@
       const tip = state.res.cameraMoved
         ? 'המצלמה זזה הרבה. הליכה, רעד וזום מנוכים, אבל סיבוב מהיר של הטלפון לא.'
         : 'בדוק שכל הגוף בפריים, גם בשיא הקפיצה, ושהרוכב לא קטן מדי.';
-      results.innerHTML = `<div class="jcard"><b>המדידה האוטומטית לא מצאה טריקים</b>
+      results.innerHTML = `${errorCard()}<div class="jcard"><b>המדידה האוטומטית לא מצאה טריקים</b>
         <p class="jsub" style="margin:8px 0 0">${esc(state.res.why)}. ${esc(tip)}</p>
         <p class="jsub" style="margin:8px 0 0">${blocked ? '' : state.aiScanned
           ? 'גם ה-AI לא מצא. אפשר לעצור את הסרטון על הטריק ולסמן ידנית.'
@@ -648,6 +694,7 @@
             ${who ? `<span class="jpill">${esc(who)}</span>` : ''}
             ${v && !v.landed ? '<span class="jpill jpill--warn">לא נראתה נחיתה</span>' : ''}
             ${v && !v.agreed ? '<span class="jpill jpill--warn">אין הסכמה על השם</span>' : ''}
+            ${tk.error ? `<span class="jpill jpill--warn">השיפוט נכשל: ${esc(tk.error)}</span>` : ''}
           </div>
         </div>
         <div style="text-align:center">

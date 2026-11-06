@@ -676,8 +676,9 @@ const needsAi = (req, res, next) => {
   if (!aiAvailable()) {
     return bad(res, 'ה-AI לא מוגדר בשרת. צריך להגדיר ANTHROPIC_API_KEY.', 503);
   }
-  // תקרה לכל משתמש, כדי שחשבון בודד לא יוכל לצבור עלות בלי גבול
-  const over = aiQuotaExceeded(req.user.id);
+  // תקרה לכל משתמש, כדי שחשבון בודד לא יוכל לצבור עלות בלי גבול.
+  // לשופט מכסה משלו: ריצה אחת היא כעשר בקשות (ראו guard.js)
+  const over = aiQuotaExceeded(req.user.id, req.path.startsWith('/api/judge/') ? 'judge' : 'ai');
   if (over) return bad(res, `${over} נסו שוב מאוחר יותר.`, 429);
   next();
 };

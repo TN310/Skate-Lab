@@ -1003,15 +1003,20 @@ const Sheets = (() => {
      * ±0.8 שניות הראה 12 פריימים של רכיבה, והגריינד עצמו התחיל רק בארבעת
      * האחרונים. ±1.5 שניות מכסה את הטריק גם כשהרגע זז.
      */
-    const from = tk.source ? Math.max(0, tk.at - 1.5) : Math.max(0, tk.t0 - span * 0.2);
-    const to = tk.source ? Math.min(D - 0.01, tk.at + 1.5) : Math.min(D - 0.01, tk.t1 + span * 0.25);
+    /* טריק שכבר עבר את שלב השמות ידוע עם התחלה וסוף מדויקים, ואז חלון צמוד
+     * סביבו — בלי הטריקים השכנים, שבפארק מגיעים כל שתי שניות. */
+    const loose = tk.source && !tk.refined;
+    const from = loose ? Math.max(0, tk.at - 1.5)
+      : tk.refined ? Math.max(0, tk.t0 - 0.6) : Math.max(0, tk.t0 - span * 0.2);
+    const to = loose ? Math.min(D - 0.01, tk.at + 1.5)
+      : tk.refined ? Math.min(D - 0.01, tk.t1 + 0.6) : Math.min(D - 0.01, tk.t1 + span * 0.25);
 
     const total = Math.max(1, Math.round((to - from) / Judge.capDt));
     const cap = budget * PER;
     const every = Math.max(1, Math.ceil(total / cap));
     const take = Math.min(total, cap);
 
-    const out = [];
+    const out = [], times = [];
     let sh = null, slot = 0;
     // בלי מסלול לחתוך סביבו — פריים שלם, בתאים בצורת הסרטון
     const whole = !!tk.source || !res.pts?.length;
@@ -1021,6 +1026,7 @@ const Sheets = (() => {
     for (let i = 0; i < take; i += 1) {
       const at = Math.min(to, from + (i * every) * Judge.capDt);
       await seek(video, at);
+      times.push(at);
       if (!sh) { sh = fresh(); slot = 0; }
       if (whole) sh.put(slot, String(i + 1));
       else cell(sh, video, res, at, true, slot, String(i + 1));
@@ -1030,7 +1036,7 @@ const Sheets = (() => {
     }
     if (sh && slot > 0) flush();
 
-    return { sheets: out, count: take, every, total };
+    return { sheets: out, count: take, every, total, times };
   }
 
   /**

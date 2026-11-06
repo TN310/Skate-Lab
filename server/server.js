@@ -860,7 +860,8 @@ app.post('/api/judge/scan', requireUser, needsAi, route(async (req, res) => {
  */
 app.post('/api/judge/names', requireUser, needsAi, route(async (req, res) => {
   const items = (Array.isArray(req.body?.items) ? req.body.items : []).slice(0, 6)
-    .map((it) => ({ sheets: sheetsFrom(it?.sheets).slice(0, 2) }))
+    .map((it) => ({ sheets: sheetsFrom(it?.sheets).slice(0, 2),
+                    frames: Math.max(1, Math.min(64, Math.round(Number(it?.frames) || 0))) }))
     .filter((it) => it.sheets.length);
   if (!items.length) return bad(res, 'לא הגיעו פריימים מהסרטון');
   res.json({ results: await nameTricks(items, { stance: req.user.stance }) });

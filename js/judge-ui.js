@@ -289,46 +289,77 @@
   }
 
   /*
-   * שם ראשוני לכל טריק שעוד אין לו, משופט אחד. שישה טריקים בבקשה, ועד
-   * שתי בקשות במקביל; חיתוך הפריימים בתור כי יש וידאו אחד. מה שהשופט
-   * רואה שאינו טריק יורד מהרשימה — אלא אם הרוכב סימן אותו בעצמו.
+   * שלב השמות: כל רגע שנמצא נשלח כחלון של כ-3 שניות, ושופט אחד מחזיר את
+   * כל הטריקים שבחלון עם הפריימים של כל אחד. מהפריימים יוצא זמן מדויק,
+   * ושני טריקים בחלון אחד הופכים לשני כרטיסים. חלונות שכנים חופפים, אז
+   * אותו טריק שנראה פעמיים נשאר פעם אחת. טריק שהמדידה מצאה שומר את
+   * המדידות שלו ומקבל את השם של מה שחופף לו.
+   *
+   * שישה חלונות בבקשה ועד שתי בקשות במקביל; חיתוך הפריימים בתור, כי יש
+   * וידאו אחד.
    */
+  const overlaps = (a, b) => a.t0 <= b.t1 + 0.3 && a.t1 >= b.t0 - 0.3;
+
+  function placeRefined(nt) {
+    const twin = state.tricks.find((o) => o !== nt && (o.refined || measured(o)) && overlaps(o, nt));
+    if (!twin) { state.tricks.push(nt); return; }
+    if (measured(twin)) { if (!twin.quick) twin.quick = nt.quick; return; }
+    // אותו טריק משני חלונות: נשאר זה שהשופט נתן לו ציון גבוה יותר
+    if ((nt.quick?.score ?? 0) > (twin.quick?.score ?? 0)) Object.assign(twin, nt);
+  }
+
+  function applyWindow(tk, info, res) {
+    if (!res || res.error) return;
+    const at = (n) => info.times[Math.max(0, Math.min(info.times.length - 1, n - 1))];
+    const found = (res.tricks || []).map((r) => {
+      const t0 = at(Math.min(r.from, r.to)), t1 = at(Math.max(r.from, r.to));
+      return { ...pointTrick((t0 + t1) / 2, tk.source || 'ai', r.trick),
+               t0, t1, refined: true, quick: r };
+    });
+    if (measured(tk)) {
+      // המדידות נשארות; השם מהטריק שהכי חופף לטווח שנמדד
+      const best = found.filter((f) => overlaps(f, tk))
+        .sort((x, y) => Math.abs(x.at - (tk.t0 + tk.t1) / 2) - Math.abs(y.at - (tk.t0 + tk.t1) / 2))[0];
+      if (best) tk.quick = best.quick;
+      found.filter((f) => f !== best).forEach(placeRefined);
+      return;
+    }
+    // רגע מהחיפוש מוחלף בטריקים המדויקים שבחלון. סימון ידני בלי טריק נשאר.
+    if (!found.length && tk.source === 'manual') return;
+    state.tricks = state.tricks.filter((t) => t !== tk);
+    found.forEach(placeRefined);
+  }
+
   async function namePass() {
-    const todo = state.tricks.filter((t) => !t.verdict && !t.quick);
+    const todo = state.tricks.filter((t) => !t.verdict && !t.quick && !t.refined);
     if (!todo.length) return;
     const BATCH = 6, PARALLEL = 2;
-    let done = 0, dropped = 0, fatal = null;
+    let done = 0, fatal = null;
+    const before = state.tricks.length;
     const running = new Set();
-    const progress = () => say(`נותן שם לכל טריק: ${done} מתוך ${todo.length}`);
+    const progress = () => say(`מזהה את הטריקים: ${done} מתוך ${todo.length} קטעים`);
     progress();
     for (let i = 0; i < todo.length && !fatal; i += BATCH) {
       const batch = todo.slice(i, i + BATCH);
-      const items = [];
-      for (const tk of batch) {
-        const info = await Sheets.forTrick(vid, state.res, tk, 1);
-        items.push({ sheets: info.sheets });
-      }
+      const infos = [];
+      for (const tk of batch) infos.push(await Sheets.forTrick(vid, state.res, tk, 2));
       if (running.size >= PARALLEL) await Promise.race(running);
       if (fatal) break;
-      const job = JudgeApi.names({ items }).then(({ results }) => {
-        results.forEach((r, k) => {
-          const tk = batch[k];
-          if (!r || r.error) return;
-          if (r.none && tk.source !== 'manual') {
-            state.tricks = state.tricks.filter((t) => t !== tk);
-            dropped += 1;
-          } else {
-            tk.quick = r;
-          }
+      const job = JudgeApi.names({ items: infos.map((f) => ({ sheets: f.sheets, frames: f.count })) })
+        .then(({ results }) => { batch.forEach((tk, k) => applyWindow(tk, infos[k], results[k])); })
+        .catch((err) => { fatal = fatal || err; })
+        .finally(() => {
+          done += batch.length;
+          state.tricks.sort((x, y) => x.t0 - y.t0);
+          progress(); render(); running.delete(job);
         });
-      }).catch((err) => { fatal = fatal || err; })
-        .finally(() => { done += batch.length; progress(); render(); running.delete(job); });
       running.add(job);
     }
     await Promise.all(running);
     if (fatal) throw fatal;
-    say(`לכל טריק יש שם${dropped ? `, ו-${dropped} שלא היו טריק ירדו מהרשימה` : ''}. `
-      + 'הפאנל המלא שופט את הטובים שבהם.');
+    const named = state.tricks.filter((t) => t.quick).length;
+    say(`זוהו ${named} טריקים עם שם${state.tricks.length !== before
+      ? ` (היו ${before} רגעים מהחיפוש)` : ''}. הפאנל המלא שופט את הטובים שבהם.`);
   }
 
   /* השם שהרוכב בחר, כולל הכיוון שבחר. null כשלא בחר. */

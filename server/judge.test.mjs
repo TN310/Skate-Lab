@@ -151,22 +151,26 @@ test('מציאת טריקים: תא מחוץ לטווח נזרק', async () => {
   assert.equal(m.length, 0);
 });
 
-test('שמות לכמה טריקים: שופט אחד לכל טריק, ו"אין טריק" מסומן', async () => {
-  queue = [JSON.stringify({ trick: 'קיקפליפ', side: '', landed: true, score: 7 }),
-           JSON.stringify({ trick: 'אין טריק', side: '', landed: false, score: 0 })];
-  const r = await nameTricks([{ sheets: ['a'] }, { sheets: ['b'] }]);
-  assert.equal(r.length, 2);
-  assert.equal(r[0].trick, 'קיקפליפ');
-  assert.equal(r[0].none, false);
-  assert.equal(r[1].none, true);
-  assert.equal(queue.length, 0);                 // שתי קריאות בדיוק, בלי שופט שני
+test('חלון: כל הטריקים שבו, עם הפריימים של כל אחד', async () => {
+  queue = [JSON.stringify({ tricks: [
+    { from: 6, to: 8, board: 'התהפך סביב הציר הארוך', body: 0, contact: 'אוויר', trick: 'קיקפליפ', side: '', landed: true, score: 7 },
+    { from: 25, to: 28, board: 'החליק על המכשול', body: 0, contact: 'גריינד', trick: '50-50 גריינד', side: 'fs', landed: true, score: 6.5 },
+  ] }), JSON.stringify({ tricks: [] })];
+  const r = await nameTricks([{ sheets: ['a', 'b'], frames: 32 }, { sheets: ['c'], frames: 16 }]);
+  assert.equal(r[0].tricks.length, 2);
+  assert.equal(r[0].tricks[0].trick, 'קיקפליפ');
+  assert.equal(r[0].tricks[0].from, 6);
+  assert.equal(r[0].tricks[1].trick, 'פרונטסייד 50-50 גריינד');
+  assert.equal(r[0].tricks[1].contact, 'גריינד');
+  assert.equal(r[1].tricks.length, 0);            // חלון בלי טריק
+  assert.equal(queue.length, 0);                  // קריאה אחת לכל חלון
 });
 
-test('שמות: כישלון בטריק אחד לא מפיל את השאר', async () => {
-  queue = ['זה לא JSON', JSON.stringify({ trick: 'אוליי', side: '', landed: true, score: 5 })];
+test('חלון: "אין טריק" נזרק, ותשובה שבורה לא מפילה את השאר', async () => {
+  queue = ['זה לא JSON', JSON.stringify({ tricks: [{ from: 1, to: 3, trick: 'אין טריק', score: 0 }] })];
   const r = await nameTricks([{ sheets: ['a'] }, { sheets: ['b'] }]);
   assert.ok(r[0].error);
-  assert.equal(r[1].trick, 'אוליי');
+  assert.equal(r[1].tricks.length, 0);
 });
 
 test('Flow הוא ציון אחד בטווח', async () => {

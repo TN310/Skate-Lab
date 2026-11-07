@@ -25,13 +25,25 @@ import { TRICKS, SIDES, DISCIPLINES } from './tricks.js';
 
 const apiKey = () => process.env.ANTHROPIC_API_KEY;
 /*
- * השופט רץ על Opus ולא על Sonnet כמו שאר האפליקציה. בהשוואה על שידור
- * X Games, על אותם פריימים, Sonnet קרא לאייר עם גראב "בקסייד 50-50
- * גריינד" ופספס פליפ, ו-Opus זיהה את שניהם נכון. Opus 5.5 עולה פי שניים
- * לטוקן. SKATELAB_JUDGE_MODEL גובר, כדי שאפשר יהיה לחזור בלי שינוי קוד;
- * SKATELAB_AI_MODEL כבר לא משפיע על השופט, כי הוא נועד לשאר האפליקציה.
+ * שני מודלים, לפי מה שעל הכף.
+ *
+ * הפאנל — הציון עצמו — רץ על Opus. בהשוואה על שידור X Games, על אותם
+ * פריימים, Sonnet 5 קרא לאייר עם גראב "בקסייד 50-50 גריינד" ופספס פליפ,
+ * ו-Opus זיהה את שניהם נכון.
+ *
+ * החיפוש והשמות לכל טריק רצים על Sonnet 5.5: אלה עשרות קריאות בכל ריצה,
+ * וזה רוב החשבון. במדידה על אותם חלונות Sonnet 5.5 עלה $0.020 לחלון מול
+ * $0.033 של Opus, ופספס רק פליפ אחד שקרא לו בקפליפ; הפאנל מתקן אחריו.
+ * הורדת דרגת המחשבה חסכה רק 10% ב-Opus — רוב העלות היא התמונות — וב-Sonnet
+ * היא הרסה את הזיהוי, ולכן היא לא בשימוש.
+ *
+ * SKATELAB_JUDGE_MODEL ו-SKATELAB_NAMES_MODEL גוברים, בלי שינוי קוד.
  */
 const MODEL = () => process.env.SKATELAB_JUDGE_MODEL || 'claude-opus-5-5';
+const NAMES_MODEL = () => process.env.SKATELAB_NAMES_MODEL || 'claude-sonnet-5-5';
+/* כמה המודל חושב לפני שהוא עונה: low / medium / high. המחשבה נספרת
+ * כטוקני פלט, החלק היקר. ריק = ברירת המחדל של המודל. */
+const EFFORT = () => process.env.SKATELAB_JUDGE_EFFORT || '';
 const ENDPOINT = 'https://api.anthropic.com/v1/messages';
 
 /* מעל הפער הזה בין שני השופטים נקרא שלישי. 2.0 מתוך 10 הוא לא חילוקי
@@ -121,6 +133,19 @@ const NAMING_RULES = 'לפני השם, תאר בשלושה שדות מה ראי�
   + 'בפארק ובבול רוב הטריקים הם איירים מעל הקופינג, גראבים, אינוורטים, גריינדים וסטולים על הקופינג — '
   + 'אל תבחר שם של רחוב כמו "אוליי מעל מכשול" או "קיקפליפ" רק כי הוא מוכר.\n';
 
+/*
+ * החלק הקבוע של כל שיפוט: כללי השם, הקטלוג, הכיוון. אותו טקסט בדיוק
+ * בכל קריאה, גם לפאנל וגם לחלונות, ולכן הוא נכנס למטמון פעם אחת.
+ */
+let catalogCache = null;
+const catalogRules = () => (catalogCache ||= NAMING_RULES
+  + `קרא לכל טריק בשם מתוך הרשימה הזאת, לפי סוג, ואם שום שם לא מתאים כתוב "לא ברור":\n${names()}\n`
+  + `לטריקים האלה יש כיוון, ובהם חובה לקבוע side: ${sidedNames()}\n`
+  + SIDE_RULES
+  + 'בשדה side כתוב "fs" לפרונטסייד, "bs" לבקסייד, או "" כשלטריק אין כיוון או שאי אפשר לראות. '
+  + 'את הכיוון אל תכתוב בתוך trick — רק ב-side.\n'
+  + 'ציון בין 0.0 ל-10.0, עם ספרה אחת אחרי הנקודה. ציון מתחת ל-3 שמור לטריק שלא נחת.\n');
+
 /** שם, כיוון וציון מתשובה של שופט — אותו עיבוד לשופט בפאנל ולרשימת טריקים בחלון. */
 function shapeTrick(a) {
   const side = a.side === 'fs' || a.side === 'bs' ? a.side : sideOf(String(a.trick || ''));
@@ -153,7 +178,8 @@ const stanceText = (stance) => (stance === 'regular' ? 'רגולר (רגל שמ�
  */
 const THINKING_ROOM = 3000;
 
-async function ask(content, { maxTokens = 500 } = {}) {
+async function ask(content, { maxTokens = 500, model = MODEL() } = {}) {
+  ask.calls = (ask.calls || 0) + 1;
   let res;
   try {
     res = await fetch(ENDPOINT, {
@@ -165,9 +191,17 @@ async function ask(content, { maxTokens = 500 } = {}) {
         'anthropic-version': '2023-06-01',
       },
       body: JSON.stringify({
-        model: MODEL(),
+        model,
         max_tokens: maxTokens + THINKING_ROOM,
-        system: SYSTEM,
+        /*
+         * הכללים והקטלוג (כ-3,000 טוקנים) זהים בכל קריאה, ובריצה על שידור
+         * יש עשרות קריאות. במטמון הם עולים כ-5% מהמחיר מהפעם השנייה,
+         * בתנאי שהם באים ראשונים ובלי שום שינוי — לכן כל מה שמשתנה
+         * (סטאנס, מספר פריימים, מדידות) נשאר בהודעה ולא כאן.
+         */
+        system: [{ type: 'text', text: SYSTEM },
+                 { type: 'text', text: catalogRules(), cache_control: { type: 'ephemeral' } }],
+        ...(EFFORT() ? { output_config: { effort: EFFORT() } } : {}),
         messages: [{ role: 'user', content }],
       }),
     });
@@ -186,6 +220,11 @@ async function ask(content, { maxTokens = 500 } = {}) {
   }
 
   const data = await res.json();
+  // סיכום שימוש, לבדיקת עלויות (judge-cost בתיקיית הבדיקות קורא אותו)
+  const u = data.usage || {};
+  const t = (ask.usage ||= { input: 0, cacheRead: 0, cacheWrite: 0, output: 0 });
+  t.input += u.input_tokens || 0; t.cacheRead += u.cache_read_input_tokens || 0;
+  t.cacheWrite += u.cache_creation_input_tokens || 0; t.output += u.output_tokens || 0;
   return (data.content || []).filter((c) => c.type === 'text')
     .map((c) => c.text).join('').trim();
 }
@@ -259,14 +298,8 @@ async function oneJudge(sheets, m, { overview, combo, claimed, seat, stance, all
     + '\nעבור על הפריימים לפי הסדר ועקוב אחרי הלוח. סיבוב סביב הציר הארוך הוא קיקפליפ או היילפליפ, '
     + 'סיבוב סביב הציר הקצר הוא שאב-איט, שילוב של שניהם הוא ואריאל או טרה פליפ, בלי סיבוב של הלוח זה אולי. '
     + 'על מכשול קבע לפי אילו טראקים נוגעים ובאיזו זווית הלוח למכשול.\n'
-    + NAMING_RULES
-    + `קרא לטריק בשם מתוך הרשימה הזאת, לפי סוג, ואם שום שם לא מתאים כתוב "לא ברור":\n${names()}\n`
-    + `לטריקים האלה יש כיוון, ובהם חובה לקבוע side: ${sidedNames()}\n`
-    + SIDE_RULES
+    + 'כללי השם, הקטלוג והכיוון מופיעים בהנחיות המערכת. תן לטריק הזה שם אחד וציון אחד.\n'
     + (stanceText(stance) ? `הסטאנס של הרוכב: ${stanceText(stance)}. אם הוא רוכב פייקי או סוויץ׳, הכיוון נקבע לפי הגוף ולא לפי הסטאנס.\n` : '')
-    + 'בשדה side כתוב "fs" לפרונטסייד, "bs" לבקסייד, או "" כשלטריק אין כיוון או שאי אפשר לראות. '
-    + 'את הכיוון אל תכתוב בתוך trick — רק ב-side.\n'
-    + 'תן ציון אחד בין 0.0 ל-10.0. ציון מתחת ל-3 שמור לטריק שלא נחת.\n'
     + 'קבע גם כמה מעלות הרוכב הסתובב סביב עצמו: 0, 180, 360 או 540. זה נקבע ממך ולא מהמדידות, '
     + 'כי רוחב הלוח מסתיר את הסיבוב בכל מדידה אוטומטית. אם אי אפשר לראות, החזר 0.\n'
     + 'ציין אם תפס את הלוח ביד ואיפה (אינדי בצד הבהונות, מלון בצד העקבים, נוזגראב בחרטום, טייגראב בזנב), '
@@ -378,17 +411,13 @@ export async function nameTricks(items, { stance = '' } = {}) {
       + 'להיגמר בקצה. רכיבה רגילה, קארב בלי טריק, עמידה, תקריב או קהל — לא טריק.\n'
       + 'לכל טריק כתוב from ו-to: מספר הפריים הראשון והאחרון שבהם הוא מתבצע (מהפופ או העלייה למכשול '
       + 'ועד הנחיתה).\n'
-      + NAMING_RULES
-      + `קרא לכל טריק בשם מתוך הרשימה הזאת, לפי סוג, ואם שום שם לא מתאים כתוב "לא ברור":\n${names()}\n`
-      + `לטריקים האלה יש כיוון, ובהם חובה לקבוע side: ${sidedNames()}\n`
-      + SIDE_RULES
+      + 'כללי השם, הקטלוג והכיוון מופיעים בהנחיות המערכת, והם חלים על כל טריק ברשימה.\n'
       + (stanceText(stance) ? `הסטאנס של הרוכב: ${stanceText(stance)}.\n` : '')
-      + 'side הוא "fs", "bs" או "". את הכיוון אל תכתוב בתוך trick.\n'
-      + 'ציון לכל טריק בין 0.0 ל-10.0, מתחת ל-3 לטריק שלא נחת.\n'
       + 'החזר רק JSON: {"tricks":[{"from":6,"to":9,"board":"...","body":0,"contact":"...",'
       + '"trick":"...","side":"","landed":true,"score":6.5,"grab":""}]}. אם אין אף טריק: {"tricks":[]}';
     try {
-      const a = parseJson(await ask([...sheets.map(image), { type: 'text', text }], { maxTokens: 1500 }));
+      const a = parseJson(await ask([...sheets.map(image), { type: 'text', text }],
+                                    { maxTokens: 1500, model: NAMES_MODEL() }));
       const list = Array.isArray(a) ? a : Array.isArray(a.tricks) ? a.tricks : [];
       return {
         tricks: list.slice(0, 5).map((t) => ({
@@ -436,7 +465,7 @@ export async function findMoments(sheets, times, per = 16) {
       + 'לכל טריק שורה אחת בדיוק: מספר הפריים | ניחוש קצר של שם הטריק בעברית\n'
       + 'אם אותו טריק נראה בכמה פריימים צמודים, כתוב רק את הפריים שבו הוא הכי ברור.\n'
       + 'אם אין אף טריק, כתוב רק: NONE';
-    const raw = await ask([image(sheet), { type: 'text', text }], { maxTokens: 500 });
+    const raw = await ask([image(sheet), { type: 'text', text }], { maxTokens: 500, model: NAMES_MODEL() });
     if (/^\s*NONE/i.test(raw)) return;
     raw.split('\n').forEach((line) => {
       const [cellPart, ...rest] = line.split('|');
@@ -495,3 +524,6 @@ export function slsTotal(scores, flow) {
     counted: Math.min(4, sorted.length),
   };
 }
+
+/** סיכום הטוקנים מאז שהשרת עלה — לבדיקת עלויות, לא לשום החלטה. */
+export const usageSoFar = () => ({ calls: ask.calls || 0, ...(ask.usage || {}) });

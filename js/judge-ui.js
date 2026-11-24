@@ -202,7 +202,7 @@
     results.innerHTML = '';
     state = null; overviewSheet = null;
     player.hidden = false;
-    Judge.setRider($('#h').value, $('#fps').value);
+    Judge.setRider($('#h').value, $('#fps').value, runSeconds());
     setBusy(true);
 
     /*
@@ -425,6 +425,10 @@
   function markHere() {
     if (!state) return;
     const at = vid.currentTime || 0;
+    if (at > Judge.runEnd(vid) + 0.05) {
+      say(`הרן הוא ${Judge.runLimit} השניות הראשונות. כדי לבדוק גם את ההמשך, בחר רן ארוך יותר למעלה וטען את הסרטון שוב.`);
+      return;
+    }
     const added = addTricks([pointTrick(at, 'manual')]);
     say(added ? `סומן טריק ב-${at.toFixed(1)} שניות` : 'כבר יש טריק ברגע הזה');
     render();
@@ -696,7 +700,7 @@
   /** חיפוש עם AI וסימון ידני. */
   function tools(blocked, D) {
     if (blocked) return '';
-    const long = D > 70.5;
+    const long = D > Judge.runLimit + 0.5;
     return `<div class="jcard">
       <div class="jrow" style="gap:8px">
         <button class="jbtn ghost" id="aifind" ${busy ? 'disabled' : ''}>${
@@ -704,7 +708,7 @@
         <button class="jbtn ghost" id="markhere" ${busy ? 'disabled' : ''}>סמן טריק כאן</button>
       </div>
       <p class="jsub" style="margin:9px 0 0">${long
-        ? 'המדידה האוטומטית קוראת רק את 70 השניות הראשונות. ה-AI עובר על כל הסרטון. '
+        ? `נבדקות רק ${Judge.runLimit} השניות הראשונות של הסרטון, לפי אורך הרן שבחרת למעלה. `
         : ''}לסימון ידני: עוצרים את הסרטון למעלה בדיוק על הטריק ולוחצים "סמן טריק כאן".</p>
     </div>`;
   }

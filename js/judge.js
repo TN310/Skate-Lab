@@ -38,12 +38,23 @@ const Judge = (() => {
    * ונותנים ציון. מי שכן ממלא מקבל בנוסף מרחק במטרים ומדידת גובה
    * שנייה, בלתי תלויה, שמוצגת לצד הראשונה.
    */
-  const setRider = (heightCm, slowFactor) => {
+  const setRider = (heightCm, slowFactor, runSec) => {
     const cm = Number(heightCm);
     personH = (cm >= 80 && cm <= 220) ? cm / 100 : null;
     autoSlow = slowFactor === 'auto';
     slowmo = autoSlow ? 1 : (Number(slowFactor) || 1);
+    runLimit = Number(runSec) > 0 ? Number(runSec) : 70;
   };
+
+  /*
+   * כמה מהסרטון נבדק: אורך הרן שנבחר (דקה, 45 או 30 שניות) מתחילתו.
+   * רן הוא יחידת השיפוט, ומה שאחריו — עוד ריצה, ראיון, הליכה חזרה — לא
+   * שייך לו. זה חל על הכל: המדידה, חיפוש ה-AI והשמות, ולכן גם המחיר
+   * של ריצה על סרטון ארוך הוא המחיר של הרן בלבד.
+   */
+  let runLimit = 70;
+  const runEnd = (video) => (Number.isFinite(video.duration)
+    ? Math.min(video.duration, runLimit) : runLimit);
 
   /* ---------- קריאת הפריימים ---------- */
 
@@ -75,9 +86,9 @@ const Judge = (() => {
      * לכן התקרה היא זמן, לא אורך הקובץ, והאורך האמיתי נגזר בסוף
      * מחותמת הזמן של הפריים האחרון.
      */
-    const maxT = Number.isFinite(video.duration) ? Math.min(video.duration, 70) : 70;
+    const maxT = runEnd(video);
     // רק לפס ההתקדמות: בלי זה רן של 30 שניות נעצר על 43%
-    const shown = Number.isFinite(video.duration) ? maxT : Math.min(70, hintDur || 70);
+    const shown = Number.isFinite(video.duration) ? maxT : Math.min(runLimit, hintDur || runLimit);
 
     return new Promise((resolve) => {
       let finished = false;
@@ -478,7 +489,8 @@ const Judge = (() => {
     return c ? s / c : null;
   });
 
-  return { setRider, capture, track, pct, pctl, median, smooth,
+  return { setRider, capture, track, pct, pctl, median, smooth, runEnd,
+           get runLimit() { return runLimit; },
            get capDt() { return capDt; },
            get personH() { return personH; },
            get slowmo() { return slowmo; },
@@ -939,10 +951,10 @@ const Sheets = (() => {
     sh.x.strokeRect(x0 + 0.5, y0 + 0.5, CELL - 1, CELL - 1);
   }
 
-  /* אורך הסרטון. המדידה קוראת רק 70 שניות, אז האורך שלה לא מתאים לחיתוך
-   * פריימים מטריק שנמצא אחר כך; אורך הקובץ קודם, כשהוא ידוע. */
-  const lengthOf = (video, res, fallback) => (Number.isFinite(video.duration) ? video.duration
-    : res.duration || fallback);
+  /* עד איפה מותר לחתוך פריימים: סוף הרן שנבחר, או סוף הקובץ אם הוא קצר
+   * יותר. כשאורך הקובץ לא ידוע (הקלטה מהדפדפן), מה שהמדידה ראתה. */
+  const lengthOf = (video, res, fallback) => (Number.isFinite(video.duration) ? Judge.runEnd(video)
+    : Math.min(Judge.runLimit, res.duration || fallback));
 
   const seek = (video, t) => new Promise((resolve) => {
     if (Math.abs(video.currentTime - t) < 0.01) return resolve();
@@ -1050,7 +1062,8 @@ const Sheets = (() => {
   const SCAN_COLS = 5, SCAN_W = 288;
   async function scan(video, onProgress, maxSheets = 8) {
     const per = SCAN_COLS * SCAN_COLS;
-    const D = Number.isFinite(video.duration) ? video.duration : 60;
+    // רק הרן שנבחר מתחילת הסרטון, לא כל הקובץ
+    const D = Judge.runEnd(video);
     const n = Math.max(1, Math.min(maxSheets * per, Math.floor(D / 0.5)));
     const times = [], sheets = [];
     let sh = null;

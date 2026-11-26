@@ -327,9 +327,37 @@ const Judge = (() => {
    *    רעש מצלמה פרוש על כל הפריים. בלי השלב הזה גם אדם שעובר ברקע
    *    נכנס לתוך המדידה.
    */
+  /*
+   * חיתוך — מעבר למצלמה אחרת, לזווית אחרת או לחזרה.
+   *
+   * בשידור תחרות יש חיתוך כל כמה שניות. לפני שזוהו, חיתוך נראה כמו
+   * "כל הפריים זז": ניכוי המצלמה נכשל, קו הקרקע התערבב בין שתי זוויות,
+   * וה-AI חיבר סוף של שוט אחד לתחילת הבא לטריק אחד.
+   *
+   * ההבדל מפאן מהיר כויל על שידור X Games מול מה שרואים בפריימים: בחיתוך
+   * כל השינוי קורה בין שני פריימים סמוכים (קפיצה של 30–89 בבהירות, פי
+   * 2.7 עד 29 מהשלבים סביבה); בפאן השינוי מפוזר (עד 16, ושלבים שווים).
+   * לכן הכלל הוא קפיצה גדולה *וגם* גדולה בהרבה ממה שסביבה.
+   */
+  /* ובסצנה בניגודיות נמוכה חיתוך אמיתי קופץ פחות מ-22, אבל הוא עדיין
+   * מרוכז בפריים אחד — לכן קפיצה מעל 12 שגדולה פי 5 ממה שסביבה גם היא
+   * חיתוך. פאן בכיול לא עבר פי 1.4. */
+  const CUT_STEP = 22, CUT_RATIO = 2.2, CUT_STEP_SOFT = 12, CUT_RATIO_SOFT = 5;
+  function frameStep(a, b) {
+    let sum = 0, n = 0;
+    for (let i = 0; i < a.length; i += 3) { const d = a[i] - b[i]; sum += d < 0 ? -d : d; n += 1; }
+    return n ? sum / n : 0;
+  }
+  const isCut = (step, around) => {
+    const base = Math.max(2, around.length ? median(around) : 0);
+    return (step > CUT_STEP && step > CUT_RATIO * Math.max(4, base))
+        || (step > CUT_STEP_SOFT && step > CUT_RATIO_SOFT * base);
+  };
+
   function track(cap) {
     const { frames: f, w, h } = cap;
     const out = [];
+    const cuts = [], recent = [];
     /*
      * הטרנספורמציה מפריים k לקואורדינטות של הפריים הראשון ("העולם"):
      * X = A·x + B. A הוא הזום המצטבר, B ההזזה המצטברת. בלי זום A=1
@@ -342,6 +370,17 @@ const Judge = (() => {
 
     for (let k = 1; k < f.length; k += 1) {
       const a = f[k].g, b = f[k - 1].g;
+      /* בחיתוך אין מה ליישר: המעקב מתחיל מחדש מהשוט החדש, והמיקומים
+       * שלפניו ואחריו לא מושווים זה לזה (ראו הפילוח ב-findTricks). */
+      const step = frameStep(a, b);
+      if (isCut(step, recent)) {
+        cuts.push((f[k].t + f[k - 1].t) / 2);
+        A = 1; Bx = 0; By = 0;
+        out.push(null);
+        continue;
+      }
+      recent.push(step);
+      if (recent.length > 6) recent.shift();
       const sh = cameraShift(a, b, w, h);
       /*
        * ההפרשים למטה ממופים לקואורדינטות של הפריים *הקודם*, ולכן ההמרה
@@ -464,6 +503,7 @@ const Judge = (() => {
 
     out.cameraMoved = moved > f.length * 0.2;
     out.tooShaky = loose > f.length * 0.35;
+    out.cuts = cuts;
     return out;
   }
 
@@ -489,7 +529,7 @@ const Judge = (() => {
     return c ? s / c : null;
   });
 
-  return { setRider, capture, track, pct, pctl, median, smooth, runEnd,
+  return { setRider, capture, track, pct, pctl, median, smooth, runEnd, frameStep, isCut,
            get runLimit() { return runLimit; },
            get capDt() { return capDt; },
            get personH() { return personH; },
@@ -574,14 +614,26 @@ const Analyse = (() => {
      * אמיתית מרכז המסה *ירד* ב-6 פיקסלים ברגע הפופ, והקפיצה יצאה
      * 0.18 שניות במקום 0.45. קצוות התיבה נקיים מזה ועלו יפה.
      */
-    const up = Judge.smooth(pts.map((p) => -(p.y0 + p.y1) / 2), 1);   // ציר המסך הפוך
-    const base = groundLine(up, t);
+    /* כל שוט בנפרד: אחרי חיתוך הגובה נמדד מזווית אחרת ומנקודת אפס אחרת,
+     * ולכן קו הקרקע, ההחלקה והקפיצות לא חוצים חיתוך. */
+    const cuts = tr.cuts || [];
+    const shot = pts.map((p) => cuts.filter((c) => c < p.t).length);
+    const up = [], base = [];
+    for (let i0 = 0; i0 < pts.length;) {
+      let i1 = i0;
+      while (i1 < pts.length && shot[i1] === shot[i0]) i1 += 1;
+      const u = Judge.smooth(pts.slice(i0, i1).map((p) => -(p.y0 + p.y1) / 2), 1);   // ציר המסך הפוך
+      up.push(...u);
+      base.push(...groundLine(u, t.slice(i0, i1)));
+      i0 = i1;
+    }
     const rise = up.map((v, i) => v - base[i]);
 
     const thr = Math.max(1.0, bodyH * 0.04);
     const runs = [];
     let cur = null;
     rise.forEach((v, i) => {
+      if (cur && shot[i] !== shot[cur.a]) { runs.push(cur); cur = null; }   // קפיצה לא עוברת חיתוך
       if (v > thr) { if (!cur) cur = { a: i, b: i }; else cur.b = i; }
       else if (cur) { runs.push(cur); cur = null; }
     });
@@ -609,8 +661,8 @@ const Analyse = (() => {
        * ושני פריימים עם אותו ערך עצרו את הפתיחה באמצע. */
       let a = r.a, b = r.b;
       const edge = peak * 0.12;
-      while (a > 0 && rise[a - 1] > edge && rise[a - 1] <= rise[a]) a -= 1;
-      while (b < rise.length - 1 && rise[b + 1] > edge && rise[b + 1] <= rise[b]) b += 1;
+      while (a > 0 && shot[a - 1] === shot[a] && rise[a - 1] > edge && rise[a - 1] <= rise[a]) a -= 1;
+      while (b < rise.length - 1 && shot[b + 1] === shot[b] && rise[b + 1] > edge && rise[b + 1] <= rise[b]) b += 1;
 
       const span = t[b] - t[a];
 
@@ -827,7 +879,7 @@ const Analyse = (() => {
 
     if (!tricks.length && tooShaky) why = SHAKY;
     if (!tricks.length && !why) why = 'לא נמצאה עלייה ברורה של הגוף מעל גובה הנסיעה הרגיל';
-    return { tricks, why, pxPerM, bodyH, pts, view, cameraMoved, tooShaky,
+    return { tricks, why, pxPerM, bodyH, pts, view, cameraMoved, tooShaky, cuts,
              scaled: !!pxPerM };
   }
 
@@ -1006,6 +1058,58 @@ const Sheets = (() => {
     };
   }
 
+  /* פריים קטן באפור, להשוואה בין פריימים — לזיהוי חיתוך בחלון */
+  let tinyCanvas = null;
+  function tiny(video) {
+    if (!tinyCanvas) {
+      tinyCanvas = document.createElement('canvas');
+      tinyCanvas.width = 96; tinyCanvas.height = 54;
+    }
+    const x = tinyCanvas.getContext('2d', { willReadFrequently: true });
+    x.drawImage(video, 0, 0, 96, 54);
+    const d = x.getImageData(0, 0, 96, 54).data;
+    const g = new Uint8Array(96 * 54);
+    for (let i = 0, j = 0; i < d.length; i += 4, j += 1) g[j] = (d[i] * 77 + d[i + 1] * 150 + d[i + 2] * 29) >> 8;
+    return g;
+  }
+
+  /*
+   * איפה בחלון מתחיל שוט חדש. בין שני פריימים שנשלחים יש כמה פריימים
+   * של הסרטון, ופאן מהיר על פני כמה פריימים נראה כמו קפיצה. לכן קפיצה
+   * חשודה נבדקת פריים-פריים: בחיתוך כל השינוי בין שני פריימים סמוכים,
+   * בפאן הוא מפוזר. מחזיר את מספרי הפריימים (מ-1) שבהם מתחיל שוט חדש.
+   */
+  async function findCuts(video, times, smalls, every) {
+    const steps = smalls.slice(1).map((g, i) => Judge.frameStep(g, smalls[i]));
+    const cuts = [];
+    for (let i = 0; i < steps.length; i += 1) {
+      if (steps[i] <= 12) continue;
+      const others = steps.filter((_, j) => j !== i);
+      let cut;
+      if (every <= 1) {
+        cut = Judge.isCut(steps[i], others);
+      } else {
+        const fine = [smalls[i]];
+        for (let k = 1; k < every; k += 1) {
+          await seek(video, times[i] + k * Judge.capDt);
+          fine.push(tiny(video));
+        }
+        fine.push(smalls[i + 1]);
+        const fs = fine.slice(1).map((g, j) => Judge.frameStep(g, fine[j]));
+        const sorted = fs.slice().sort((x, y) => y - x);
+        /*
+         * חיתוך הוא שלב אחד שגדול פי 2.3 לפחות מכל שלב אחר בקטע. ההשוואה
+         * רק בתוך הקטע: קודם היא ערבבה את קצב השינוי של כל החלון, ופאן
+         * מהיר סומן כתשעה "חיתוכים" ברצף. בכיול, החיתוך החלש ביותר היה פי 2.5
+         * והפאנים לכל היותר פי 1.4.
+         */
+        cut = sorted[0] > 12 && sorted[0] >= 2.3 * Math.max(2, sorted[1] ?? 0);
+      }
+      if (cut) cuts.push(i + 2);
+    }
+    return cuts;
+  }
+
   async function forTrick(video, res, tk, budget, onProgress) {
     const span = Math.max(0.05, tk.t1 - tk.t0);
     const D = lengthOf(video, res, tk.t1 + 1);
@@ -1028,7 +1132,7 @@ const Sheets = (() => {
     const every = Math.max(1, Math.ceil(total / cap));
     const take = Math.min(total, cap);
 
-    const out = [], times = [];
+    const out = [], times = [], smalls = [];
     let sh = null, slot = 0;
     // בלי מסלול לחתוך סביבו — פריים שלם, בתאים בצורת הסרטון
     const whole = !!tk.source || !res.pts?.length;
@@ -1039,6 +1143,7 @@ const Sheets = (() => {
       const at = Math.min(to, from + (i * every) * Judge.capDt);
       await seek(video, at);
       times.push(at);
+      smalls.push(tiny(video));
       if (!sh) { sh = fresh(); slot = 0; }
       if (whole) sh.put(slot, String(i + 1));
       else cell(sh, video, res, at, true, slot, String(i + 1));
@@ -1048,7 +1153,8 @@ const Sheets = (() => {
     }
     if (sh && slot > 0) flush();
 
-    return { sheets: out, count: take, every, total, times };
+    const cuts = await findCuts(video, times, smalls, every);
+    return { sheets: out, count: take, every, total, times, cuts };
   }
 
   /**

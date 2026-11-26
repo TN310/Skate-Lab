@@ -173,6 +173,28 @@ test('חלון: "אין טריק" נזרק, ותשובה שבורה לא מפי�
   assert.equal(r[1].tricks.length, 0);
 });
 
+test('חלון עם חיתוך: מספרי הפריימים מגיעים לשופט, וחזרה מסומנת', async () => {
+  let sent = '';
+  const real = globalThis.fetch;
+  globalThis.fetch = async (url, opts) => { sent = opts.body; return real(url, opts); };
+  queue = [JSON.stringify({ tricks: [
+    { from: 2, to: 9, trick: 'בקסייד אייר', replay: false, landed: true, score: 7 },
+    { from: 14, to: 30, trick: 'בקסייד אייר', replay: true, landed: true, score: 7 },
+  ] })];
+  const r = await nameTricks([{ sheets: ['a', 'b'], frames: 32, cuts: [13] }]);
+  globalThis.fetch = real;
+  assert.match(sent, /שוט חדש מתחיל בפריים 13/);
+  assert.equal(r[0].tricks[0].replay, false);
+  assert.equal(r[0].tricks[1].replay, true);
+});
+
+test('פאנל: חזרה ברוב השופטים', async () => {
+  const j = (replay, score) => JSON.stringify({ trick: 'אינדי גראב', replay, landed: true, score });
+  queue = [j(true, 7), j(true, 7.2)];
+  const r = await judgeTrick(['x'], M, { cuts: [9] });
+  assert.equal(r.replay, true);
+});
+
 test('Flow הוא ציון אחד בטווח', async () => {
   queue = [JSON.stringify({ flow: 12, note: 'רץ יפה' })];
   const r = await judgeFlow('x', { tricks: 3, duration: 20, landed: 2 });

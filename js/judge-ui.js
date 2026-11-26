@@ -275,8 +275,11 @@
    */
   const spread = (list, k) => (list.length <= k ? list
     : Array.from({ length: k }, (_, i) => list[Math.floor((i + 0.5) * list.length / k)]));
+  /* חזרה בשידור — אותו טריק מזווית אחרת או בהילוך איטי — לא נספרת */
+  const isReplay = (tk) => !!(tk.verdict?.replay ?? tk.quick?.replay);
+
   function toJudge() {
-    const all = state.tricks.slice().sort((x, y) => x.t0 - y.t0);
+    const all = state.tricks.filter((t) => !isReplay(t)).sort((x, y) => x.t0 - y.t0);
     const est = (tk) => (tk.quick ? tk.quick.score
       : measured(tk) ? Analyse.localScore(tk, chosenOf(tk)?.d ?? null).total : -1);
     let picked = all.filter((t) => t.source === 'manual').slice(0, MAX_JUDGED);
@@ -307,8 +310,10 @@
     const twin = state.tricks.find((o) => o !== nt && (o.refined || measured(o)) && overlaps(o, nt));
     if (!twin) { state.tricks.push(nt); return; }
     if (measured(twin)) { if (!twin.quick) twin.quick = nt.quick; return; }
-    // אותו טריק משני חלונות: נשאר זה שהשופט נתן לו ציון גבוה יותר
-    if ((nt.quick?.score ?? 0) > (twin.quick?.score ?? 0)) Object.assign(twin, nt);
+    // אותו טריק משני חלונות: נשאר זה שאינו חזרה, ואחריו זה שקיבל ציון גבוה יותר
+    const better = (!nt.quick?.replay && twin.quick?.replay)
+      || (!!nt.quick?.replay === !!twin.quick?.replay && (nt.quick?.score ?? 0) > (twin.quick?.score ?? 0));
+    if (better) Object.assign(twin, nt);
   }
 
   function applyWindow(tk, info, res) {
@@ -348,7 +353,7 @@
       for (const tk of batch) infos.push(await Sheets.forTrick(vid, state.res, tk, 2));
       if (running.size >= PARALLEL) await Promise.race(running);
       if (fatal) break;
-      const job = JudgeApi.names({ items: infos.map((f) => ({ sheets: f.sheets, frames: f.count })) })
+      const job = JudgeApi.names({ items: infos.map((f) => ({ sheets: f.sheets, frames: f.count, cuts: f.cuts })) })
         .then(({ results }) => { batch.forEach((tk, k) => applyWindow(tk, infos[k], results[k])); })
         .catch((err) => { fatal = fatal || err; })
         .finally(() => {
@@ -481,6 +486,7 @@
           tk.verdict = await JudgeApi.trick({
             claimed: claimedOf(tk),
             sheets: info.sheets,
+            cuts: info.cuts,
             overview: i === 0 ? overviewSheet : null,   // ההקשר נחוץ פעם אחת
             combo: comboOf(tk),
             measure: tk.source ? { source: tk.source } : {
@@ -554,7 +560,7 @@
   /* ---------- תצוגה ---------- */
 
   function sls() {
-    const scores = state.tricks.filter((t) => t.verdict).map((t) => t.verdict.score);
+    const scores = state.tricks.filter((t) => t.verdict && !isReplay(t)).map((t) => t.verdict.score);
     if (!scores.length) return null;
     const sorted = scores.slice().sort((a, b) => b - a);
     const r1 = (n) => Math.round(n * 10) / 10;
@@ -571,7 +577,7 @@
    * לכל טריק. Flow נשאר ריק: הוא שאלה על הרן כולו, ואין לו מדידה.
    */
   function localBoard() {
-    const scores = state.tricks.map((tk) => (tk.quick ? tk.quick.score
+    const scores = state.tricks.filter((t) => !isReplay(t)).map((tk) => (tk.quick ? tk.quick.score
       : measured(tk) ? Analyse.localScore(tk, chosenOf(tk)?.d ?? null).total : null))
       .filter((n) => n != null)
       .sort((a, b) => b - a);
@@ -785,6 +791,7 @@
           <div class="trick__meta">${isMeasured ? `${tk.t0.toFixed(2)}s–${tk.t1.toFixed(2)}s` : `${tk.at.toFixed(1)}s`} ·
             <span class="jpill">${surf}</span>
             ${tk.slow > 1 ? `<span class="jpill">הילוך איטי ×${tk.slow}</span>` : ''}
+            ${isReplay(tk) ? '<span class="jpill jpill--warn">חזרה · לא נספר</span>' : ''}
             ${who ? `<span class="jpill">${esc(who)}</span>` : ''}
             ${(v ? !v.landed : q ? !q.landed : false) ? '<span class="jpill jpill--warn">לא נראתה נחיתה</span>' : ''}
             ${v && !v.agreed ? '<span class="jpill jpill--warn">אין הסכמה על השם</span>' : ''}

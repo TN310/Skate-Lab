@@ -64,7 +64,7 @@ const at = (x, y) => {
  * ({ at, f }), `zoom` פונקציה מזמן לזום, ו-`rail` קטע שבו הרוכב נישא בגובה קבוע.
  */
 function clip({ pan = 0, shake = 0, jumps = [{ t: 2, air: 0.5 }], dur = 5, walk = 0.6,
-                slow = 1, slowFrom = null, zoom = null, rail = null, edges = false } = {}) {
+                slow = 1, slowFrom = null, zoom = null, rail = null, edges = false, cutAt = null } = {}) {
   const bgAt = edges ? atSharp : at;
   const frames = [];
   const bodyH = 40, pxPerM = bodyH / 1.6, mx = W / 2, my = H / 2;
@@ -73,8 +73,10 @@ function clip({ pan = 0, shake = 0, jumps = [{ t: 2, air: 0.5 }], dur = 5, walk 
     const t = slowFrom                           // זמן אמיתי
       ? (tm < slowFrom.at ? tm : slowFrom.at + (tm - slowFrom.at) / slowFrom.f)
       : tm / slow;
-    const cx = 200 + pan * tm + shake * Math.sin(tm * 9);
-    const cy = 200 + shake * Math.cos(tm * 7);
+    // חיתוך: מצלמה אחרת, על חלק אחר של הסצנה
+    const cut = cutAt != null && tm >= cutAt;
+    const cx = 200 + pan * tm + shake * Math.sin(tm * 9) + (cut ? 230 : 0);
+    const cy = 200 + shake * Math.cos(tm * 7) + (cut ? 90 : 0);
     const Z = zoom ? zoom(tm) : 1;
     let lift = 0;
     for (const j of jumps) {
@@ -86,7 +88,7 @@ function clip({ pan = 0, shake = 0, jumps = [{ t: 2, air: 0.5 }], dur = 5, walk 
       else if (t >= t0 + up && t <= t0 + up + len) lift = hgt;
       else if (t > t0 + up + len && t < t0 + 2 * up + len) lift = hgt * (1 - (t - t0 - up - len) / up);
     }
-    const rx = 220 + walk * 40 * t, ry = 280 - lift * pxPerM;
+    const rx = 220 + walk * 40 * t + (cut ? 230 : 0), ry = 280 - lift * pxPerM + (cut ? 90 : 0);
     // כל פיקסל בתמונה מחפש מה רואים בו בעולם — כך זום לא משאיר חורים
     const g = new Uint8Array(W * H);
     for (let y = 0; y < H; y += 1) {
@@ -165,6 +167,21 @@ test('הילוך איטי שמתחיל באמצע: כל קפיצה מקבלת א
 test('אוטומטי על סרטון רגיל לא ממציא הילוך איטי', () => {
   const r = run({ mode: 'auto', jumps: [{ t: 1.2, air: 0.45 }, { t: 3.3, air: 0.55 }] });
   assert.deepEqual(Array.from(r.tricks, (t) => t.slow), [1, 1]);
+});
+
+test('חיתוך באמצע: מזוהה, לא יוצר טריק, והקפיצות משני צדיו נמדדות', () => {
+  Judge.setRider('', 1);
+  const tr = Judge.track(clip({ cutAt: 2.5, dur: 5, jumps: [{ t: 1.2, air: 0.5 }, { t: 3.5, air: 0.45 }] }));
+  assert.equal(tr.cuts.length, 1, `cuts ${tr.cuts}`);
+  assert.ok(Math.abs(tr.cuts[0] - 2.5) < 0.1);
+  const r = Analyse.findTricks(tr);
+  assert.equal(r.tricks.length, 2, r.tricks.map((t) => t.t0.toFixed(2)).join(' ') || r.why);
+  assert.ok(r.tricks.every((t) => t.t1 < 2.5 || t.t0 > 2.5), 'קפיצה שחוצה את החיתוך');
+});
+
+test('בלי חיתוך לא מזוהה חיתוך, גם עם רעד ופאן', () => {
+  Judge.setRider('', 1);
+  assert.equal(Judge.track(clip({ pan: 20, shake: 2.5 })).cuts.length, 0);
 });
 
 test('מעקה מזוהה כמעקה', () => {

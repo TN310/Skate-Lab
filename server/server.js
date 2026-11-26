@@ -805,6 +805,10 @@ app.post('/api/ai/scan/:videoId', requireUser, needsAi, route(async (req, res) =
    הפאנל, ושומר את התוצאה לבעליה בלבד.
    ========================================================================== */
 
+/** מספרי הפריימים שבהם מתחיל שוט חדש, כפי שהדפדפן מדד. רק מספרים שלמים בטווח. */
+const cutsFrom = (value) => (Array.isArray(value) ? value : [])
+  .map((n) => Math.round(Number(n))).filter((n) => n >= 2 && n <= 64).slice(0, 10);
+
 /** גיליון פריימים אחד, מקודד base64. הגבול הוא כדי שגוף הבקשה לא יתפח. */
 const sheetsFrom = (value) => (Array.isArray(value) ? value : [])
   .filter((x) => typeof x === 'string' && x.length > 100 && x.length < 4_000_000)
@@ -828,6 +832,7 @@ app.post('/api/judge/trick', requireUser, needsAi, route(async (req, res) => {
       combo: String(req.body?.combo || '').slice(0, 200),
       claimed: String(req.body?.claimed || '').slice(0, 60),
       stance: req.user.stance,
+      cuts: cutsFrom(req.body?.cuts),
     }));
   } catch (err) {
     return bad(res, err.message, 502);
@@ -861,7 +866,8 @@ app.post('/api/judge/scan', requireUser, needsAi, route(async (req, res) => {
 app.post('/api/judge/names', requireUser, needsAi, route(async (req, res) => {
   const items = (Array.isArray(req.body?.items) ? req.body.items : []).slice(0, 6)
     .map((it) => ({ sheets: sheetsFrom(it?.sheets).slice(0, 2),
-                    frames: Math.max(1, Math.min(64, Math.round(Number(it?.frames) || 0))) }))
+                    frames: Math.max(1, Math.min(64, Math.round(Number(it?.frames) || 0))),
+                    cuts: cutsFrom(it?.cuts) }))
     .filter((it) => it.sheets.length);
   if (!items.length) return bad(res, 'לא הגיעו פריימים מהסרטון');
   res.json({ results: await nameTricks(items, { stance: req.user.stance }) });

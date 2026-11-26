@@ -144,7 +144,16 @@ const catalogRules = () => (catalogCache ||= NAMING_RULES
   + SIDE_RULES
   + 'בשדה side כתוב "fs" לפרונטסייד, "bs" לבקסייד, או "" כשלטריק אין כיוון או שאי אפשר לראות. '
   + 'את הכיוון אל תכתוב בתוך trick — רק ב-side.\n'
-  + 'ציון בין 0.0 ל-10.0, עם ספרה אחת אחרי הנקודה. ציון מתחת ל-3 שמור לטריק שלא נחת.\n');
+  + 'ציון בין 0.0 ל-10.0, עם ספרה אחת אחרי הנקודה. ציון מתחת ל-3 שמור לטריק שלא נחת.\n'
+  + 'חיתוכים וחזרות: בשידור יש חיתוכים בין מצלמות וזוויות. טריק לא ממשיך מעבר לחיתוך — מה שלפניו '
+  + 'ומה שאחריו נשפטים בנפרד, גם אם זה אותו רוכב. אם רואים טריק שכבר בוצע מוצג שוב — מזווית אחרת, '
+  + 'בהילוך איטי, או עם כיתוב כמו REPLAY — זו חזרה ולא טריק חדש: כתוב replay: true. '
+  + 'בכל מקרה אחר replay: false.\n');
+
+/* שורת החיתוכים לחלון מסוים: איפה מתחיל שוט חדש, לפי מה שהדפדפן מדד */
+const cutsText = (cuts) => (Array.isArray(cuts) && cuts.length
+  ? `חיתוך: שוט חדש מתחיל בפריים ${cuts.join(', ')} (מצלמה או זווית אחרת). אל תחבר פריימים משני צדי חיתוך לטריק אחד.\n`
+  : 'אין חיתוך בפריימים האלה — זה שוט אחד רצוף.\n');
 
 /** שם, כיוון וציון מתשובה של שופט — אותו עיבוד לשופט בפאנל ולרשימת טריקים בחלון. */
 function shapeTrick(a) {
@@ -161,6 +170,7 @@ function shapeTrick(a) {
     grab: String(a.grab || '').slice(0, 60),
     board: String(a.board || '').slice(0, 60),
     contact: String(a.contact || '').slice(0, 30),
+    replay: a.replay === true,
   };
 }
 
@@ -281,18 +291,19 @@ function measured(m) {
 /* שלושת השדות הראשונים הם תיאור, והם לפני השם בכוונה: המודל כותב לפי
  * הסדר, ושם שנבחר אחרי תיאור צריך להתיישב איתו */
 const SHAPE = '{"board":"מה הלוח עשה באוויר","body":180,"contact":"אוויר",'
-  + '"trick":"שם הטריק בלי כיוון","side":"fs","landed":true,"score":7.4,"rotation":180,"grab":"",'
+  + '"trick":"שם הטריק בלי כיוון","side":"fs","replay":false,"landed":true,"score":7.4,"rotation":180,"grab":"",'
   + '"feet":"על הברגים","frames":"בפריימים 7 עד 11 הלוח משלים סיבוב סביב הציר הארוך",'
   + '"note":"משפט אחד בעברית עם טיפ מעשי"}';
 
 /** שופט אחד, קריאה אחת. `seat` רק כדי שהתשובות לא יהיו זהות לחלוטין. */
-async function oneJudge(sheets, m, { overview, combo, claimed, seat, stance, allowNone = false }) {
+async function oneJudge(sheets, m, { overview, combo, claimed, seat, stance, allowNone = false, cuts = null }) {
   const whole = m.source === 'ai' || m.source === 'manual';
   const text =
     `${overview ? 'התמונה הראשונה היא סקירה של כל הסרטון, פריימים פרושים על אורכו עם חותמת זמן, כדי שתראה את המקום ואת המכשול. שאר התמונות' : 'התמונות'} הן טריק אחד, מפורק לפריימים לפי הסדר, ממוספרים, משמאל למעלה לימין למטה, `
     + (whole ? 'פריימים שלמים מהסרטון. אם יש בהם כמה אנשים, שפוט את הרוכב שנמצא באמצע טריק.\n\n'
              : 'חתוכים סביב הרגליים והלוח.\n\n')
     + `מה שנמדד מהסרטון עצמו: ${measured(m)}.\n`
+    + (cuts ? cutsText(cuts) : '')
     + (combo ? `${combo}\n` : '')
     + (claimed ? `הרוכב אומר שזה "${claimed}". בדוק את הטענה מול הפריימים: אם היא מתיישבת, השתמש בשם הזה; אם היא נסתרת, רשום את מה שאתה רואה והסבר ב-note מה לא מסתדר. אל תקבל את השם רק כי נאמר.\n` : '')
     + '\nעבור על הפריימים לפי הסדר ועקוב אחרי הלוח. סיבוב סביב הציר הארוך הוא קיקפליפ או היילפליפ, '
@@ -334,8 +345,8 @@ async function oneJudge(sheets, m, { overview, combo, claimed, seat, stance, all
  * מה שנאמר, כולל ציון שהושמט, כדי שהרוכב יראה שהיה ויכוח ולא יקבל
  * מספר אחד בלי הסבר.
  */
-export async function judgeTrick(sheets, m, { overview = null, combo = '', claimed = '', stance = '' } = {}) {
-  const ctx = { overview, combo, claimed, stance };
+export async function judgeTrick(sheets, m, { overview = null, combo = '', claimed = '', stance = '', cuts = null } = {}) {
+  const ctx = { overview, combo, claimed, stance, cuts };
   const [a, b] = await Promise.all([
     oneJudge(sheets, m, { ...ctx, seat: 1 }),
     oneJudge(sheets, m, { ...ctx, seat: 2 }),
@@ -379,6 +390,8 @@ export async function judgeTrick(sheets, m, { overview = null, combo = '', claim
     score,
     dropped,
     landed: judges.filter((j) => j.landed).length > judges.length / 2,
+    // חזרה ברוב: טריק שהוצג שוב לא נספר פעמיים
+    replay: judges.filter((j) => j.replay).length > judges.length / 2,
     rotation: picked.rotation,
     grab: picked.grab,
     feet: picked.feet,
@@ -402,7 +415,7 @@ export async function judgeTrick(sheets, m, { overview = null, combo = '', claim
  * בחלון אחד הופכים לשני כרטיסים.
  */
 export async function nameTricks(items, { stance = '' } = {}) {
-  return Promise.all(items.map(async ({ sheets, frames }) => {
+  return Promise.all(items.map(async ({ sheets, frames, cuts }) => {
     const text =
       `התמונות הן כ-3 שניות רצופות מסרטון סקייטבורד, מפורקות ל-${frames || sheets.length * 16} פריימים `
       + 'ממוספרים לפי הסדר, משמאל למעלה לימין למטה, ממשיכים מתמונה לתמונה. פריימים שלמים — '
@@ -411,10 +424,11 @@ export async function nameTricks(items, { stance = '' } = {}) {
       + 'להיגמר בקצה. רכיבה רגילה, קארב בלי טריק, עמידה, תקריב או קהל — לא טריק.\n'
       + 'לכל טריק כתוב from ו-to: מספר הפריים הראשון והאחרון שבהם הוא מתבצע (מהפופ או העלייה למכשול '
       + 'ועד הנחיתה).\n'
+      + cutsText(cuts)
       + 'כללי השם, הקטלוג והכיוון מופיעים בהנחיות המערכת, והם חלים על כל טריק ברשימה.\n'
       + (stanceText(stance) ? `הסטאנס של הרוכב: ${stanceText(stance)}.\n` : '')
       + 'החזר רק JSON: {"tricks":[{"from":6,"to":9,"board":"...","body":0,"contact":"...",'
-      + '"trick":"...","side":"","landed":true,"score":6.5,"grab":""}]}. אם אין אף טריק: {"tricks":[]}';
+      + '"trick":"...","side":"","replay":false,"landed":true,"score":6.5,"grab":""}]}. אם אין אף טריק: {"tricks":[]}';
     try {
       const a = parseJson(await ask([...sheets.map(image), { type: 'text', text }],
                                     { maxTokens: 1500, model: NAMES_MODEL() }));
